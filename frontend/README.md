@@ -1,48 +1,20 @@
-# iris — frontend
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-Vite + React + TypeScript. Zero-config — no Tailwind, no component library.
-The aesthetic lives in `src/styles/global.css` (editorial cinema / darkroom).
+# Run and deploy your AI Studio app
 
-## dev
+This contains everything you need to run your app locally.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+View your app in AI Studio: https://ai.studio/apps/15c01640-38f4-49a9-bb81-c9d67962a70a
 
-Dev server runs at `http://localhost:5173` and proxies `/api` + `/media`
-to the backend at `http://localhost:8000` (see `vite.config.ts`).
+## Run Locally
 
-Start the backend in another terminal:
+**Prerequisites:**  Node.js
 
-```bash
-./scripts/dev_backend.sh
-```
 
-Stub mode is on by default so you can click through the full loop without
-any API keys.
-
-## layout
-
-```
-src/
-├── App.tsx              toggles between Landing and Editor
-├── main.tsx             entrypoint
-├── api/client.ts        fetch wrapper + session-id + endpoint typings
-├── components/
-│   ├── Aperture.tsx     six-blade iris hero graphic (pure SVG + CSS)
-│   └── BBoxCanvas.tsx   drag-to-draw bounding box overlay
-├── pages/
-│   ├── Landing.tsx      hero, spec strip, CTAs
-│   └── Editor.tsx       upload → prompt → variants → accept loop
-└── styles/global.css    design tokens, type, grain, primitives
-```
-
-## design
-
-- **Fonts**: Fraunces (expressive variable serif, italic display) + JetBrains Mono
-- **Palette**: darkroom ink `#0f0e0d`, aged paper `#f2ead9`, safelight `#ff5722`, brass `#c9a96e`
-- **Motion**: aperture-opens-on-load hero, staggered copy reveal, scanline
-  during generation, grain overlay throughout
-- **No gradients-as-decoration**, no purple, no Inter.
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
