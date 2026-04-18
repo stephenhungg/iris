@@ -14,8 +14,9 @@ async def test_tracked_decorator_logs_success():
     assert result == "ok"
 
     stats = get_stats()
-    assert "test_service:test_op" in stats["call_counts"]
-    assert stats["call_counts"]["test_service:test_op"] >= 1
+    assert "test_service:test_op" in stats["services"]
+    assert stats["services"]["test_service:test_op"]["calls"] >= 1
+    assert stats["services"]["test_service:test_op"]["errors"] == 0
 
 
 @pytest.mark.asyncio
@@ -28,4 +29,5 @@ async def test_tracked_decorator_logs_errors():
         await failing()
 
     stats = get_stats()
-    assert "test_service:test_fail" in stats["call_counts"]
+    assert "test_service:test_fail" in stats["services"]
+    assert stats["services"]["test_service:test_fail"]["errors"] >= 1
