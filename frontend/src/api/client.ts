@@ -1,0 +1,126 @@
+/**
+ * thin wrapper around backend fetch. every call carries an X-Session-Id
+ * generated on first load and persisted in localStorage — the backend's
+ * get_session dep will upsert a Session row on the first request.
+ */
+
+const SESSION_KEY = "iris.session_id";
+
+export function getSessionId(): string {
+  let sid = localStorage.getItem(SESSION_KEY);
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem(SESSION_KEY, sid);
+  }
+  return sid;
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set("X-Session-Id", getSessionId());
+  if (init.body && !(init.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+  const res = await fetch(path, { ...init, headers });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText}: ${text}`);
+  }
+  return res.json();
+}
+
+// ─── types (subset, matches backend schemas) ──────────────────────────
+
+export type BBox = { x: number; y: number; w: number; h: number };
+
+export type UploadResp = {
+  project_id: string;
+  video_url: string;
+  duration: number;
+  fps: number;
+};
+
+export type JobStatus = "pending" | "processing" | "done" | "error";
+
+export type Variant = {
+  url: string;
+  description: string;
+  visual_coherence: number | null;
+  prompt_adherence: number | null;
+};
+
+export type JobResp = {
+  job_id: string;
+  status: JobStatus;
+  variants: Variant[];
+  error: string | null;
+};
+
+export type GenerateReq = {
+  project_id: string;
+  start_ts: number;
+  end_ts: number;
+  bbox: BBox;
+  prompt: string;
+  reference_frame_ts: number;
+};
+
+export type AcceptResp = { segment_id: string; entity_id: string | null };
+
+export type TimelineSegment = {
+  start_ts: number;
+  end_ts: number;
+  source: "original" | "generated";
+  url: string;
+  audio: boolean;
+};
+
+export type TimelineResp = {
+  project_id: string;
+  duration: number;
+  segments: TimelineSegment[];
+};
+
+// ─── endpoints ────────────────────────────────────────────────────────
+
+export async function upload(file: File): Promise<UploadResp> {
+  const fd = new FormData();
+  fd.append("file", file);
+  return request<UploadResp>("/api/upload", { method: "POST", body: fd });
+}
+
+export function generate(req: GenerateReq): Promise<{ job_id: string }> {
+  return request("/api/generate", { method: "POST", body: JSON.stringify(req) });
+}
+
+export function getJob(id: string): Promise<JobResp> {
+  return request(`/api/jobs/${id}`);
+}
+
+export function accept(job_id: string, variant_index: number): Promise<AcceptResp> {
+  return request("/api/accept", {
+    method: "POST",
+    body: JSON.stringify({ job_id, variant_index }),
+  });
+}
+
+export function getTimeline(project_id: string): Promise<TimelineResp> {
+  return request(`/api/timeline/${project_id}`);
+}
+
+/** poll a job until it reaches done|error, emitting intermediate states. */
+export async function pollJob(
+  id: string,
+  onUpdate: (j: JobResp) => void,
+  intervalMs = 800,
+): Promise<JobResp> {
+  while (true) {
+    const j = await getJob(id);
+    onUpdate(j);
+    if (j.status === "done" || j.status === "error") return j;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}

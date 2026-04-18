@@ -1,0 +1,55 @@
+.bbox {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  user-select: none;
+  z-index: 2;
+}
+
+/* thin rotating framing marks in each corner — camera viewfinder vibe */
+.bbox__corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-color: var(--paper-fade);
+  border-style: solid;
+  border-width: 0;
+  pointer-events: none;
+  opacity: 0.55;
+}
+.bbox__corner--tl { top: 12px; left: 12px; border-top-width: 1px; border-left-width: 1px; }
+.bbox__corner--tr { top: 12px; right: 12px; border-top-width: 1px; border-right-width: 1px; }
+.bbox__corner--bl { bottom: 12px; left: 12px; border-bottom-width: 1px; border-left-width: 1px; }
+.bbox__corner--br { bottom: 12px; right: 12px; border-bottom-width: 1px; border-right-width: 1px; }
+
+.bbox__rect {
+  position: absolute;
+  border: 1px solid var(--safelight);
+  box-shadow:
+    0 0 0 1px rgba(255, 87, 34, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+/* quarter-blocks at each corner of the drawn rect */
+.bbox__rect::before,
+.bbox__rect::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--safelight);
+}
+.bbox__rect::before { top: -4px; left: -4px; }
+.bbox__rect::after { bottom: -4px; right: -4px; }
+
+.bbox__coords {
+  position: absolute;
+  top: -1.6rem;
+  left: 0;
+  font-size: 0.6rem;
+  color: var(--safelight);
+  background: var(--ink);
+  padding: 2px 6px;
+  letter-spacing: 0.18em;
+}
