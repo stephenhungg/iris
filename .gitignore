@@ -6,3 +6,8 @@ __pycache__/
 .venv/
 storage/
 .gstack/
+*.db
+*.db-journal
+
+
+iris.md
