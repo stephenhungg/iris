@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { type Clip, duration, totalDuration, useEDL } from "../stores/edl";
 import { Icon, type IconName } from "./Icon";
 import "./timeline.css";
@@ -18,7 +18,7 @@ export function Timeline() {
   const selected = state.clips.find((c) => c.id === state.selectedId) ?? null;
   const total = totalDuration(state.clips);
 
-  const onStripDown = (e: React.MouseEvent) => {
+  const onStripDown = (e: ReactMouseEvent) => {
     const rect = stripRef.current!.getBoundingClientRect();
     const setT = (clientX: number) => {
       const t = Math.max(0, Math.min(total, (clientX - rect.left + stripRef.current!.scrollLeft) / pps));
@@ -281,7 +281,7 @@ function ClipTile({
   const width = d * pps;
 
   const trim = useCallback(
-    (side: "in" | "out") => (e: React.MouseEvent) => {
+    (side: "in" | "out") => (e: ReactMouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
       const startX = e.clientX;

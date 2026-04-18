@@ -2,6 +2,7 @@
  * Tiny line icon set. 1.5px stroke, currentColor, 24px viewBox.
  * Keeps the whole UI visually consistent — one pen weight everywhere.
  */
+import type * as React from "react";
 import type { SVGProps } from "react";
 
 export type IconName =
@@ -59,7 +60,7 @@ export function Icon({ name, size = 16, ...rest }: Props) {
   );
 }
 
-const paths: Record<IconName, JSX.Element> = {
+const paths: Record<IconName, React.ReactElement> = {
   media: (
     <>
       <rect x="3" y="5" width="18" height="14" rx="1" />

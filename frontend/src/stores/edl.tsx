@@ -13,6 +13,7 @@ import {
   useContext,
   useMemo,
   useReducer,
+  type Dispatch,
   type ReactNode,
 } from "react";
 
@@ -205,7 +206,7 @@ function cryptoUid() {
 
 const StoreCtx = createContext<{
   state: State;
-  dispatch: React.Dispatch<Action>;
+  dispatch: Dispatch<Action>;
 } | null>(null);
 
 export function EDLProvider({ children }: { children: ReactNode }) {

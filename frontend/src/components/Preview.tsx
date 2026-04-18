@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { clipAtTime, duration, sourceTimeFor, totalDuration, useEDL } from "../stores/edl";
 import { Icon } from "./Icon";
 import "./preview.css";
@@ -147,7 +147,7 @@ function IconBtn({
 }: {
   title: string;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button className="tp__btn" title={title} onClick={onClick}>

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useEDL } from "../stores/edl";
+import { useEDL, type Clip } from "../stores/edl";
 import { Icon, type IconName } from "./Icon";
 import "./library.css";
 
@@ -72,11 +72,11 @@ function MediaTab({
   const fileRef = useRef<HTMLInputElement>(null);
 
   // derive imported source videos from the EDL (unique by url)
-  const imports = Array.from(
-    new Map(
+  const imports: Clip[] = Array.from(
+    new Map<string, Clip>(
       state.clips
-        .filter((c) => c.kind === "source")
-        .map((c) => [c.url, c]),
+        .filter((c: Clip) => c.kind === "source")
+        .map((c: Clip): [string, Clip] => [c.url, c]),
     ).values(),
   );
 

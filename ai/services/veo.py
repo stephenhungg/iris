@@ -65,10 +65,12 @@ async def generate_variant(
         "config": config,
     }
 
-    # Image conditioning: use the reference frame to guide generation
+    # Image conditioning: use the reference frame as starting frame
     if reference_frame_path:
-        ref_image = types.Image.from_file(reference_frame_path)
-        kwargs["image"] = ref_image
+        kwargs["image"] = types.Image(
+            image_bytes=open(reference_frame_path, "rb").read(),
+            mime_type="image/png",
+        )
 
     operation = client.models.generate_videos(**kwargs)
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { accept, generate, pollJob, type JobResp } from "../api/client";
 import { duration, newClip, useEDL } from "../stores/edl";
 import { Icon, type IconName } from "./Icon";
@@ -240,7 +240,7 @@ function InfoTab() {
 
 // ─── bits ────────────────────────────────────────────────────────────
 
-function Hint({ children }: { children: React.ReactNode }) {
+function Hint({ children }: { children: ReactNode }) {
   return <p className="insp__hint">{children}</p>;
 }
 

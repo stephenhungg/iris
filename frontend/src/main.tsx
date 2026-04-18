@@ -1,10 +1,13 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { App } from "./App";
-import "./styles/global.css";
+import {StrictMode} from 'react';
+import {createRoot} from 'react-dom/client';
+import App from './App.tsx';
+// Stephen's tailwind-based landing tokens
+import './index.css';
+// My studio tokens (black/chrome/white, IBM Plex, used by pages/Studio.tsx)
+import './styles/global.css';
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
     <App />
-  </React.StrictMode>,
+  </StrictMode>,
 );
