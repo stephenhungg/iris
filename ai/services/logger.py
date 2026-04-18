@@ -10,6 +10,7 @@ debug the entire pipeline during a live demo.
 import time
 import json
 import logging
+import asyncio
 import functools
 from typing import Any, Callable
 from pathlib import Path
@@ -45,6 +46,32 @@ _error_counts: dict[str, int] = {}
 _latencies: dict[str, list[float]] = defaultdict(list)
 _timeline: list[dict] = []
 _session_start = time.monotonic()
+_sse_subscribers: list[asyncio.Queue] = []
+
+
+def _broadcast(event: dict) -> None:
+    """Push an event to all SSE subscribers. Non-blocking, best-effort."""
+    dead: list[asyncio.Queue] = []
+    for q in _sse_subscribers:
+        try:
+            q.put_nowait(event)
+        except asyncio.QueueFull:
+            dead.append(q)
+    for q in dead:
+        _sse_subscribers.remove(q)
+
+
+def subscribe() -> asyncio.Queue:
+    """Create a new SSE subscriber queue. Caller iterates it for events."""
+    q: asyncio.Queue = asyncio.Queue(maxsize=200)
+    _sse_subscribers.append(q)
+    return q
+
+
+def unsubscribe(q: asyncio.Queue) -> None:
+    """Remove an SSE subscriber."""
+    if q in _sse_subscribers:
+        _sse_subscribers.remove(q)
 
 
 def tracked(service: str, operation: str):
@@ -68,14 +95,18 @@ def tracked(service: str, operation: str):
                 _total_cost += cost
                 _latencies[key].append(elapsed)
 
-                _timeline.append({
+                entry = {
                     "ts": round(time.monotonic() - _session_start, 2),
                     "service": service,
                     "operation": operation,
                     "duration_s": round(elapsed, 2),
                     "status": "ok",
                     "cost": cost,
-                })
+                    "total_cost": round(_total_cost, 4),
+                    "call_num": call_num,
+                }
+                _timeline.append(entry)
+                _broadcast(entry)
 
                 logger.info(
                     f"[{key}] done in {elapsed:.2f}s "
@@ -88,14 +119,18 @@ def tracked(service: str, operation: str):
                 _error_counts[key] = _error_counts.get(key, 0) + 1
                 _latencies[key].append(elapsed)
 
-                _timeline.append({
+                entry = {
                     "ts": round(time.monotonic() - _session_start, 2),
                     "service": service,
                     "operation": operation,
                     "duration_s": round(elapsed, 2),
                     "status": "error",
                     "error": str(e)[:200],
-                })
+                    "total_cost": round(_total_cost, 4),
+                    "call_num": call_num,
+                }
+                _timeline.append(entry)
+                _broadcast(entry)
 
                 logger.error(f"[{key}] failed after {elapsed:.2f}s: {e}")
                 raise
