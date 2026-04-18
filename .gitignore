@@ -1,15 +1,28 @@
 node_modules/
+build/
 dist/
-.env
-*.pyc
-__pycache__/
-.venv/
-storage/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
 .gstack/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# databases / scratch storage
 *.db
 *.db-journal
+storage/
+
+# typescript
 *.tsbuildinfo
-.DS_Store
 
-
+# personal notes (not tracked)
 iris.md
