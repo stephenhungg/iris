@@ -1,54 +1,49 @@
 import "./aperture.css";
 
 /**
- * six-blade iris aperture. blades rotate + translate inward to close,
- * outward to open. the CSS handles the motion; the SVG just defines geometry.
+ * six-blade iris aperture rendered in chrome. the blades are brushed metal
+ * wedges with a dark lens pit at the center. CSS drives the open/close.
  */
 export function Aperture({ size = 440 }: { size?: number }) {
-  // 6 blades equally spaced around the optical axis
   const blades = Array.from({ length: 6 }, (_, i) => i);
 
   return (
     <div className="aperture" style={{ width: size, height: size }}>
       <svg viewBox="-100 -100 200 200" className="aperture__svg">
         <defs>
-          {/* the shape of a single blade — a crescent-like wedge */}
-          <polygon
-            id="blade"
-            points="0,-92 68,-60 68,60 0,40"
-            fill="var(--paper)"
-          />
-          <radialGradient id="irisGlow">
-            <stop offset="0%" stopColor="var(--safelight)" stopOpacity="0.9" />
-            <stop offset="60%" stopColor="var(--safelight)" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="var(--safelight)" stopOpacity="0" />
+          {/* a single blade — chrome wedge */}
+          <linearGradient id="bladeFill" x1="0" y1="-1" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#f6f6f6" />
+            <stop offset="48%"  stopColor="#d0d0d0" />
+            <stop offset="52%"  stopColor="#8a8a8a" />
+            <stop offset="100%" stopColor="#bcbcbc" />
+          </linearGradient>
+          <polygon id="blade" points="0,-92 68,-60 68,60 0,40" fill="url(#bladeFill)" />
+
+          {/* lens pit at the center */}
+          <radialGradient id="pit" cx="50%" cy="50%">
+            <stop offset="0%"   stopColor="#0a0a0a" stopOpacity="1" />
+            <stop offset="70%"  stopColor="#1a1a1a" stopOpacity="1" />
+            <stop offset="100%" stopColor="#2a2a2a" stopOpacity="0.8" />
           </radialGradient>
+
+          {/* outer barrel ring */}
+          <linearGradient id="ring" x1="0" y1="-1" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#e0e0e0" />
+            <stop offset="45%"  stopColor="#9e9e9e" />
+            <stop offset="55%"  stopColor="#5a5a5a" />
+            <stop offset="100%" stopColor="#b6b6b6" />
+          </linearGradient>
         </defs>
 
-        {/* warm glow bleeding through the center */}
-        <circle cx="0" cy="0" r="96" fill="url(#irisGlow)" />
+        {/* dark center */}
+        <circle cx="0" cy="0" r="96" fill="url(#pit)" />
 
-        {/* outer brass ring */}
-        <circle
-          cx="0"
-          cy="0"
-          r="96"
-          fill="none"
-          stroke="var(--brass)"
-          strokeWidth="1.2"
-          opacity="0.7"
-        />
-        <circle
-          cx="0"
-          cy="0"
-          r="90"
-          fill="none"
-          stroke="var(--rule)"
-          strokeWidth="0.5"
-        />
+        {/* outer chrome ring */}
+        <circle cx="0" cy="0" r="96" fill="none" stroke="url(#ring)" strokeWidth="2.5" />
+        <circle cx="0" cy="0" r="91" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.6" />
 
-        {/* the 6 blades — each rotated to its position, grouped so CSS can animate
-            them together */}
+        {/* blades */}
         <g className="aperture__blades">
           {blades.map((i) => (
             <use
@@ -60,7 +55,7 @@ export function Aperture({ size = 440 }: { size?: number }) {
           ))}
         </g>
 
-        {/* engraved marks around the ring — like f-stops on a lens barrel */}
+        {/* engraved marks — f-stops on a barrel */}
         {blades.map((i) => (
           <line
             key={i}
@@ -68,7 +63,7 @@ export function Aperture({ size = 440 }: { size?: number }) {
             y1="-98"
             x2="0"
             y2="-94"
-            stroke="var(--brass)"
+            stroke="#c8c8c8"
             strokeWidth="0.6"
             style={{ transform: `rotate(${i * 60}deg)` }}
           />

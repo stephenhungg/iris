@@ -33,13 +33,13 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
           </h1>
 
           <p className="landing__dek reveal" data-d="5">
-            Draw a box around anything. Say what changes.
-            Iris finds every other frame it appears in and keeps the story consistent.
+            A video studio with an AI prompt on the side. Cut, split, trim, level —
+            then describe a single edit and Iris rewrites that clip in place.
           </p>
 
           <div className="landing__actions reveal" data-d="6">
             <button className="cta" onClick={onEnter}>
-              Open the editor
+              Open the studio
             </button>
             <a
               className="cta ghost"
@@ -59,18 +59,18 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
         <div className="landing__spec-grid">
           <Spec
             num="01"
-            name="Select"
-            body="Scrub the timeline. Pick a 4-second window. Draw a rectangle around the thing you want to change."
+            name="Assemble"
+            body="Drop footage onto the reel. Scrub, split, trim, rearrange. Every edit is non-destructive — the source stays untouched."
           />
           <Spec
             num="02"
             name="Prompt"
-            body="Describe the edit in a sentence. Gemini structures it into three distinct variants — tone, grade, emphasis."
+            body="Select any clip. Write a sentence. Veo 3.1 generates one replacement, inheriting the clip's duration and place in the cut."
           />
           <Spec
             num="03"
-            name="Propagate"
-            body="Accept one. Iris tracks that entity across the rest of the video and offers a continuity pack, frame-matched."
+            name="Export"
+            body="Flatten the reel when it's done. Stitched at native framerate with crossfade handoffs — no AI slop seams."
           />
         </div>
         <hr className="rule" />

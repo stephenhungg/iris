@@ -14,7 +14,8 @@
    we start closed (tight) and animate open on mount for the hero entrance. */
 .aperture__blade {
   transform-origin: 0 0;
-  animation: bladeOpen 2.2s var(--ease-shutter) forwards;
+  animation: bladeOpen 2.2s cubic-bezier(0.83, 0, 0.17, 1) forwards;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
 }
 
 /* delicate secondary pulse — a slow breath after opening */
@@ -40,5 +41,5 @@
   animation-play-state: paused;
   transform-origin: 0 0;
   transform: rotate(var(--r, 0deg)) translate(0, 14px) scale(0.92);
-  transition: transform 700ms var(--ease-shutter);
+  transition: transform 700ms cubic-bezier(0.83, 0, 0.17, 1);
 }

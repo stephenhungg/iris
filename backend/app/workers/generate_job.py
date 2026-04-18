@@ -1,16 +1,17 @@
 """Generate-variant worker.
 
+Single-edit mode: one generation per prompt.
+
 Flow per submitted job:
   1. flip job to 'processing'
-  2. extract clip via ffmpeg
-  3. ask Gemini for 3 structured edit plans
-  4. fan out 3 Runway calls with asyncio.gather, write each Variant row as it lands
-  5. once all settle, score variants with Gemini and persist scores
-  6. flip job to 'done' (or 'error' if < 2 variants succeeded)
+  2. extract source clip via ffmpeg
+  3. ask Gemini for a structured edit plan (we use plan[0])
+  4. run one Veo generation, write the resulting Variant row
+  5. score the result with Gemini (best-effort)
+  6. flip job to 'done' (or 'error' if generation failed)
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 from pathlib import Path
 
@@ -25,8 +26,9 @@ from app.services import ffmpeg, storage
 
 log = logging.getLogger("iris.jobs.generate")
 
-VARIANT_COUNT = 3
-MIN_SUCCESS = 2
+# single-edit mode. keep the fan-out scaffolding in case we re-enable variants
+# later, but only ever request one plan + one generation.
+VARIANT_COUNT = 1
 
 
 async def _update_job(db: AsyncSession, job_id: str, **fields) -> None:
@@ -129,56 +131,39 @@ async def run(job_id: str) -> None:
             await _update_job(db, job_id, status="error", error="no plans returned")
         return
 
-    plans = list(plans)[:VARIANT_COUNT]
-    while len(plans) < VARIANT_COUNT:
-        plans.append(plans[-1])  # never happens unless the stub returns too few
+    plan = list(plans)[0]
 
-    # create Variant rows up-front so the polling endpoint sees all 3 slots
-    variant_ids: list[str] = []
+    # create the single Variant row so the polling endpoint sees it from t0
     async with AsyncSessionLocal() as db:
-        for i in range(VARIANT_COUNT):
-            v = Variant(job_id=job_id, index=i, status="pending")
-            db.add(v)
-            await db.flush()
-            variant_ids.append(v.id)
+        v = Variant(job_id=job_id, index=0, status="pending")
+        db.add(v)
+        await db.flush()
+        variant_id = v.id
         await db.commit()
 
-    # fan out
-    await asyncio.gather(
-        *[_run_variant(variant_ids[i], clip_path, plans[i]) for i in range(VARIANT_COUNT)],
-        return_exceptions=True,
-    )
+    await _run_variant(variant_id, clip_path, plan)
 
-    # collect outcomes
+    # collect outcome
     async with AsyncSessionLocal() as db:
         variants = (
             await db.execute(select(Variant).where(Variant.job_id == job_id))
         ).scalars().all()
         done = [v for v in variants if v.status == "done"]
 
-    if len(done) < MIN_SUCCESS:
+    if not done:
         async with AsyncSessionLocal() as db:
-            await _update_job(
-                db,
-                job_id,
-                status="error",
-                error=f"only {len(done)}/{VARIANT_COUNT} variants succeeded",
-            )
+            err = variants[0].error if variants else "generation failed"
+            await _update_job(db, job_id, status="error", error=err or "generation failed")
         return
 
-    # score in parallel (best-effort)
-    scores = await asyncio.gather(
-        *[_score_variant_safe([str(frame_path)], prompt) for _ in done],
-        return_exceptions=True,
-    )
+    # best-effort scoring
+    score = await _score_variant_safe([str(frame_path)], prompt)
     async with AsyncSessionLocal() as db:
-        for v, score in zip(done, scores):
-            if isinstance(score, dict):
-                await _update_variant(
-                    db,
-                    v.id,
-                    visual_coherence=score.get("visual_coherence"),
-                    prompt_adherence=score.get("prompt_adherence"),
-                )
-
+        if isinstance(score, dict):
+            await _update_variant(
+                db,
+                done[0].id,
+                visual_coherence=score.get("visual_coherence"),
+                prompt_adherence=score.get("prompt_adherence"),
+            )
         await _update_job(db, job_id, status="done")

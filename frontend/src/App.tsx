@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { Landing } from "./pages/Landing";
-import { Editor } from "./pages/Editor";
+import { Studio } from "./pages/Studio";
 
-type View = "landing" | "editor";
+type View = "landing" | "studio";
 
 export function App() {
   const [view, setView] = useState<View>("landing");
 
   return view === "landing" ? (
-    <Landing onEnter={() => setView("editor")} />
+    <Landing onEnter={() => setView("studio")} />
   ) : (
-    <Editor onExit={() => setView("landing")} />
+    <Studio onExit={() => setView("landing")} />
   );
 }
