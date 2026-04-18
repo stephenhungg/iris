@@ -1,6 +1,12 @@
 .studio {
+  /* resizable grid — splitters write to these vars */
+  --left-w: 256px;
+  --right-w: 320px;
+  --tl-h: 240px;
+  --split: 4px;
+
   display: grid;
-  grid-template-rows: 42px 1fr 240px;
+  grid-template-rows: 42px 1fr var(--split) var(--tl-h);
   height: 100vh;
   background: var(--bg);
   overflow: hidden;
@@ -112,11 +118,16 @@
   letter-spacing: 0.12em;
 }
 
-/* ─── body: 3 columns ───────────────────────────────────────────────── */
+/* ─── body: 3 columns + 2 vertical splitters ─────────────────────────── */
 
 .studio__body {
   display: grid;
-  grid-template-columns: 256px minmax(0, 1fr) 320px;
+  grid-template-columns:
+    var(--left-w)
+    var(--split)
+    minmax(0, 1fr)
+    var(--split)
+    var(--right-w);
   min-height: 0;
   background: var(--bg);
 }
@@ -148,9 +159,51 @@
   min-height: 0;
 }
 
-@media (max-width: 1280px) {
-  .studio__body { grid-template-columns: 220px minmax(0, 1fr) 290px; }
+/* ─── splitters ──────────────────────────────────────────────────────── */
+/*
+ * Each splitter is a 4px-wide/tall strip that sits in its own grid track.
+ * A wider hit region (::before) makes dragging forgiving without
+ * visually fattening the seam.
+ */
+
+.splitter {
+  position: relative;
+  background: var(--edge);
+  transition: background var(--dur-s);
+  z-index: 5;
 }
-@media (max-width: 1024px) {
-  .studio__body { grid-template-columns: 200px minmax(0, 1fr) 260px; }
+.splitter::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+.splitter:hover,
+.splitter:active {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.02) 0%,
+    rgba(255,255,255,0.18) 50%,
+    rgba(255,255,255,0.02) 100%
+  );
+}
+
+.splitter--vertical {
+  cursor: col-resize;
+  width: 100%;
+  height: 100%;
+}
+.splitter--vertical:hover,
+.splitter--vertical:active {
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.02) 0%,
+    rgba(255,255,255,0.18) 50%,
+    rgba(255,255,255,0.02) 100%
+  );
+}
+
+.splitter--horizontal {
+  cursor: row-resize;
+  width: 100%;
+  height: 100%;
 }

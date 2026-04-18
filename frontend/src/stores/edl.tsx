@@ -5,8 +5,16 @@
  * timeline-time of clip[i] starts at sum(duration of 0..i-1). duration(clip)
  * = sourceEnd - sourceStart.
  *
- * the store is pure — operations take state and return new state. no side
- * effects. mutations happen via a reducer, exposed through a context hook.
+ * The store is pure — operations take state and return new state. No side
+ * effects. Mutations happen via a reducer, exposed through a context hook.
+ *
+ * ┌─────────────────────────┬────────────────────────────────────────────┐
+ * │ state.sources (library) │ uploaded/generated media that sits in the  │
+ * │                         │ side panel until the user adds it.         │
+ * ├─────────────────────────┼────────────────────────────────────────────┤
+ * │ state.clips (timeline)  │ ordered list of clip segments that play.   │
+ * │                         │ each clip points back at a source via url. │
+ * └─────────────────────────┴────────────────────────────────────────────┘
  */
 import {
   createContext,
@@ -19,6 +27,19 @@ import {
 
 // ─── types ────────────────────────────────────────────────────────────
 
+/** A piece of media sitting in the library waiting to be used. */
+export type MediaAsset = {
+  id: string;
+  url: string;
+  /** full duration of the underlying file (seconds) */
+  duration: number;
+  fps: number;
+  /** backend project id for /api/generate calls */
+  projectId: string;
+  label: string;
+  kind: "source" | "generated";
+};
+
 export type Clip = {
   id: string;
   kind: "source" | "generated";
@@ -27,23 +48,26 @@ export type Clip = {
   sourceStart: number;
   /** seconds into the source URL where this clip ends */
   sourceEnd: number;
+  /**
+   * Full duration of the underlying source file. Upper bound for sourceEnd
+   * when trimming — you can't stretch a clip past what the file contains.
+   */
+  mediaDuration: number;
   /** 0..1 */
   volume: number;
   label?: string;
   /** optional project/job trail for generated clips */
   projectId?: string;
   generatedFromClipId?: string;
-};
-
-export type Project = {
-  projectId: string;
-  sourceUrl: string;
-  sourceDuration: number;
-  fps: number;
+  /** library asset this clip was cut from (so removing all clips doesn't
+   *  purge the source from the library) */
+  sourceAssetId?: string;
 };
 
 export type State = {
-  project: Project | null;
+  /** library pool — imported + generated media, not on the timeline yet */
+  sources: MediaAsset[];
+  /** ordered sequence on the timeline */
   clips: Clip[];
   selectedId: string | null;
   /** timeline-time in seconds (read/written by preview + timeline) */
@@ -52,7 +76,7 @@ export type State = {
 };
 
 export const initialState: State = {
-  project: null,
+  sources: [],
   clips: [],
   selectedId: null,
   playhead: 0,
@@ -91,7 +115,9 @@ export const sourceTimeFor = (c: Clip, offsetInClip: number) =>
 // ─── actions ──────────────────────────────────────────────────────────
 
 export type Action =
-  | { type: "load_project"; project: Project; initialClip: Clip }
+  | { type: "add_source"; asset: MediaAsset }
+  | { type: "remove_source"; assetId: string }
+  | { type: "add_to_timeline"; assetId: string }
   | { type: "select"; id: string | null }
   | { type: "set_playhead"; t: number }
   | { type: "set_playing"; playing: boolean }
@@ -104,15 +130,25 @@ export type Action =
 
 function reducer(state: State, a: Action): State {
   switch (a.type) {
-    case "load_project":
+    case "add_source": {
+      if (state.sources.some((s) => s.id === a.asset.id)) return state;
+      return { ...state, sources: [...state.sources, a.asset] };
+    }
+
+    case "remove_source": {
       return {
         ...state,
-        project: a.project,
-        clips: [a.initialClip],
-        selectedId: a.initialClip.id,
-        playhead: 0,
-        playing: false,
+        sources: state.sources.filter((s) => s.id !== a.assetId),
       };
+    }
+
+    case "add_to_timeline": {
+      const asset = state.sources.find((s) => s.id === a.assetId);
+      if (!asset) return state;
+      const clip = clipFromAsset(asset);
+      const clips = [...state.clips, clip];
+      return { ...state, clips, selectedId: clip.id };
+    }
 
     case "select":
       return { ...state, selectedId: a.id };
@@ -129,13 +165,18 @@ function reducer(state: State, a: Action): State {
     case "trim": {
       const clips = state.clips.map((c) => {
         if (c.id !== a.id) return c;
-        // guardrails: keep at least 0.1s and stay inside the source span
+        // keep at least 0.1s and stay inside the source file span — users
+        // can't stretch a clip past what the file actually contains.
         const MIN = 0.1;
+        const maxEnd = c.mediaDuration > 0 ? c.mediaDuration : c.sourceEnd;
         if (a.side === "in") {
           const newStart = Math.max(0, Math.min(c.sourceEnd - MIN, a.sourceTs));
           return { ...c, sourceStart: newStart };
         }
-        const newEnd = Math.max(c.sourceStart + MIN, a.sourceTs);
+        const newEnd = Math.max(
+          c.sourceStart + MIN,
+          Math.min(maxEnd, a.sourceTs),
+        );
         return { ...c, sourceEnd: newEnd };
       });
       return { ...state, clips };
@@ -165,14 +206,16 @@ function reducer(state: State, a: Action): State {
     }
 
     case "remove": {
-      if (state.clips.length <= 1) return state;
       const idx = state.clips.findIndex((c) => c.id === a.id);
       if (idx < 0) return state;
       const clips = state.clips.filter((c) => c.id !== a.id);
       return {
         ...state,
         clips,
-        selectedId: clips[Math.min(idx, clips.length - 1)]?.id ?? null,
+        selectedId:
+          clips.length === 0
+            ? null
+            : clips[Math.min(idx, clips.length - 1)]?.id ?? null,
       };
     }
 
@@ -223,11 +266,38 @@ export function useEDL() {
 
 // ─── factories ────────────────────────────────────────────────────────
 
-export function newClip(partial: Partial<Clip> & Pick<Clip, "url" | "sourceStart" | "sourceEnd">): Clip {
+export function newMediaAsset(partial: Omit<MediaAsset, "id">): MediaAsset {
+  return { id: cryptoUid(), ...partial };
+}
+
+/** Build a timeline clip that plays a library asset in full. */
+export function clipFromAsset(asset: MediaAsset): Clip {
+  return {
+    id: cryptoUid(),
+    kind: asset.kind,
+    url: asset.url,
+    sourceStart: 0,
+    sourceEnd: asset.duration,
+    mediaDuration: asset.duration,
+    volume: 1,
+    label: asset.label,
+    projectId: asset.projectId,
+    sourceAssetId: asset.id,
+  };
+}
+
+/** Backwards-compat factory for callers that build a clip directly. */
+export function newClip(
+  partial: Partial<Clip> &
+    Pick<Clip, "url" | "sourceStart" | "sourceEnd"> & {
+      mediaDuration?: number;
+    },
+): Clip {
   return {
     id: cryptoUid(),
     kind: "source",
     volume: 1,
+    mediaDuration: partial.mediaDuration ?? partial.sourceEnd,
     ...partial,
   };
 }

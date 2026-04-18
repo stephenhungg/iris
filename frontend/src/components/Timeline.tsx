@@ -102,7 +102,7 @@ function Toolbar({
         icon="trash"
         title="delete selected (⌫)"
         onClick={() => selected && dispatch({ type: "remove", id: selected.id })}
-        disabled={!selected || state.clips.length <= 1}
+        disabled={!selected}
         tone="danger"
       />
 

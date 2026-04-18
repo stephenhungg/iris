@@ -1,5 +1,12 @@
-import { useEffect, useState } from "react";
-import { EDLProvider, useEDL, newClip } from "../stores/edl";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from "react";
+import { EDLProvider, newMediaAsset, useEDL } from "../stores/edl";
 import { Preview } from "../components/Preview";
 import { Inspector } from "../components/Inspector";
 import { Timeline } from "../components/Timeline";
@@ -20,28 +27,24 @@ export function Studio({ onExit }: { onExit: () => void }) {
 function StudioInner({ onExit }: { onExit: () => void }) {
   const { state, dispatch } = useEDL();
   const [uploading, setUploading] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   async function handleFile(file: File) {
     setUploading(true);
     try {
       const res = await upload(file);
-      const clip = newClip({
-        url: res.video_url,
-        sourceStart: 0,
-        sourceEnd: res.duration,
-        kind: "source",
-        projectId: res.project_id,
-        label: file.name.replace(/\.[^.]+$/, ""),
-      });
+      // Drop imported media into the library pool. The user chooses when
+      // it lands on the timeline via the plus button in the Library.
       dispatch({
-        type: "load_project",
-        project: {
-          projectId: res.project_id,
-          sourceUrl: res.video_url,
-          sourceDuration: res.duration,
+        type: "add_source",
+        asset: newMediaAsset({
+          url: res.video_url,
+          duration: res.duration,
           fps: res.fps,
-        },
-        initialClip: clip,
+          projectId: res.project_id,
+          label: file.name.replace(/\.[^.]+$/, ""),
+          kind: "source",
+        }),
       });
     } catch (e) {
       alert(`upload failed: ${e}`);
@@ -70,29 +73,57 @@ function StudioInner({ onExit }: { onExit: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [state.playing, state.selectedId, dispatch]);
 
-  const hasProject = !!state.project;
+  const hasSources = state.sources.length > 0;
+  const projectLabel = state.sources[0]?.projectId.slice(0, 8);
 
   return (
-    <main className="studio">
-      <TopBar onExit={onExit} projectLabel={state.project?.projectId.slice(0, 8)} />
+    <main className="studio" ref={rootRef}>
+      <TopBar onExit={onExit} projectLabel={projectLabel} />
 
       <section className="studio__body">
         <aside className="studio__left">
           <Library onUpload={handleFile} uploading={uploading} />
         </aside>
 
+        <Splitter
+          orientation="vertical"
+          cssVar="--left-w"
+          rootRef={rootRef}
+          min={180}
+          max={480}
+          anchor="left"
+        />
+
         <section className="studio__center">
-          {hasProject ? (
+          {hasSources ? (
             <Preview />
           ) : (
             <UploadDrop onFile={handleFile} busy={uploading} />
           )}
         </section>
 
+        <Splitter
+          orientation="vertical"
+          cssVar="--right-w"
+          rootRef={rootRef}
+          min={220}
+          max={520}
+          anchor="right"
+        />
+
         <aside className="studio__right">
           <Inspector />
         </aside>
       </section>
+
+      <Splitter
+        orientation="horizontal"
+        cssVar="--tl-h"
+        rootRef={rootRef}
+        min={140}
+        max={520}
+        anchor="bottom"
+      />
 
       <section className="studio__bottom">
         <Timeline />
@@ -100,6 +131,79 @@ function StudioInner({ onExit }: { onExit: () => void }) {
     </main>
   );
 }
+
+// ─── splitter ─────────────────────────────────────────────────────────
+//
+// a thin draggable divider that writes a CSS variable on the studio root.
+// `anchor` tells us which direction grows when the cursor moves toward the
+// origin:
+//   - "left"   → dragging right makes the left panel bigger
+//   - "right"  → dragging left  makes the right panel bigger
+//   - "bottom" → dragging up    makes the bottom panel (timeline) bigger
+
+function Splitter({
+  orientation,
+  cssVar,
+  rootRef,
+  min,
+  max,
+  anchor,
+}: {
+  orientation: "vertical" | "horizontal";
+  cssVar: string;
+  rootRef: RefObject<HTMLDivElement | null>;
+  min: number;
+  max: number;
+  anchor: "left" | "right" | "bottom";
+}) {
+  const onDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      const root = rootRef.current;
+      if (!root) return;
+      e.preventDefault();
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+      const cs = getComputedStyle(root);
+      const startValue = parseFloat(cs.getPropertyValue(cssVar)) || 0;
+      const startPos = orientation === "vertical" ? e.clientX : e.clientY;
+
+      document.body.style.userSelect = "none";
+      document.body.style.cursor =
+        orientation === "vertical" ? "col-resize" : "row-resize";
+
+      const onMove = (ev: PointerEvent) => {
+        const pos = orientation === "vertical" ? ev.clientX : ev.clientY;
+        let delta = pos - startPos;
+        // flip delta when the panel grows in the opposite direction of the drag
+        if (anchor === "right" || anchor === "bottom") delta = -delta;
+        const next = Math.max(min, Math.min(max, startValue + delta));
+        root.style.setProperty(cssVar, `${next}px`);
+      };
+
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+      };
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [orientation, cssVar, rootRef, min, max, anchor],
+  );
+
+  return (
+    <div
+      className={`splitter splitter--${orientation}`}
+      onPointerDown={onDown}
+      role="separator"
+      aria-orientation={orientation}
+    />
+  );
+}
+
+// ─── top bar ──────────────────────────────────────────────────────────
 
 function TopBar({
   onExit,

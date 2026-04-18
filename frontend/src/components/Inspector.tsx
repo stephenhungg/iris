@@ -65,23 +65,21 @@ function AiTab() {
   const [status, setStatus] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
-  const project = state.project;
   const canGenerate =
-    !!project &&
     !!selected &&
     selected.kind === "source" &&
-    selected.url === project.sourceUrl &&
+    !!selected.projectId &&
     !!prompt.trim() &&
     !busy;
 
   async function run() {
-    if (!canGenerate || !selected || !project) return;
+    if (!canGenerate || !selected || !selected.projectId) return;
     setBusy(true);
     setErr(null);
     setStatus("queued");
     try {
       const { job_id } = await generate({
-        project_id: project.projectId,
+        project_id: selected.projectId,
         start_ts: selected.sourceStart,
         end_ts: selected.sourceEnd,
         bbox: { x: 0, y: 0, w: 1, h: 1 },
@@ -98,13 +96,15 @@ function AiTab() {
         /* variant url already usable */
       }
       const v = final.variants[0];
+      const genDur = selected.sourceEnd - selected.sourceStart;
       const replacement = newClip({
         url: v.url,
         sourceStart: 0,
-        sourceEnd: selected.sourceEnd - selected.sourceStart,
+        sourceEnd: genDur,
+        mediaDuration: genDur,
         kind: "generated",
         label: prompt.trim().slice(0, 28) || "ai edit",
-        projectId: project.projectId,
+        projectId: selected.projectId,
         generatedFromClipId: selected.id,
         volume: selected.volume,
       });
@@ -209,28 +209,25 @@ function BasicTab() {
 function InfoTab() {
   const { state } = useEDL();
   const selected = state.clips.find((c) => c.id === state.selectedId) ?? null;
-  const project = state.project;
-  if (!project) return <Hint>No project loaded.</Hint>;
+  if (state.sources.length === 0) return <Hint>Import a clip to get started.</Hint>;
   return (
     <section className="pane">
-      <FieldHead label="Project" />
+      <FieldHead label="Library" />
       <div className="pane__meta">
-        <Row k="project id"  v={project.projectId.slice(0, 16) + "…"} />
-        <Row k="source url"  v={project.sourceUrl.split("/").pop() ?? ""} />
-        <Row k="source dur"  v={`${project.sourceDuration.toFixed(2)}s`} />
-        <Row k="fps"         v={project.fps.toFixed(2)} />
-        <Row k="clip count"  v={String(state.clips.length)} />
+        <Row k="sources"    v={String(state.sources.length)} />
+        <Row k="clip count" v={String(state.clips.length)} />
       </div>
 
       {selected && (
         <>
           <FieldHead label="Selected clip" />
           <div className="pane__meta">
-            <Row k="kind"  v={selected.kind} />
-            <Row k="label" v={selected.label ?? ""} />
-            <Row k="in"    v={`${selected.sourceStart.toFixed(3)}s`} />
-            <Row k="out"   v={`${selected.sourceEnd.toFixed(3)}s`} />
-            <Row k="dur"   v={`${duration(selected).toFixed(3)}s`} />
+            <Row k="kind"   v={selected.kind} />
+            <Row k="label"  v={selected.label ?? ""} />
+            <Row k="in"     v={`${selected.sourceStart.toFixed(3)}s`} />
+            <Row k="out"    v={`${selected.sourceEnd.toFixed(3)}s`} />
+            <Row k="dur"    v={`${duration(selected).toFixed(3)}s`} />
+            <Row k="source" v={`${selected.mediaDuration.toFixed(2)}s (max)`} />
           </div>
         </>
       )}

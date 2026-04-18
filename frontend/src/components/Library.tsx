@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useEDL, type Clip } from "../stores/edl";
+import { useEDL, type MediaAsset } from "../stores/edl";
 import { Icon, type IconName } from "./Icon";
 import "./library.css";
 
@@ -7,6 +7,9 @@ import "./library.css";
  * Left sidebar — tabbed header (Media / Audio / Effects / Adjust), body
  * is tab content. Only "Media" is active for now; the other tabs exist to
  * establish the layout (and act as hints for what the studio will grow).
+ *
+ * The Media tab now mirrors CapCut: uploads land in the library and sit
+ * there. Tap the plus button on a tile to drop it onto the timeline.
  */
 type Tab = "media" | "audio" | "effects" | "adjust";
 
@@ -68,17 +71,9 @@ function MediaTab({
   onUpload: (f: File) => void;
   uploading: boolean;
 }) {
-  const { state } = useEDL();
+  const { state, dispatch } = useEDL();
   const fileRef = useRef<HTMLInputElement>(null);
-
-  // derive imported source videos from the EDL (unique by url)
-  const imports: Clip[] = Array.from(
-    new Map<string, Clip>(
-      state.clips
-        .filter((c: Clip) => c.kind === "source")
-        .map((c: Clip): [string, Clip] => [c.url, c]),
-    ).values(),
-  );
+  const assets: MediaAsset[] = state.sources;
 
   return (
     <>
@@ -105,37 +100,72 @@ function MediaTab({
         />
       </div>
 
-      {imports.length === 0 ? (
+      {assets.length === 0 ? (
         <div className="lib__empty">
           <p className="lib__empty-text">
-            drop a clip on the viewer or tap <Icon name="plus" size={11} /> to import
+            drop a clip or tap <Icon name="plus" size={11} /> to import
+          </p>
+          <p className="lib__empty-sub mono">
+            imports sit here — plus ⊕ drops them on the timeline
           </p>
         </div>
       ) : (
         <ul className="lib__grid">
-          {imports.map((c) => (
-            <li key={c.url} className="asset">
-              <div className="asset__thumb">
-                <video
-                  src={c.url}
-                  muted
-                  preload="metadata"
-                  className="asset__video"
-                />
-                <span className="asset__dur mono">
-                  {fmtTime(c.sourceEnd - c.sourceStart)}
-                </span>
-              </div>
-              <span className="asset__name" title={c.label ?? ""}>
-                {c.label ?? "untitled"}
-              </span>
-            </li>
+          {assets.map((a) => (
+            <AssetTile
+              key={a.id}
+              asset={a}
+              onAdd={() => dispatch({ type: "add_to_timeline", assetId: a.id })}
+              onRemove={() => dispatch({ type: "remove_source", assetId: a.id })}
+            />
           ))}
         </ul>
       )}
 
       {uploading && <div className="lib__busy mono">importing…</div>}
     </>
+  );
+}
+
+function AssetTile({
+  asset,
+  onAdd,
+  onRemove,
+}: {
+  asset: MediaAsset;
+  onAdd: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <li className="asset">
+      <div className="asset__thumb">
+        <video
+          src={asset.url}
+          muted
+          preload="metadata"
+          className="asset__video"
+        />
+        <span className="asset__dur mono">{fmtTime(asset.duration)}</span>
+        <button
+          className="asset__add"
+          onClick={onAdd}
+          onDoubleClick={onAdd}
+          title="add to timeline"
+        >
+          <Icon name="plus" size={14} />
+        </button>
+        <button
+          className="asset__del"
+          onClick={onRemove}
+          title="remove from library"
+        >
+          <Icon name="close" size={10} />
+        </button>
+      </div>
+      <span className="asset__name" title={asset.label}>
+        {asset.label || "untitled"}
+      </span>
+    </li>
   );
 }
 
