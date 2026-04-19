@@ -9,22 +9,45 @@ import { useAuth } from './lib/useAuth'
 
 const IRIS_SVG = '/iris-logo.svg'
 
-// framerlabs + palmer animation configs
-const SPRING = {
-  bouncy: { type: 'spring' as const, stiffness: 350, damping: 40, mass: 1 },
-  badge: { type: 'spring' as const, stiffness: 350, damping: 40, mass: 1.5 },
-  magnetic: { type: 'spring' as const, stiffness: 1000, damping: 100 },
-}
-const TWEEN = {
-  fast: { type: 'tween' as const, duration: 0.4, ease: [0.82, 0.08, 0.29, 1] as const },
-}
-// framerlabs split-phase easing
-const EASE_FL = {
-  popUp: [0, 0, 0.39, 2.99] as const,     // overshoots naturally, no elastic
-  settle: [0.25, 0.46, 0.45, 0.94] as const, // smooth settle after overshoot
+// motion design system (lottiefiles + framerlabs + palmer)
+//
+// archetype: PREMIUM — elegant, minimal, luxury
+// signature easing: cubic-bezier(0.4, 0, 0.2, 1) — 80% of animations
+// enter > exit rule: entrances 30-50% longer than exits
+// three layers: primary + secondary + ambient
+// never opacity-only for important state changes
+//
+const EASE = {
+  // industry standards
+  premium: [0.4, 0, 0.2, 1] as const,       // material design 3 — default
+  emphasized: [0.05, 0.7, 0.1, 1] as const,  // MD3 — entrances, attention
+  accelerate: [0.3, 0, 1, 1] as const,       // MD3 — exits, dismissals
+  // framerlabs
+  popUp: [0, 0, 0.39, 2.99] as const,        // natural overshoot, no elastic
+  settle: [0.25, 0.46, 0.45, 0.94] as const, // smooth settle
+  // palmer
   sharp: [0.82, 0.08, 0.29, 1] as const,
 }
-const STAGGER = 0.08
+
+// duration palette (premium archetype: 350-600ms)
+const DUR = {
+  micro: 0.1,     // tooltip, feedback
+  quick: 0.18,    // button press, toggle
+  standard: 0.35, // card enter, icon
+  slow: 0.5,      // modal, page transition
+  dramatic: 0.8,  // hero reveal
+}
+
+// stagger budget: dramatic 100-200ms, total under 600ms
+const STAGGER = {
+  micro: 0.03,    // list items
+  standard: 0.07, // cards, panels
+  dramatic: 0.15, // hero sections
+}
+
+const SPRING = {
+  magnetic: { type: 'spring' as const, stiffness: 1000, damping: 100 },
+}
 
 // ── loader ──────────────────────────────────────────────────────────
 
@@ -108,7 +131,7 @@ function Loader({ onComplete }: { onComplete: () => void }) {
     }, 30); return () => clearInterval(i)
   }, [onComplete])
   return (
-    <motion.div exit={{ opacity: 0 }} transition={TWEEN.fast}
+    <motion.div exit={{ opacity: 0 }} transition={{ duration: DUR.standard, ease: EASE.accelerate }}
       style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '32px' }}>
       <AsciiScramble text={ASCII_IRIS} />
       <div style={{ width: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
@@ -164,7 +187,7 @@ function PillNav({ onStudio }: { onStudio: () => void }) {
   return (
     <AnimatePresence>
       {show && (
-        <motion.nav data-intro="nav" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={{ type: 'tween', duration: 0.5, ease: EASE_FL.settle }}
+        <motion.nav data-intro="nav" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={{ duration: DUR.slow, ease: EASE.premium }}
           style={{ position: 'fixed', bottom: '24px', left: 0, right: 0, marginLeft: 'auto', marginRight: 'auto', width: 'fit-content', zIndex: 50, display: 'flex', alignItems: 'center', gap: '24px', padding: '10px 12px 10px 24px', background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
           {['product', 'editor', 'about'].map(l => (
             <a key={l} href={`#${l}`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
@@ -245,7 +268,7 @@ function Hero({ onStudio }: { onStudio: () => void }) {
   const y = useTransform(scrollYProgress, [0, 0.5], [0, -100])
 
   return (
-    <section ref={ref} style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '120px 64px 0', overflow: 'hidden' }}>
+    <section ref={ref} style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '120px 64px 0', overflow: 'hidden', willChange: 'transform' }}>
       {/* scattered preview images — controlled by GSAP intro timeline */}
       <img data-intro="hero-images" src="/frames/frame_045.jpg" alt=""
         style={{ position: 'absolute', top: '12%', right: '8%', width: '200px', height: '130px', objectFit: 'cover', transform: 'rotate(2deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
@@ -259,9 +282,6 @@ function Hero({ onStudio }: { onStudio: () => void }) {
         <div data-intro="chrome"
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', opacity: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ width: '80px', height: '80px', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
-              <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#ffffff" darkColor="#000000" tintColor="#c0c0c0" />
-            </div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>iris®</span>
             <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
               {['v0.1', '2026', 'cal hacks'].map((tag, i) => (
@@ -275,10 +295,15 @@ function Hero({ onStudio }: { onStudio: () => void }) {
         </div>
 
         {/* title — GSAP controls the reveal */}
-        <h1 data-intro="logo"
-          style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(120px, 22vw, 320px)', lineHeight: 0.85, letterSpacing: '-0.04em', marginBottom: '48px', filter: 'drop-shadow(0 0 80px rgba(255,255,255,0.08))' }}>
-          iris
-        </h1>
+        <div data-intro="logo"
+          style={{ display: 'flex', alignItems: 'center', gap: 'clamp(16px, 3vw, 40px)', marginBottom: '48px' }}>
+          <div style={{ width: 'clamp(100px, 18vw, 280px)', height: 'clamp(100px, 18vw, 280px)', flexShrink: 0, willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
+            <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#ffffff" darkColor="#000000" tintColor="#c0c0c0" />
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(120px, 22vw, 320px)', lineHeight: 0.85, letterSpacing: '-0.04em', filter: 'drop-shadow(0 0 80px rgba(255,255,255,0.08))' }}>
+            iris
+          </h1>
+        </div>
 
         {/* bottom row */}
         <div data-intro="chrome"
@@ -319,7 +344,7 @@ function Hero({ onStudio }: { onStudio: () => void }) {
 function Marquee() {
   const text = 'scrub · select · prompt · transform · '.repeat(10)
   return (
-    <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+    <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
       style={{ overflow: 'hidden', whiteSpace: 'nowrap', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '24px 0' }}>
       <motion.div animate={{ x: [0, -3000] }} transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
         style={{ display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: 'clamp(60px, 8vw, 100px)', fontWeight: 300, letterSpacing: '-0.02em', color: 'transparent', WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>{text}</motion.div>
@@ -344,16 +369,16 @@ function Thesis() {
 
       {/* scattered images */}
       <motion.img src="/frames/frame_040.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.25 }} viewport={{ once: true }}
-        transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+        transition={{ duration: DUR.standard, ease: EASE.premium }}
         style={{ position: 'absolute', top: '10%', right: '6%', width: '240px', height: '160px', objectFit: 'cover', rotate: '-1deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
       <motion.img src="/frames/frame_110.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.2 }} viewport={{ once: true }}
-        transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+        transition={{ duration: DUR.standard, ease: EASE.premium }}
         style={{ position: 'absolute', bottom: '12%', left: '2%', width: '200px', height: '140px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
 
-      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>001 / about</motion.div>
 
-      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-100px' }} transition={{ type: 'tween', duration: 0.5, ease: EASE_FL.settle }}
+      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-100px' }} transition={{ duration: DUR.slow, ease: EASE.premium }}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '0' }}>
         generation<br /><span style={{ fontStyle: 'italic', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite' }}>is the edit.</span>
       </motion.h2>
@@ -363,15 +388,15 @@ function Thesis() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '120px' }}>
         <div>
-          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
             style={{ fontFamily: 'var(--font-body)', fontSize: '15px', lineHeight: 1.8, color: 'rgba(255,255,255,0.35)', marginBottom: '32px' }}>
             runway generates video from nothing. premiere edits footage frame by frame. neither lets you point at a specific moment and say "make this different."
           </motion.p>
-          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: 0.1 }}
+          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium, delay: 0.1 }}
             style={{ fontFamily: 'var(--font-body)', fontSize: '15px', lineHeight: 1.8, color: 'rgba(255,255,255,0.35)', marginBottom: '48px' }}>
             iris merges both into one action. scrub to a frame, draw a box, describe the change. the ai generates multiple interpretations. you pick one. it replaces that segment in your timeline.
           </motion.p>
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: 0.2 }}
+          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium, delay: 0.2 }}
             style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
             {[{ val: '3', label: 'variants per edit' }, { val: '<40s', label: 'generation time' }, { val: '∞', label: 'iterations' }].map((s, i) => (
               <div key={i} style={{ cursor: 'default', transition: 'transform 0.3s' }}
@@ -387,7 +412,7 @@ function Thesis() {
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {STEPS.map((s, i) => (
             <motion.div key={s.num} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }}
-              transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: i * STAGGER }}
+              transition={{ duration: DUR.standard, ease: EASE.premium, delay: i * STAGGER.standard }}
               style={{ padding: '28px 0', cursor: 'default', borderBottom: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.3s' }}
               onMouseEnter={e => { e.currentTarget.style.paddingLeft = '16px'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
               onMouseLeave={e => { e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
@@ -411,10 +436,10 @@ const FEATURE_FRAMES = ['/frames/frame_100.jpg', '/frames/frame_060.jpg', '/fram
 function Features() {
   return (
     <section style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
-      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>002 / capabilities</motion.div>
 
-      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.5, ease: EASE_FL.settle }}
+      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: DUR.slow, ease: EASE.premium }}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(40px, 6vw, 96px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '80px' }}>
         blending <span style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.4)' }}>intelligence</span><br />with intention.
       </motion.h2>
@@ -427,7 +452,7 @@ function Features() {
           { title: 'voice narration', desc: "elevenlabs generates cinematic voiceover for your reveals. the transformation doesn't just look different. it sounds different.", label: 'elevenlabs' },
         ].map((f, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: i * STAGGER }}
+            transition={{ duration: DUR.standard, ease: EASE.premium, delay: i * STAGGER.standard }}
             style={{ padding: '48px 40px', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.3s', cursor: 'default', transform: 'translateY(0)', boxShadow: 'none' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderTopColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,255,255,0.03)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderTopColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }}>
@@ -446,7 +471,7 @@ function Features() {
 
 function TechStrip() {
   return (
-    <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+    <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
       style={{ padding: '80px 64px', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'center', gap: '64px', alignItems: 'center' }}>
       {['gemini 2.5 pro', 'veo 3.1', 'elevenlabs', 'sam2', 'vultr gpu'].map((t, i) => (
         <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', transition: 'color 0.3s', cursor: 'default' }}
@@ -463,23 +488,23 @@ function CTA({ onStudio }: { onStudio: () => void }) {
   return (
     <section style={{ padding: '200px 64px', textAlign: 'center' }}>
       {/* decorative frame strip */}
-      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
         style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginBottom: '64px' }}>
         {['/frames/frame_020.jpg', '/frames/frame_070.jpg', '/frames/frame_130.jpg'].map((src, i) => (
           <img key={i} src={src} alt="" style={{ width: '300px', height: '180px', objectFit: 'cover', opacity: 0.2, border: '1px solid rgba(255,255,255,0.06)' }} />
         ))}
       </motion.div>
 
-      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.5, ease: EASE_FL.settle }}
+      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: DUR.slow, ease: EASE.premium }}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '32px' }}>
         rewrite <span style={{ fontStyle: 'italic' }}>reality.</span>
       </motion.h2>
-      <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: 0.1 }}
+      <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium, delay: 0.1 }}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', marginBottom: '48px' }}>
         start editing with prompts, not tools.
       </motion.p>
       <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-        transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: 0.2 }}>
+        transition={{ duration: DUR.standard, ease: EASE.premium, delay: 0.2 }}>
         <Magnetic intensity={0.2}>
           <button onClick={onStudio}
             style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', padding: '18px 56px', border: 'none', background: '#fff', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', transition: 'all 0.3s' }}
@@ -545,67 +570,65 @@ function useIntroTimeline() {
     gsap.set('[data-intro="hero-images"]', { opacity: 0, scale: 0.95 })
     gsap.set('[data-intro="nav"]', { opacity: 0, y: 30 })
 
-    // 0–1.2s: "iris" fades in as dark grey
+    // dramatic reveal: logo emerges from darkness
     tl.to('[data-intro="logo"]', {
       opacity: 1,
-      duration: 1.2,
-      ease: 'power1.in',
+      duration: DUR.dramatic,
+      ease: 'cubic-bezier(0.05, 0.7, 0.1, 1)', // MD3 emphasized — entrance
     })
 
-    // 1.2–1.8s: brightens to white
+    // brightens to white
     .to('[data-intro="logo"]', {
       color: '#ffffff',
-      duration: 0.6,
-      ease: 'power2.inOut',
+      duration: DUR.slow,
+      ease: 'cubic-bezier(0.4, 0, 0.2, 1)', // premium signature
     })
 
-    // 1.8–2.0s: snappy pop UP with overshoot (framerlabs split-phase)
+    // split-phase scale: pop then settle
     .to('[data-intro="logo"]', {
       scale: 1.03,
-      duration: 0.15,
-      ease: `cubic-bezier(${EASE_FL.popUp.join(',')})`,
+      duration: DUR.quick,
+      ease: 'cubic-bezier(0, 0, 0.39, 2.99)', // framerlabs popUp
     })
-
-    // 2.0–2.15s: smooth settle DOWN (framerlabs split-phase)
     .to('[data-intro="logo"]', {
       scale: 1.0,
-      duration: 0.15,
-      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
+      duration: DUR.quick,
+      ease: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', // framerlabs settle
     })
 
-    // 2.0–2.5s: subtitle lines fade up with settle ease
+    // subtitle: entrance with emphasized ease (never opacity-only)
     .to('[data-intro="subtext"]', {
       opacity: 1,
       y: 0,
-      duration: 0.4,
-      stagger: 0.15,
-      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
+      duration: DUR.standard,
+      stagger: STAGGER.dramatic,
+      ease: 'cubic-bezier(0.05, 0.7, 0.1, 1)', // emphasized entrance
     }, '-=0.15')
 
-    // 2.3–2.8s: chrome slides up
+    // chrome: standard entrance
     .to('[data-intro="chrome"]', {
       opacity: 1,
       y: 0,
-      duration: 0.45,
-      stagger: 0.07,
-      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
-    }, '-=0.25')
+      duration: DUR.standard,
+      stagger: STAGGER.standard,
+      ease: 'cubic-bezier(0.4, 0, 0.2, 1)', // premium signature
+    }, '-=0.2')
 
-    // 2.5–3.0s: hero images
+    // hero images: secondary layer
     .to('[data-intro="hero-images"]', {
       opacity: 0.35,
       scale: 1,
-      duration: 0.5,
-      stagger: 0.12,
-      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
-    }, '-=0.25')
+      duration: DUR.slow,
+      stagger: STAGGER.standard,
+      ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
+    }, '-=0.2')
 
-    // 2.8–3.5s: nav last, slow rise
+    // nav: last, emphasized entrance
     .to('[data-intro="nav"]', {
       opacity: 1,
       y: 0,
-      duration: 0.6,
-      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
+      duration: DUR.slow,
+      ease: 'cubic-bezier(0.05, 0.7, 0.1, 1)', // emphasized
     }, '-=0.1')
 
   }, [])
