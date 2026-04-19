@@ -23,274 +23,210 @@ Returns AI provider reachability and configuration status.
 
 ### `GET /api/ai/timeline`
 
-Returns the current AI-managed timeline state.
+Returns a timeline of recent AI operations.
 
-### `GET /api/ai/stream`
+## Preview
 
-Streaming endpoint for AI status events.
+### `GET /api/preview/{pid}/frame`
 
-## Projects and uploads
+Returns a single frame from a project at a given timestamp.
 
-### `GET /api/projects`
+**Query Parameters:**
+- `ts` (float): The timestamp of the frame to retrieve.
 
-Returns all projects for the current user.
+### `GET /api/preview/{pid}/strip`
 
-**response:** array of project objects with `id`, `title`, `thumbnail_url`, `created_at`, `updated_at`.
+Returns a strip of frames for a given time range and frame rate.
 
-### `GET /api/projects/{project_id}`
+**Query Parameters:**
+- `start` (float): The start timestamp of the range.
+- `end` (float): The end timestamp of the range.
+- `fps` (float, optional): Frames per second for the strip. Defaults to `1.0`.
 
-Returns a single project by ID, including its media and metadata.
+### `GET /api/preview/{pid}/range`
 
-**response:** project object with `id`, `title`, `source_url`, `duration`, `fps`, `width`, `height`, `variants`, `entities`.
+Returns a preview of a time range within a project.
 
-### `POST /api/upload`
+**Query Parameters:**
+- `start` (float): The start timestamp of the range.
+- `end` (float): The end timestamp of the range.
 
-Multipart file upload. Creates a new project from the uploaded video.
+## Timeline Surgery
 
-**request:** `multipart/form-data` with a `file` field.
+### `POST /api/timeline/{pid}/split`
 
-**response:** The created project object. The backend runs FFprobe to extract duration, resolution, and FPS during ingestion.
+Splits a timeline segment at a specified timestamp.
 
-## Editing and generation
-
-### `POST /api/generate`
-
-Starts a localized generation job for a selected region and time range.
-
-**request body:**
-
+**Request Body:**
 ```json
 {
-  "project_id": "string",
-  "start_ts": 1.5,
-  "end_ts": 3.0,
-  "bbox": { "x": 0.1, "y": 0.2, "w": 0.5, "h": 0.4 },
-  "prompt": "change the jacket to red leather",
-  "reference_frame_ts": 2.0
+  "segment_id": "string",
+  "split_ts": 0.0
 }
 ```
 
-**response:** `{ "job_id": "string" }`. Poll the job endpoint for progress and variants.
+### `POST /api/timeline/{pid}/trim`
 
-### `GET /api/jobs/{job_id}`
+Trims a timeline segment to new start and end timestamps.
 
-Returns the current status of a generation or export job.
-
-**response:** `{ "job_id", "status": "pending|running|completed|failed", "variants": [...], "error": null }`.
-
-### `POST /api/accept`
-
-Accepts a specific variant from a completed generation job.
-
-**request body:**
-
+**Request Body:**
 ```json
 {
-  "job_id": "string",
-  "variant_index": 0
+  "segment_id": "string",
+  "new_start_ts": 0.0,
+  "new_end_ts": 0.0
 }
 ```
 
-**response:** The accepted variant object. Triggers downstream entity detection.
+### `POST /api/timeline/{pid}/delete`
 
-### `POST /api/identify`
+Deletes a timeline segment.
 
-Runs entity identification on a selected region of a frame.
-
-**request body:**
-
+**Request Body:**
 ```json
 {
-  "project_id": "string",
-  "frame_ts": 2.0,
-  "bbox": { "x": 0.1, "y": 0.2, "w": 0.5, "h": 0.4 }
+  "segment_id": "string"
 }
 ```
 
-**response:** Identified entity with `entity_id`, `label`, `confidence`.
+### `POST /api/timeline/{pid}/reorder`
 
-### `POST /api/mask`
+Reorders timeline segments within a project.
 
-Generates a segmentation mask for a selected region.
-
-**request body:**
-
+**Request Body:**
 ```json
 {
-  "project_id": "string",
-  "frame_ts": 2.0,
-  "bbox": { "x": 0.1, "y": 0.2, "w": 0.5, "h": 0.4 }
+  "segment_ids": ["string", "string"],
+  "order": [0, 1]
 }
 ```
 
-**response:** Mask data with `mask_url` and bounding geometry.
+### `POST /api/timeline/{pid}/snapshot`
 
-## Entities and propagation
+Creates a snapshot of the current project timeline.
 
-### `GET /api/entities/{entity_id}`
+### `POST /api/timeline/{pid}/revert`
 
-Returns an entity and all its tracked appearances across the project timeline.
+Reverts the project timeline to a specified snapshot.
 
-**response:** `{ "entity_id", "label", "appearances": [{ "frame_ts", "bbox", "confidence" }] }`.
-
-### `POST /api/propagate`
-
-Fans out a generation to all known appearances of an entity.
-
-**request body:**
-
+**Request Body:**
 ```json
 {
-  "entity_id": "string",
-  "source_variant_url": "string",
-  "prompt": "string",
-  "auto_apply": false
+  "snapshot_id": "string"
 }
 ```
 
-**response:** `{ "propagation_job_id": "string" }`. Each appearance gets its own generation sub-job.
+## Color Grading
 
-### `GET /api/propagate/{propagation_job_id}`
+### `POST /api/segments/{sid}/grade`
 
-Returns propagation progress and per-appearance results.
+Applies color grading adjustments to a specific segment.
 
-**response:** `{ "propagation_job_id", "status", "results": [{ "result_id", "appearance_frame_ts", "variant_url", "applied": false }] }`.
+**Request Body:**
+```json
+{
+  "adjustments": {
+    "brightness": 0.0,
+    "saturation": 0.0
+  }
+}
+```
 
-### `POST /api/propagate/{propagation_job_id}/apply/{result_id}`
+### `POST /api/segments/{sid}/grade/preview`
 
-Applies a single propagation result to the timeline.
+Previews color grading adjustments for a specific segment without applying them.
 
-**response:** The updated result with `applied: true`.
+**Request Body:**
+```json
+{
+  "adjustments": {
+    "brightness": 0.0,
+    "saturation": 0.0
+  }
+}
+```
 
-## Timeline and output
+### `POST /api/grade/match`
 
-### `GET /api/timeline/{project_id}`
+Matches the color grading of a source segment to a reference segment.
 
-Returns the full editorial timeline for a project, including all accepted edits and their positions.
+**Request Body:**
+```json
+{
+  "source_id": "string",
+  "reference_id": "string"
+}
+```
 
-**response:** array of timeline entries with `variant_id`, `start_ts`, `end_ts`, `source`, `applied_at`.
+## Scoring
 
-### `POST /api/narrate`
+### `POST /api/score`
 
-Generates a voiceover narration for an accepted variant.
+Scores a single generated variant based on a comparison target.
 
-**request body:**
-
+**Request Body:**
 ```json
 {
   "variant_id": "string",
-  "description": "optional context for narration tone"
+  "compare_to": "string" // e.g., "prompt"
 }
 ```
 
-**response:** `{ "narration_url": "string" }`.
+### `POST /api/score/compare`
 
-### `POST /api/export`
+Compares and scores multiple variants against each other.
 
-Starts a full project export job that stitches all accepted edits into a final video.
+**Request Body:**
+```json
+{
+  "variant_ids": ["string", "string"]
+}
+```
 
-**request body:**
+### `POST /api/score/continuity`
 
+Scores the overall continuity of a project.
+
+**Request Body:**
 ```json
 {
   "project_id": "string"
 }
 ```
 
-**response:** `{ "export_job_id": "string" }`.
+## Remix & Batch
 
-### `GET /api/export/{export_job_id}`
+### `POST /api/remix`
 
-Returns export job status and the download URL when complete.
+Remixes an existing variant with a modifier prompt.
 
-**response:** `{ "export_job_id", "status", "download_url": "string | null" }`.
-
-## Agent chat
-
-### `POST /api/agent/chat`
-
-Opens an SSE stream for agent-assisted editing. The agent uses Gemini function calling to analyze the video, identify regions, and trigger edits on behalf of the user.
-
-**request body:**
-
+**Request Body:**
 ```json
 {
-  "project_id": "string",
-  "message": "make the sky more dramatic",
-  "conversation_id": "string | null",
-  "history": [{ "role": "user", "content": "..." }]
+  "variant_id": "string",
+  "modifier_prompt": "string",
+  "preserve_composition": true
 }
 ```
 
-**response:** Server-sent events stream. Each event has a `type` field:
+### `POST /api/batch/generate`
 
-| event type | payload | description |
-|---|---|---|
-| `token` | `{ "text": "..." }` | incremental text from the agent |
-| `tool_call_start` | `{ "name": "identify", "args": {...} }` | agent is invoking a tool |
-| `tool_call_end` | `{ "name": "identify", "result": {...} }` | tool execution completed |
-| `suggestion` | `{ "action": "generate", "params": {...} }` | agent suggests an edit action |
-| `variant_ready` | `{ "variant_url": "...", "job_id": "..." }` | a generated variant is available for review |
-| `done` | `{}` | stream complete |
-| `error` | `{ "message": "..." }` | something went wrong |
+Submits a request to generate multiple edits in a batch.
 
-## Conversations
-
-Persistent chat history for agent interactions within a project.
-
-### `GET /api/projects/{project_id}/conversations`
-
-Returns all conversations for a project.
-
-**response:** array of `{ "conversation_id", "title", "created_at", "updated_at" }`.
-
-### `POST /api/projects/{project_id}/conversations`
-
-Creates a new conversation in the project.
-
-**response:** The created conversation object.
-
-### `GET /api/conversations/{conversation_id}/messages`
-
-Returns all messages in a conversation, ordered chronologically.
-
-**response:** array of `{ "message_id", "role": "user|assistant|system", "content", "created_at" }`.
-
-### `POST /api/conversations/{conversation_id}/messages`
-
-Appends messages to a conversation.
-
-**request body:**
-
+**Request Body:**
 ```json
 {
-  "messages": [
-    { "role": "user", "content": "change the background to a sunset" },
-    { "role": "assistant", "content": "i'll identify the background region first..." }
-  ]
+  "edits": [] // Array of edit objects
 }
 ```
 
-### `PATCH /api/conversations/{conversation_id}`
+### `POST /api/batch/accept`
 
-Updates conversation metadata.
+Accepts multiple batch generation results.
 
-**request body:**
-
+**Request Body:**
 ```json
 {
-  "title": "background edits"
+  "accepts": [] // Array of accept objects
 }
 ```
-
-### `DELETE /api/conversations/{conversation_id}`
-
-Deletes a conversation and all its messages.
-
-## Notes
-
-- Uploads rely on FFmpeg and FFprobe to inspect incoming media.
-- Some AI-heavy routes depend on the GPU worker being available.
-- Storage resolves through local media paths or object storage depending on environment configuration.
-- Agent chat requires Gemini API keys to be configured.
-- Conversation data is stored in Postgres via the Conversation and ChatMessage models.

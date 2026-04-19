@@ -18,90 +18,136 @@ description: "The Iris command-line interface for scripting and agent-driven edi
   </div>
 </div>
 
-## Install
-
-```bash
-cd cli
-pip install -e .
-iris --help
-```
-
-## Configuration
-
-Config lives at `~/.iris/config.json`. Auto-created on first run.
-
-```bash
-iris auth login --base-url http://localhost:8000
-iris auth login --token YOUR_SUPABASE_TOKEN
-iris auth status
-```
-
 ## Commands
 
-### Projects
+### `iris init`
+
+Initializes a new Iris project.
 
 ```bash
-iris upload VIDEO_PATH                    # upload video, get project_id
-iris projects                             # list all projects
-iris project PROJECT_ID                   # project detail + segments + entities
+iris init <project_name>
 ```
 
-### Editing
+### `iris upload`
+
+Uploads a video file to the Iris library.
 
 ```bash
-iris identify --project PID --frame 3.5 --bbox "0.1,0.2,0.3,0.4"
-iris mask --project PID --frame 3.5 --bbox "0.1,0.2,0.3,0.4"
-iris generate --project PID --start 2.0 --end 4.0 --bbox "0.1,0.2,0.3,0.4" --prompt "make it rain"
-iris job JOB_ID
-iris accept --job JOB_ID --variant 0
+iris upload --file <path_to_video> --project <project_id>
 ```
 
-### Continuity
+### `iris generate`
+
+Generates a new video variant based on a prompt.
 
 ```bash
-iris entity ENTITY_ID
-iris propagate --entity EID --source-url URL --prompt "make it rain"
+iris generate --segment <segment_id> --prompt "make this brighter"
 ```
 
-### Output
+### `iris accept`
+
+Accepts a generated variant, applying it to the timeline.
 
 ```bash
-iris timeline PROJECT_ID
-iris narrate --variant VID --description "the scene transforms"
-iris export PROJECT_ID
+iris accept --variant <variant_id>
 ```
 
-### Video analysis
+### `iris narrate`
+
+Generates a voiceover for a segment using a given prompt.
 
 ```bash
-iris analyze PROJECT_ID                   # multi-agent video understanding
-iris analyze PROJECT_ID --fps 2.0         # sample more frames
-iris analyze PROJECT_ID --no-cache        # skip cached results
+iris narrate --segment <segment_id> --prompt "a calm voice describes the scene"
 ```
 
-The analyze command extracts frames, fans them out to parallel Gemini vision calls, and synthesizes a comprehensive understanding of the video content including scenes, entities, mood, lighting, and suggested edits.
+### `iris preview`
 
-## Output format
+Previews frames, strips, or ranges from a project.
 
-All commands output JSON by default. Use `--human` for pretty-printed tables.
+- **Preview a single frame:**
+  ```bash
+  iris preview <project_id> --frame 10.5
+  ```
+- **Preview a frame strip:**
+  ```bash
+  iris preview <project_id> --strip 5.0 15.0 --fps 2.0
+  ```
+- **Preview a time range:**
+  ```bash
+  iris preview <project_id> --range 0.0 30.0
+  ```
+
+### `iris batch-generate`
+
+Submits a batch generation request from a JSON file.
 
 ```bash
-iris projects --human                     # rich table output
-iris job JOB_ID --json                    # force JSON (default)
+iris batch-generate --edits ./path/to/edits.json
 ```
 
-## Constraints
+### `iris batch-accept`
 
-- Generate segments must be **2-5 seconds** long
-- Bounding box values are **normalized 0-1** (x, y, w, h)
-- `GEMINI_API_KEY` env var required for `iris analyze`
-
-## Agent integration
-
-The CLI ships with a `SKILL.md` file at `cli/SKILL.md` that teaches any AI agent how to use Iris. Paste it as a system prompt or install it as a Claude Code skill:
+Submits a batch accept request from a JSON file.
 
 ```bash
-cp cli/SKILL.md ~/.claude/skills/iris-edit/SKILL.md
+iris batch-accept --accepts ./path/to/accepts.json
 ```
 
-Any agent that can run bash commands can follow the skill file to analyze videos, make edits, propagate changes, and export.
+### `iris grade`
+
+Applies or previews color grading adjustments for a segment.
+
+- **Apply brightness adjustment:**
+  ```bash
+  iris grade --segment <segment_id> --brightness 0.1
+  ```
+- **Preview saturation adjustment:**
+  ```bash
+  iris grade --segment <segment_id> --saturation 0.2 --preview
+  ```
+
+### `iris remix`
+
+Creates a remix from an existing variant using a modifier prompt.
+
+- **Remix with composition preserved:**
+  ```bash
+  iris remix --variant <variant_id> --modifier "add a vintage film look"
+  ```
+- **Remix without preserving composition:**
+  ```bash
+  iris remix --variant <variant_id> --modifier "change the background entirely" --no-preserve-composition
+  ```
+
+### `iris score`
+
+Scores variants or project continuity.
+
+- **Score a single variant:**
+  ```bash
+  iris score --variant <variant_id> --compare-to "prompt"
+  ```
+- **Compare multiple variants:**
+  ```bash
+  iris score --compare <variant_id_1> <variant_id_2>
+  ```
+- **Score project continuity:**
+  ```bash
+  iris score --continuity <project_id>
+  ```
+
+### `iris snapshot`
+
+Creates a snapshot of the current project timeline.
+
+```bash
+iris snapshot <project_id>
+```
+
+### `iris revert`
+
+Reverts the project timeline to a specified snapshot.
+
+```bash
+iris revert <project_id> --snapshot <snapshot_id>
+```
