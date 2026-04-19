@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { accept, generate, pollJob, type JobResp } from "../api/client";
+import { useState, useRef, type ReactNode } from "react";
+import { accept, generate, pollJob, type JobResp, type Variant } from "../api/client";
 import { duration, newClip, useEDL } from "../stores/edl";
 import { Icon, type IconName } from "./Icon";
 import "./inspector.css";
@@ -65,6 +65,12 @@ function AiTab() {
   const [status, setStatus] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
+  // variant shelf state
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [pickedIdx, setPickedIdx] = useState<number | null>(null);
+  const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  const jobIdRef = useRef<string | null>(null);
+
   const canGenerate =
     !!selected &&
     selected.kind === "source" &&
@@ -72,11 +78,16 @@ function AiTab() {
     !!prompt.trim() &&
     !busy;
 
+  const showShelf = variants.length > 0 && !busy;
+
   async function run() {
     if (!canGenerate || !selected || !selected.projectId) return;
     setBusy(true);
     setErr(null);
     setStatus("queued");
+    setVariants([]);
+    setPickedIdx(null);
+    setPreviewIdx(null);
     try {
       const { job_id } = await generate({
         project_id: selected.projectId,
@@ -86,16 +97,27 @@ function AiTab() {
         prompt: prompt.trim(),
         reference_frame_ts: (selected.sourceStart + selected.sourceEnd) / 2,
       });
+      jobIdRef.current = job_id;
       const final: JobResp = await pollJob(job_id, (j) => setStatus(j.status));
-      if (final.status !== "done" || !final.variants[0]?.url) {
+      if (final.status !== "done" || !final.variants.length) {
         throw new Error(final.error || "generation failed");
       }
-      try {
-        await accept(job_id, 0);
-      } catch {
-        /* variant url already usable */
-      }
-      const v = final.variants[0];
+      // show variants — don't auto-accept
+      setVariants(final.variants);
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+      setStatus("");
+    }
+  }
+
+  async function acceptVariant(idx: number) {
+    if (!selected || !selected.projectId || !jobIdRef.current) return;
+    setPickedIdx(idx);
+    try {
+      try { await accept(jobIdRef.current, idx); } catch { /* url already usable */ }
+      const v = variants[idx];
       const genDur = selected.sourceEnd - selected.sourceStart;
       const replacement = newClip({
         url: v.url,
@@ -110,11 +132,13 @@ function AiTab() {
       });
       dispatch({ type: "replace", id: selected.id, with: replacement });
       setPrompt("");
+      setVariants([]);
+      setPickedIdx(null);
+      setPreviewIdx(null);
+      jobIdRef.current = null;
     } catch (e) {
       setErr(String(e));
-    } finally {
-      setBusy(false);
-      setStatus("");
+      setPickedIdx(null);
     }
   }
 
@@ -136,18 +160,71 @@ function AiTab() {
         className="pane__prompt"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        rows={5}
+        rows={4}
         placeholder="e.g. make the jacket deep cherry red, warm cinematic grade"
-        disabled={busy}
+        disabled={busy || showShelf}
       />
 
-      <button
-        className="cta pane__cta"
-        onClick={run}
-        disabled={!canGenerate}
-      >
-        {busy ? `Generating · ${status}` : "Generate"}
-      </button>
+      {!showShelf && (
+        <button
+          className="cta pane__cta"
+          onClick={run}
+          disabled={!canGenerate}
+        >
+          {busy ? `Generating · ${status}` : "Generate"}
+        </button>
+      )}
+
+      {/* ── variant shelf ── */}
+      {showShelf && (
+        <div className="variant-shelf">
+          <FieldHead label="Variants" hint="pick one to apply" />
+          <div className="variant-shelf__grid">
+            {variants.map((v, i) => (
+              <button
+                key={i}
+                className={`variant-card ${previewIdx === i ? 'variant-card--preview' : ''} ${pickedIdx === i ? 'variant-card--picked' : ''}`}
+                onClick={() => setPreviewIdx(previewIdx === i ? null : i)}
+              >
+                <div className="variant-card__label mono">
+                  <span className="variant-card__letter">{String.fromCharCode(65 + i)}</span>
+                  {v.visual_coherence != null && (
+                    <span className="variant-card__score">{v.visual_coherence}/10</span>
+                  )}
+                </div>
+                <video
+                  className="variant-card__video"
+                  src={v.url}
+                  muted
+                  loop
+                  playsInline
+                  autoPlay={previewIdx === i}
+                  onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
+                  onMouseLeave={(e) => { const el = e.currentTarget as HTMLVideoElement; el.pause(); el.currentTime = 0; }}
+                />
+                <div className="variant-card__desc mono">{v.description}</div>
+              </button>
+            ))}
+          </div>
+
+          {previewIdx != null && (
+            <button
+              className="cta pane__cta variant-shelf__accept"
+              onClick={() => acceptVariant(previewIdx)}
+              disabled={pickedIdx != null}
+            >
+              {pickedIdx != null ? 'Applying…' : `Apply variant ${String.fromCharCode(65 + previewIdx)}`}
+            </button>
+          )}
+
+          <button
+            className="variant-shelf__dismiss mono"
+            onClick={() => { setVariants([]); setPickedIdx(null); setPreviewIdx(null); }}
+          >
+            dismiss · try a different prompt
+          </button>
+        </div>
+      )}
 
       <div className="pane__meta">
         <Row k="target"    v={selected.label ?? "source"} />
