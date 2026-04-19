@@ -19,6 +19,9 @@ import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
 import { VibePrompt } from "../components/VibePrompt";
+import { AgentChat } from "../components/AgentChat";
+import { VideoScrubber } from "../components/VideoScrubber";
+import { AgentProvider } from "../stores/agent";
 import { exportVideo, getTimeline, pollExport, upload, type TimelineSegment } from "../api/client";
 import { Icon } from "../components/Icon";
 import { ContinuityStatusBadge } from "../features/continuity/ContinuityStatusBadge";
@@ -115,11 +118,13 @@ export function Studio({
 }) {
   return (
     <EDLProvider>
-      <StudioInner
-        onExit={onExit}
-        onLibrary={onLibrary}
-        initialProject={initialProject}
-      />
+      <AgentProvider>
+        <StudioInner
+          onExit={onExit}
+          onLibrary={onLibrary}
+          initialProject={initialProject}
+        />
+      </AgentProvider>
     </EDLProvider>
   );
 }
@@ -604,7 +609,19 @@ function StudioInner({
           {hasSources ? (
             <>
               <Preview />
-              {mode === 'vibe' && <VibePrompt />}
+              {mode === 'vibe' && (
+                <VideoScrubber
+                  duration={initialProject?.duration ?? state.clips.reduce((sum, c) => sum + (c.sourceEnd - c.sourceStart), 0)}
+                  playhead={state.playhead}
+                  onSeek={(ts) => dispatch({ type: 'set_playhead', t: ts })}
+                  segments={state.clips.map(c => ({
+                    start_ts: c.sourceStart,
+                    end_ts: c.sourceEnd,
+                    source: c.kind === 'generated' ? 'generated' as const : 'original' as const,
+                  }))}
+                />
+              )}
+              {mode === 'pro' && <VibePrompt />}
             </>
           ) : hydratingProject ? (
             <div
@@ -636,19 +653,25 @@ function StudioInner({
         />
 
         <aside className="studio__right">
-          <div style={{ padding: "12px 12px 0" }}>
-            <EditorChecklist
-              projectId={continuityProjectId}
-              hasSources={hasSources}
-              hasSelection={Boolean(state.selectedId)}
-              hasBbox={Boolean(state.bbox)}
-              hasAcceptedEdit={hasAcceptedEdit}
-              hasContinuityPack={continuity.hasPropagatableAppearances}
-              continuityComplete={continuityComplete}
-              onImport={() => fileInputRef.current?.click()}
-            />
-          </div>
-          <Inspector mode={mode} continuity={continuity} />
+          {mode === 'vibe' ? (
+            <AgentChat projectId={continuityProjectId} />
+          ) : (
+            <>
+              <div style={{ padding: "12px 12px 0" }}>
+                <EditorChecklist
+                  projectId={continuityProjectId}
+                  hasSources={hasSources}
+                  hasSelection={Boolean(state.selectedId)}
+                  hasBbox={Boolean(state.bbox)}
+                  hasAcceptedEdit={hasAcceptedEdit}
+                  hasContinuityPack={continuity.hasPropagatableAppearances}
+                  continuityComplete={continuityComplete}
+                  onImport={() => fileInputRef.current?.click()}
+                />
+              </div>
+              <Inspector mode={mode} continuity={continuity} />
+            </>
+          )}
         </aside>
       </section>
 

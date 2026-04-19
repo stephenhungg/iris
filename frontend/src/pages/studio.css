@@ -213,28 +213,28 @@
 }
 
 /* ── vibe mode ── */
-/* hides sidebars and timeline, makes preview fullscreen */
+/* 60/40 split: video player left, agent chat right */
 
+/* hide left sidebar and timeline in vibe mode */
 .studio--vibe .studio__left,
-.studio--vibe .studio__right,
 .studio--vibe .studio__bottom {
   display: none !important;
 }
 
-/* hide all splitter handles */
-.studio--vibe .splitter {
+/* hide the left splitter and bottom splitter */
+.studio--vibe .splitter--vertical:first-of-type,
+.studio--vibe .splitter--horizontal {
   display: none !important;
 }
 
-/* make the body a single column so center fills it */
+/* 60/40 grid: center (video) | splitter | right (chat) */
 .studio--vibe .studio__body {
-  grid-template-columns: 1fr;
+  grid-template-columns: 3fr var(--split) 2fr;
 }
 
-/* make center area take full width and height */
-.studio--vibe .studio__center {
-  grid-column: 1 / -1;
-  grid-row: 1 / -1;
+/* right sidebar is visible in vibe mode (agent chat) */
+.studio--vibe .studio__right {
+  display: flex !important;
 }
 
 /* collapse the timeline row */
