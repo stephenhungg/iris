@@ -9,6 +9,7 @@ import {
 import {
   EDLProvider,
   newMediaAsset,
+  totalDuration,
   useEDL,
   type Clip,
   type MediaAsset,
@@ -310,7 +311,9 @@ function StudioInner({
   const [exporting, setExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState("");
   const [exportUrl, setExportUrl] = useState<string | null>(null);
+  const [exportDownloadUrl, setExportDownloadUrl] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [exportBytes, setExportBytes] = useState<number | null>(null);
 
   const handleExport = useCallback(async () => {
     const projectId =
@@ -321,7 +324,9 @@ function StudioInner({
     setExporting(true);
     setExportStatus("queued");
     setExportUrl(null);
+    setExportDownloadUrl(null);
     setExportError(null);
+    setExportBytes(null);
     try {
       const { export_job_id } = await exportVideo(projectId);
       const res = await pollExport(export_job_id, (job) => {
@@ -331,7 +336,19 @@ function StudioInner({
         throw new Error(res.error || "export finished without a download url");
       }
       setExportUrl(res.export_url);
+      setExportDownloadUrl(res.download_url ?? res.export_url);
       setExportStatus("done");
+      // Best-effort HEAD for file size in the stats row. S3 presigned
+      // GETs allow HEAD via the same signature. If the bucket lacks CORS
+      // or the request fails for any other reason we silently hide the
+      // size chip — it's purely cosmetic.
+      try {
+        const head = await fetch(res.export_url, { method: "HEAD" });
+        const len = head.headers.get("content-length");
+        if (head.ok && len) setExportBytes(Number(len));
+      } catch {
+        // ignore.
+      }
     } catch (err) {
       setExportError(String(err));
       setExportStatus("error");
@@ -342,8 +359,10 @@ function StudioInner({
 
   const dismissExport = useCallback(() => {
     setExportUrl(null);
+    setExportDownloadUrl(null);
     setExportError(null);
     setExportStatus("");
+    setExportBytes(null);
   }, []);
 
   const hasSources = state.sources.length > 0;
@@ -451,24 +470,29 @@ function StudioInner({
             position: 'fixed',
             inset: 0,
             zIndex: 9998,
-            background: 'rgba(0,0,0,0.6)',
+            background: 'rgba(0,0,0,0.7)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            padding: 24,
           }}
           onClick={!exporting ? dismissExport : undefined}
         >
           <div
             style={{
-              background: '#1a1a1a',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 12,
-              padding: '28px 36px',
+              background: '#141414',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 14,
+              padding: exportUrl ? 24 : '28px 36px',
               minWidth: 340,
-              maxWidth: 440,
+              maxWidth: exportUrl ? 640 : 440,
+              width: exportUrl ? '100%' : 'auto',
               color: 'rgba(255,255,255,0.85)',
               fontFamily: 'var(--font-mono, monospace)',
               textAlign: 'center',
+              boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -497,52 +521,20 @@ function StudioInner({
               </>
             )}
 
-            {exportUrl && (
-              <>
-                <div style={{ fontSize: 11, letterSpacing: '0.14em', color: 'rgba(126,231,135,0.8)', marginBottom: 12, textTransform: 'uppercase' }}>
-                  export complete
-                </div>
-                <div style={{ fontSize: 15, marginBottom: 20 }}>
-                  your reel is ready for download.
-                </div>
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                  <a
-                    href={exportUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-block',
-                      padding: '8px 20px',
-                      borderRadius: 999,
-                      background: 'rgba(255,255,255,0.12)',
-                      color: '#fff',
-                      fontSize: 12,
-                      letterSpacing: '0.08em',
-                      textDecoration: 'none',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                    }}
-                  >
-                    download .mp4
-                  </a>
-                  <button
-                    onClick={dismissExport}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: 999,
-                      background: 'transparent',
-                      color: 'rgba(255,255,255,0.5)',
-                      fontSize: 12,
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    dismiss
-                  </button>
-                </div>
-              </>
+            {exportUrl && !exporting && (
+              <ExportComplete
+                url={exportUrl}
+                downloadUrl={exportDownloadUrl ?? exportUrl}
+                downloadFilename={`iris-${(initialProject?.projectId ?? state.sources[0]?.projectId ?? 'reel').slice(0, 8)}.mp4`}
+                fps={initialProject?.fps ?? state.sources[0]?.fps ?? null}
+                duration={totalDuration(state.clips)}
+                bytes={exportBytes}
+                error={exportError}
+                onDismiss={dismissExport}
+              />
             )}
 
-            {exportError && (
+            {exportError && !exportUrl && (
               <>
                 <div style={{ fontSize: 11, letterSpacing: '0.14em', color: 'rgba(255,107,107,0.8)', marginBottom: 12, textTransform: 'uppercase' }}>
                   export failed
@@ -805,18 +797,8 @@ function TopBar({
         <ContinuityStatusBadge continuity={continuity} />
         <button
           onClick={onToggleMode}
-          style={{
-            padding: '4px 12px',
-            borderRadius: '9999px',
-            border: '1px solid rgba(255,255,255,0.15)',
-            background: mode === 'vibe' ? 'rgba(255,255,255,0.1)' : 'transparent',
-            color: 'rgba(255,255,255,0.6)',
-            fontFamily: 'var(--font-mono, monospace)',
-            fontSize: '10px',
-            letterSpacing: '0.1em',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
+          className={`topbar__vibe ${mode === 'vibe' ? 'topbar__vibe--on' : ''}`}
+          title={`switch to ${mode === 'vibe' ? 'pro' : 'vibe'} mode`}
         >
           {mode}
         </button>
@@ -838,4 +820,173 @@ function TopBar({
 
 function TopMenuItem({ label, onClick, title }: { label: string; onClick?: () => void; title?: string }) {
   return <button className="topbar__menu" onClick={onClick} title={title}>{label}</button>;
+}
+
+// ─── export-complete modal body ──────────────────────────────────────
+//
+// Shows a preview of the rendered reel, a compact stats strip, and a
+// single download action. Resolution is read directly off the <video>
+// element once its metadata loads, so we don't need to plumb width/height
+// through the studio props.
+
+function ExportComplete({
+  url,
+  downloadUrl,
+  downloadFilename,
+  fps,
+  duration,
+  bytes,
+  error,
+  onDismiss,
+}: {
+  url: string;
+  downloadUrl: string;
+  downloadFilename: string;
+  fps: number | null;
+  duration: number;
+  bytes: number | null;
+  error: string | null;
+  onDismiss: () => void;
+}) {
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+
+  return (
+    <>
+      <div
+        style={{
+          fontSize: 10,
+          letterSpacing: '0.18em',
+          color: 'rgba(126,231,135,0.75)',
+          marginBottom: 14,
+          textTransform: 'uppercase',
+        }}
+      >
+        ● export complete
+      </div>
+
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          aspectRatio: dims ? `${dims.w} / ${dims.h}` : '16 / 9',
+          background: '#000',
+          borderRadius: 8,
+          overflow: 'hidden',
+          border: '1px solid rgba(255,255,255,0.06)',
+          marginBottom: 14,
+        }}
+      >
+        <video
+          src={url}
+          controls
+          playsInline
+          preload="metadata"
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            if (v.videoWidth && v.videoHeight) {
+              setDims({ w: v.videoWidth, h: v.videoHeight });
+            }
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'block',
+            background: '#000',
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '6px 14px',
+          justifyContent: 'center',
+          fontSize: 11,
+          color: 'rgba(255,255,255,0.55)',
+          letterSpacing: '0.06em',
+          marginBottom: 18,
+        }}
+      >
+        {dims && <StatChip label="res" value={`${dims.w}×${dims.h}`} />}
+        <StatChip label="dur" value={`${duration.toFixed(2)}s`} />
+        {fps !== null && <StatChip label="fps" value={String(Math.round(fps))} />}
+        {bytes !== null && <StatChip label="size" value={fmtBytes(bytes)} />}
+        <StatChip label="fmt" value="mp4 · h.264" />
+      </div>
+
+      {error && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'rgba(255,107,107,0.75)',
+            marginBottom: 12,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+        {/* Plain anchor with `download` + `rel=noopener`. The href already
+            signs Content-Disposition: attachment server-side, so the
+            browser triggers a save-to-disk in place — no new tab, no CORS
+            fetch, no inline playback hijack. */}
+        <a
+          href={downloadUrl}
+          download={downloadFilename}
+          rel="noopener"
+          style={{
+            padding: '9px 22px',
+            borderRadius: 999,
+            background: '#fff',
+            color: '#000',
+            fontSize: 11,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            fontFamily: 'inherit',
+            border: '1px solid rgba(255,255,255,0.14)',
+            textDecoration: 'none',
+            cursor: 'pointer',
+            transition: 'opacity 0.18s',
+          }}
+        >
+          download mp4
+        </a>
+        <button
+          onClick={onDismiss}
+          style={{
+            padding: '9px 16px',
+            borderRadius: 999,
+            background: 'transparent',
+            color: 'rgba(255,255,255,0.5)',
+            fontSize: 11,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            fontFamily: 'inherit',
+            border: '1px solid rgba(255,255,255,0.08)',
+            cursor: 'pointer',
+          }}
+        >
+          close
+        </button>
+      </div>
+    </>
+  );
+}
+
+function StatChip({ label, value }: { label: string; value: string }) {
+  return (
+    <span>
+      <span style={{ color: 'rgba(255,255,255,0.3)' }}>{label} </span>
+      <span style={{ color: 'rgba(255,255,255,0.78)' }}>{value}</span>
+    </span>
+  );
+}
+
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n}B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)}KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)}MB`;
+  return `${(n / (1024 * 1024 * 1024)).toFixed(2)}GB`;
 }

@@ -82,6 +82,73 @@
 
 .studio, .studio * { box-sizing: border-box; }
 
+/* chrome wordmark — polished silver that drifts across the letterforms.
+   pairs the landing page's hero shimmer onto any text node inside .studio. */
+.studio .chrome-text {
+  background: var(--gradient-chrome-text);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: shimmer 7s ease-in-out infinite;
+  text-shadow: 0 0 22px rgba(190, 220, 255, 0.06);
+}
+
+/* chrome rim — a 1px gradient border rendered via padding-box mask, so the
+   fill underneath stays solid. used to lift small pills (proj label, chip)
+   out of the neutral UI chrome without looking heavy. */
+.studio .chrome-rim {
+  position: relative;
+  isolation: isolate;
+}
+.studio .chrome-rim::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(244, 244, 244, 0.55) 0%,
+    rgba(154, 154, 154, 0.18) 40%,
+    rgba(232, 232, 232, 0.45) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000, #000) content-box,
+    linear-gradient(#000, #000);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* hairline shimmer — horizontal beam that drifts across a 1px bottom edge.
+   reused for active tab underlines + any "attention" affordance. */
+@keyframes studio-beam {
+  0%   { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+.studio .chrome-beam {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -1px;
+  height: 1px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 18%,
+      rgba(255, 255, 255, 0.92) 50%,
+      rgba(255, 255, 255, 0.08) 82%,
+      transparent 100%
+    );
+  background-size: 220% 100%;
+  animation: studio-beam 3.6s linear infinite;
+  pointer-events: none;
+}
+
 /* type primitives ──────────────────────────────────────────────────────── */
 
 .studio h1, .studio h2, .studio h3, .studio h4 {
@@ -233,6 +300,9 @@
 .studio textarea:focus,
 .studio input[type="number"]:focus {
   border-color: var(--edge-bright);
+  box-shadow:
+    0 0 0 1px rgba(232, 232, 232, 0.16),
+    0 0 28px -8px rgba(190, 220, 255, 0.18);
 }
 .studio textarea { resize: vertical; min-height: 4.5em; }
 .studio ::placeholder { color: var(--ink-fade); }
@@ -269,14 +339,17 @@
   cursor: grab;
 }
 
-.studio ::-webkit-scrollbar { width: 10px; height: 10px; }
-.studio ::-webkit-scrollbar-track { background: var(--recessed); }
+.studio ::-webkit-scrollbar { width: 7px; height: 7px; }
+.studio ::-webkit-scrollbar-track { background: transparent; }
 .studio ::-webkit-scrollbar-thumb {
-  background: var(--panel-3);
-  border: 2px solid var(--recessed);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 10px;
+  transition: background var(--dur-m) var(--ease);
 }
-.studio ::-webkit-scrollbar-thumb:hover { background: var(--chrome-lo); }
+.studio ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #d8d8d8 0%, #a6a6a6 52%, #6a6a6a 100%);
+}
+.studio ::-webkit-scrollbar-corner { background: transparent; }
 
 .studio ::selection { background: var(--chrome); color: var(--bg); }
 

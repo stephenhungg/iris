@@ -35,12 +35,21 @@
 .lib__tab--on::after {
   content: "";
   position: absolute;
-  left: 20%;
-  right: 20%;
+  left: 16%;
+  right: 16%;
   bottom: -1px;
   height: 1px;
   background:
-    linear-gradient(90deg, transparent, var(--chrome) 20%, var(--chrome-hi) 50%, var(--chrome) 80%, transparent);
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.08) 18%,
+      rgba(255, 255, 255, 0.95) 50%,
+      rgba(255, 255, 255, 0.08) 82%,
+      transparent 100%
+    );
+  background-size: 220% 100%;
+  animation: studio-beam 3.6s linear infinite;
 }
 
 /* body */

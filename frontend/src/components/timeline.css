@@ -45,10 +45,19 @@
 .tbn--on::after {
   content: "";
   position: absolute;
-  left: 20%; right: 20%;
+  left: 16%; right: 16%;
   bottom: -1px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--chrome) 20%, var(--chrome-hi) 50%, var(--chrome) 80%, transparent);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 18%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.08) 82%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: studio-beam 3.6s linear infinite;
 }
 .tbn--danger:hover:enabled { color: var(--err); border-color: rgba(255,106,106,0.35); }
 
@@ -199,7 +208,10 @@
 .cl:hover { filter: brightness(1.1); }
 .cl--sel {
   border-color: var(--ink);
-  box-shadow: 0 0 0 1px var(--ink) inset, 0 0 0 1px rgba(0,0,0,0.5);
+  box-shadow:
+    0 0 0 1px var(--ink) inset,
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 0 24px -6px rgba(232, 232, 232, 0.35);
   z-index: 2;
 }
 .cl--generated.cl--sel {
