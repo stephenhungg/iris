@@ -23,6 +23,7 @@ from app.api.routes import (
     export,
     mask,
     agent,
+    conversations,
 )
 
 
@@ -83,4 +84,5 @@ app.include_router(narrate.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(mask.router, prefix="/api")
 app.include_router(agent.router, prefix="/api")
+app.include_router(conversations.router, prefix="/api")
 app.include_router(ai_observability_router, prefix="/api/ai")

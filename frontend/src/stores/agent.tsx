@@ -107,7 +107,8 @@ export type AgentAction =
   | { type: "set_analysis"; analysis: VideoAnalysis }
   | { type: "add_error"; message: string }
   | { type: "clear_messages" }
-  | { type: "set_conversation_id"; id: string };
+  | { type: "set_conversation_id"; id: string }
+  | { type: "hydrate_messages"; messages: AgentMessage[] };
 
 // ─── reducer ──────────────────────────────────────────────────────────
 
@@ -243,6 +244,9 @@ function agentReducer(state: AgentState, action: AgentAction): AgentState {
 
     case "set_conversation_id":
       return { ...state, conversationId: action.id };
+
+    case "hydrate_messages":
+      return { ...state, messages: action.messages };
 
     default:
       return state;

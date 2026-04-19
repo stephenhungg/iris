@@ -419,3 +419,42 @@ export async function pollExport(
     await new Promise((r) => setTimeout(r, intervalMs));
   }
 }
+
+// ─── conversations ───────────────────────────────────────────────────
+
+export interface ConversationResp {
+  id: string;
+  project_id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+}
+
+export interface ChatMessageResp {
+  id: string;
+  conversation_id: string;
+  role: string;
+  content: Record<string, unknown>;
+  created_at: string;
+}
+
+export function listConversations(projectId: string): Promise<ConversationResp[]> {
+  return request<ConversationResp[]>(`/api/projects/${projectId}/conversations`);
+}
+
+export function createConversation(projectId: string): Promise<ConversationResp> {
+  return request<ConversationResp>(`/api/projects/${projectId}/conversations`, {
+    method: "POST",
+  });
+}
+
+export function getConversationMessages(conversationId: string): Promise<ChatMessageResp[]> {
+  return request<ChatMessageResp[]>(`/api/conversations/${conversationId}/messages`);
+}
+
+export function deleteConversation(conversationId: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/api/conversations/${conversationId}`, {
+    method: "DELETE",
+  });
+}

@@ -5,13 +5,20 @@
  * into the AgentProvider reducer. Handles abort/cleanup, auth headers
  * (same pattern as api/client.ts), and incremental token streaming.
  */
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
-import { getSessionId } from "../api/client";
+import {
+  createConversation,
+  getConversationMessages,
+  getSessionId,
+  listConversations,
+  type ChatMessageResp,
+} from "../api/client";
 import { supabase } from "../lib/supabase";
 import {
   useAgent,
   type AgentAction,
+  type AgentMessage,
   type SuggestedEdit,
   type VariantPreview,
 } from "../stores/agent";
@@ -25,9 +32,41 @@ interface SendMessageOptions {
 
 // ─── hook ─────────────────────────────────────────────────────────────
 
-export function useAgentStream() {
+export function useAgentStream(projectId?: string | null) {
   const { state, dispatch } = useAgent();
   const abortRef = useRef<AbortController | null>(null);
+  const loadedRef = useRef<string | null>(null);
+
+  // hydrate the most recent conversation for this project on mount
+  useEffect(() => {
+    if (!projectId || loadedRef.current === projectId) return;
+    loadedRef.current = projectId;
+
+    (async () => {
+      try {
+        const convos = await listConversations(projectId);
+        if (convos.length === 0) {
+          // create a fresh conversation
+          const convo = await createConversation(projectId);
+          dispatch({ type: "set_conversation_id", id: convo.id });
+          return;
+        }
+
+        // load the most recent conversation
+        const latest = convos[0];
+        dispatch({ type: "set_conversation_id", id: latest.id });
+
+        if (latest.message_count > 0) {
+          const msgs = await getConversationMessages(latest.id);
+          const hydrated = msgs.map(dbMessageToAgentMessage).filter(Boolean) as AgentMessage[];
+          dispatch({ type: "hydrate_messages", messages: hydrated });
+        }
+      } catch (err) {
+        // non-fatal — just start fresh
+        console.warn("[agent] failed to load conversation:", err);
+      }
+    })();
+  }, [projectId, dispatch]);
 
   const sendMessage = useCallback(
     async ({ projectId, message }: SendMessageOptions) => {
@@ -159,6 +198,49 @@ export function useAgentStream() {
     stopStream,
     clearChat,
   };
+}
+
+// ─── DB message → AgentMessage converter ─────────────────────────────
+
+function dbMessageToAgentMessage(msg: ChatMessageResp): AgentMessage | null {
+  const content = msg.content as Record<string, unknown>;
+  const ts = new Date(msg.created_at).getTime();
+
+  switch (msg.role) {
+    case "user":
+      return { type: "user", text: (content.text as string) ?? "", ts };
+    case "agent":
+      return {
+        type: "agent",
+        text: (content.text as string) ?? "",
+        ts,
+        streaming: false,
+      };
+    case "tool_call":
+      return {
+        type: "tool_call",
+        id: (content.id as string) ?? "",
+        tool: (content.tool as string) ?? "",
+        args: content.args,
+        status: (content.status as "done" | "error") ?? "done",
+        result: content.result,
+        ts,
+      };
+    case "suggestion":
+      return {
+        type: "suggestion",
+        edit: content.edit as SuggestedEdit,
+        ts,
+      };
+    case "error":
+      return {
+        type: "error",
+        message: (content.message as string) ?? "",
+        ts,
+      };
+    default:
+      return null;
+  }
 }
 
 // ─── SSE event dispatcher ─────────────────────────────────────────────

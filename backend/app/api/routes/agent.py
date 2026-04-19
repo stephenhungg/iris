@@ -20,8 +20,11 @@ from google.genai import types
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
 from app.db.session import get_db
 from app.deps import get_runner, get_session
+from app.models.conversation import Conversation, ChatMessage
 from app.models.session import Session as SessionModel
 from app.services.agent_tools import execute_tool
 
@@ -238,6 +241,36 @@ async def _agent_stream(
         yield sse_event("done", {})
         return
 
+    # ── conversation persistence: get or create ──
+    convo = (
+        await db.execute(
+            select(Conversation).where(Conversation.id == body.conversation_id)
+        )
+    ).scalar_one_or_none()
+
+    if convo is None:
+        convo = Conversation(
+            id=body.conversation_id,
+            project_id=body.project_id,
+            session_id=session_id,
+        )
+        db.add(convo)
+        await db.commit()
+        await db.refresh(convo)
+
+    # persist the user message
+    user_msg = ChatMessage(
+        conversation_id=convo.id,
+        role="user",
+        content={"text": body.message},
+    )
+    db.add(user_msg)
+    await db.commit()
+
+    # collect agent text for persistence after stream completes
+    _agent_text_parts: list[str] = []
+    _tool_calls_log: list[dict[str, Any]] = []
+
     client = genai.Client(api_key=api_key)
 
     contents = _build_contents(body.history, body.message)
@@ -292,6 +325,7 @@ async def _agent_stream(
         # Stream accumulated text as a token event
         if text_parts:
             full_text = "".join(text_parts)
+            _agent_text_parts.append(full_text)
             yield sse_event("token", {"text": full_text})
 
         # If no function calls, the model is done
@@ -305,6 +339,8 @@ async def _agent_stream(
             tool_call_id = f"tc_{uuid.uuid4().hex[:8]}"
             tool_name = fc.name
             tool_args = dict(fc.args) if fc.args else {}
+
+            _tool_calls_log.append({"id": tool_call_id, "tool": tool_name, "args": tool_args})
 
             yield sse_event("tool_call_start", {
                 "id": tool_call_id,
@@ -371,6 +407,25 @@ async def _agent_stream(
         # Feed the model's response + function results back into the conversation
         contents.append(candidate.content)
         contents.append(types.Content(role="user", parts=function_responses))
+
+    # ── persist agent response ──
+    try:
+        agent_content: dict[str, Any] = {}
+        combined_text = "".join(_agent_text_parts)
+        if combined_text:
+            agent_content["text"] = combined_text
+        if _tool_calls_log:
+            agent_content["tool_calls"] = _tool_calls_log
+        if agent_content:
+            agent_msg = ChatMessage(
+                conversation_id=convo.id,
+                role="agent",
+                content=agent_content,
+            )
+            db.add(agent_msg)
+            await db.commit()
+    except Exception:
+        log.exception("failed to persist agent response")
 
     yield sse_event("done", {})
 

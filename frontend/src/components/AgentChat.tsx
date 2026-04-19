@@ -14,7 +14,7 @@ interface AgentChatProps {
 // ─── component ────────────────────────────────────────────────────────
 
 export function AgentChat({ projectId }: AgentChatProps) {
-  const { messages, streaming, sendMessage, clearChat } = useAgentStream();
+  const { messages, streaming, sendMessage, clearChat } = useAgentStream(projectId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
