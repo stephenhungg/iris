@@ -138,6 +138,17 @@ function Hero({ onStudio }: { onStudio: () => void }) {
 
   return (
     <section ref={ref} style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 64px', overflow: 'hidden' }}>
+      {/* scattered preview images */}
+      <motion.img src="/frames/frame_045.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.4 }} viewport={{ once: true }}
+        transition={{ ...SPRING.badge, delay: 0.3 }}
+        style={{ position: 'absolute', top: '12%', right: '8%', width: '200px', height: '130px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+      <motion.img src="/frames/frame_080.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.4 }} viewport={{ once: true }}
+        transition={{ ...SPRING.badge, delay: 0.5 }}
+        style={{ position: 'absolute', top: '58%', left: '3%', width: '160px', height: '100px', objectFit: 'cover', rotate: '-3deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+      <motion.img src="/frames/frame_120.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.4 }} viewport={{ once: true }}
+        transition={{ ...SPRING.badge, delay: 0.7 }}
+        style={{ position: 'absolute', top: '40%', right: '4%', width: '180px', height: '120px', objectFit: 'cover', rotate: '1deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+
       <motion.div style={{ opacity, y }}>
         {/* top bar */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={SPRING.badge}
@@ -147,6 +158,11 @@ function Hero({ onStudio }: { onStudio: () => void }) {
               <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#ffffff" darkColor="#000000" tintColor="#c0c0c0" />
             </div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>iris®</span>
+            <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+              {['v0.1', '2026', 'cal hacks'].map((tag, i) => (
+                <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)' }}>{tag}</span>
+              ))}
+            </div>
           </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6 }}>
             ai-powered video editor<br />speak your edits into existence
@@ -193,7 +209,7 @@ function Marquee() {
     <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={SPRING.badge}
       style={{ overflow: 'hidden', whiteSpace: 'nowrap', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '24px 0' }}>
       <motion.div animate={{ x: [0, -3000] }} transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-        style={{ display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 300, letterSpacing: '-0.02em', color: 'transparent', WebkitTextStroke: '0.5px rgba(255,255,255,0.1)' }}>{text}</motion.div>
+        style={{ display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: 'clamp(60px, 8vw, 100px)', fontWeight: 300, letterSpacing: '-0.02em', color: 'transparent', WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>{text}</motion.div>
     </motion.div>
   )
 }
@@ -261,6 +277,8 @@ function Thesis() {
 
 // ── features ────────────────────────────────────────────────────────
 
+const FEATURE_FRAMES = ['/frames/frame_100.jpg', '/frames/frame_060.jpg', '/frames/frame_030.jpg', '/frames/frame_090.jpg']
+
 function Features() {
   return (
     <section style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -281,8 +299,10 @@ function Features() {
         ].map((f, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             transition={{ ...SPRING.bouncy, delay: i * STAGGER }}
-            style={{ padding: '48px 40px', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)', transition: 'background 0.3s', cursor: 'default' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')} onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}>
+            style={{ padding: '48px 40px', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.3s', cursor: 'default', transform: 'translateY(0)', boxShadow: 'none' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderTopColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,255,255,0.03)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderTopColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }}>
+            <div style={{ width: '100%', height: '120px', background: `url(${FEATURE_FRAMES[i]}) center/cover`, opacity: 0.15, marginBottom: '16px', borderRadius: '2px' }} />
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', marginBottom: '16px' }}>{f.label}</div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '12px' }}>{f.title}</div>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'rgba(255,255,255,0.3)', lineHeight: 1.7 }}>{f.desc}</div>
@@ -300,7 +320,9 @@ function TechStrip() {
     <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={SPRING.badge}
       style={{ padding: '80px 64px', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'center', gap: '64px', alignItems: 'center' }}>
       {['gemini 2.5 pro', 'veo 3.1', 'elevenlabs', 'sam2', 'vultr gpu'].map((t, i) => (
-        <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em' }}>{t}</span>
+        <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', transition: 'color 0.3s', cursor: 'default' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.15)')}>{t}</span>
       ))}
     </motion.section>
   )
