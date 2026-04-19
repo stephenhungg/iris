@@ -86,6 +86,9 @@ async def extract_clip(
     start: float,
     end: float,
     out: str | Path,
+    *,
+    vf: str | None = None,
+    with_audio: bool = True,
 ) -> Path:
     """Cut [start, end] from src. Re-encodes for frame-accurate cuts on 2-5s segments."""
     out = Path(out)
@@ -94,12 +97,19 @@ async def extract_clip(
         "-i", str(src),
         "-ss", f"{start:.3f}",
         "-to", f"{end:.3f}",
+    ]
+    if vf:
+        cmd.extend(["-vf", vf])
+    cmd.extend([
         "-c:v", "libx264",
         "-preset", "veryfast",
-        "-c:a", "aac",
         "-movflags", "+faststart",
-        str(out),
-    ]
+    ])
+    if with_audio:
+        cmd.extend(["-c:a", "aac"])
+    else:
+        cmd.append("-an")
+    cmd.append(str(out))
     await _run(cmd)
     return out
 
