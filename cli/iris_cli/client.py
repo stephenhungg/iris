@@ -190,6 +190,191 @@ class IrisClient:
         """GET /api/timeline/{id} — ordered timeline segments."""
         return self._request("GET", f"/timeline/{project_id}")
 
+    # ── Preview ─────────────────────────────────────────────────────────
+
+    def preview_frame(self, project_id: str, ts: float) -> dict[str, Any]:
+        """GET /api/preview/{pid}/frame?ts={ts} — preview a single frame."""
+        return self._request(
+            "GET",
+            f"/preview/{project_id}/frame",
+            params={"ts": ts},
+        )
+
+    def preview_strip(
+        self,
+        project_id: str,
+        start: float,
+        end: float,
+        fps: float = 1.0,
+    ) -> dict[str, Any]:
+        """GET /api/preview/{pid}/strip — preview a frame strip for a range."""
+        return self._request(
+            "GET",
+            f"/preview/{project_id}/strip",
+            params={"start": start, "end": end, "fps": fps},
+        )
+
+    def preview_range(self, project_id: str, start: float, end: float) -> dict[str, Any]:
+        """GET /api/preview/{pid}/range — preview a time range."""
+        return self._request(
+            "GET",
+            f"/preview/{project_id}/range",
+            params={"start": start, "end": end},
+        )
+
+    # ── Timeline surgery ────────────────────────────────────────────────
+
+    def split_segment(
+        self,
+        project_id: str,
+        segment_id: str,
+        split_ts: float,
+    ) -> dict[str, Any]:
+        """POST /api/timeline/{pid}/split — split a timeline segment."""
+        return self._request(
+            "POST",
+            f"/timeline/{project_id}/split",
+            json={"segment_id": segment_id, "split_ts": split_ts},
+        )
+
+    def trim_segment(
+        self,
+        project_id: str,
+        segment_id: str,
+        new_start_ts: float,
+        new_end_ts: float,
+    ) -> dict[str, Any]:
+        """POST /api/timeline/{pid}/trim — trim a timeline segment."""
+        return self._request(
+            "POST",
+            f"/timeline/{project_id}/trim",
+            json={
+                "segment_id": segment_id,
+                "new_start_ts": new_start_ts,
+                "new_end_ts": new_end_ts,
+            },
+        )
+
+    def delete_segment(self, project_id: str, segment_id: str) -> dict[str, Any]:
+        """POST /api/timeline/{pid}/delete — delete a timeline segment."""
+        return self._request(
+            "POST",
+            f"/timeline/{project_id}/delete",
+            json={"segment_id": segment_id},
+        )
+
+    def reorder_segments(
+        self,
+        project_id: str,
+        segment_ids: list[str],
+        order: list[int],
+    ) -> dict[str, Any]:
+        """POST /api/timeline/{pid}/reorder — reorder timeline segments."""
+        return self._request(
+            "POST",
+            f"/timeline/{project_id}/reorder",
+            json={"segment_ids": segment_ids, "order": order},
+        )
+
+    def snapshot_timeline(self, project_id: str) -> dict[str, Any]:
+        """POST /api/timeline/{pid}/snapshot — snapshot the timeline."""
+        return self._request("POST", f"/timeline/{project_id}/snapshot")
+
+    def revert_timeline(self, project_id: str, snapshot_id: str) -> dict[str, Any]:
+        """POST /api/timeline/{pid}/revert — revert to a timeline snapshot."""
+        return self._request(
+            "POST",
+            f"/timeline/{project_id}/revert",
+            json={"snapshot_id": snapshot_id},
+        )
+
+    # ── Color grading ───────────────────────────────────────────────────
+
+    def grade_segment(self, segment_id: str, adjustments: dict[str, Any]) -> dict[str, Any]:
+        """POST /api/segments/{sid}/grade — apply grading adjustments."""
+        return self._request(
+            "POST",
+            f"/segments/{segment_id}/grade",
+            json={"adjustments": adjustments},
+        )
+
+    def grade_preview(self, segment_id: str, adjustments: dict[str, Any]) -> dict[str, Any]:
+        """POST /api/segments/{sid}/grade/preview — preview grading adjustments."""
+        return self._request(
+            "POST",
+            f"/segments/{segment_id}/grade/preview",
+            json={"adjustments": adjustments},
+        )
+
+    def grade_match(self, source_id: str, reference_id: str) -> dict[str, Any]:
+        """POST /api/grade/match — match source grading to a reference."""
+        return self._request(
+            "POST",
+            "/grade/match",
+            json={"source_id": source_id, "reference_id": reference_id},
+        )
+
+    # ── Scoring ─────────────────────────────────────────────────────────
+
+    def score_variant(self, variant_id: str, compare_to: str = "prompt") -> dict[str, Any]:
+        """POST /api/score — score a single variant."""
+        return self._request(
+            "POST",
+            "/score",
+            json={"variant_id": variant_id, "compare_to": compare_to},
+        )
+
+    def score_compare(self, variant_ids: list[str]) -> dict[str, Any]:
+        """POST /api/score/compare — compare multiple variants."""
+        return self._request(
+            "POST",
+            "/score/compare",
+            json={"variant_ids": variant_ids},
+        )
+
+    def score_continuity(self, project_id: str) -> dict[str, Any]:
+        """POST /api/score/continuity — score project continuity."""
+        return self._request(
+            "POST",
+            "/score/continuity",
+            json={"project_id": project_id},
+        )
+
+    # ── Remix & batch ───────────────────────────────────────────────────
+
+    def remix(
+        self,
+        variant_id: str,
+        modifier_prompt: str,
+        preserve_composition: bool = True,
+    ) -> dict[str, Any]:
+        """POST /api/remix — remix a variant."""
+        return self._request(
+            "POST",
+            "/remix",
+            json={
+                "variant_id": variant_id,
+                "modifier_prompt": modifier_prompt,
+                "preserve_composition": preserve_composition,
+            },
+        )
+
+    def batch_generate(self, edits: list[Any]) -> dict[str, Any]:
+        """POST /api/batch/generate — start a batch generation request."""
+        return self._request(
+            "POST",
+            "/batch/generate",
+            json={"edits": edits},
+        )
+
+    def batch_accept(self, accepts: list[Any]) -> dict[str, Any]:
+        """POST /api/batch/accept — accept multiple batch results."""
+        return self._request(
+            "POST",
+            "/batch/accept",
+            json={"accepts": accepts},
+        )
+
     # ── Narrate ─────────────────────────────────────────────────────────
 
     def narrate(

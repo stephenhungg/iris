@@ -16,6 +16,14 @@ from iris_cli.commands import mask as mask_cmd
 from iris_cli.commands import entities as entities_cmd
 from iris_cli.commands import propagate as propagate_cmd
 from iris_cli.commands import timeline as timeline_cmd
+from iris_cli.commands import preview as preview_cmd
+from iris_cli.commands import split as split_cmd
+from iris_cli.commands import trim as trim_cmd
+from iris_cli.commands import snapshot as snapshot_cmd
+from iris_cli.commands import grade as grade_cmd
+from iris_cli.commands import score as score_cmd
+from iris_cli.commands import remix as remix_cmd
+from iris_cli.commands import batch as batch_cmd
 from iris_cli.commands import narrate as narrate_cmd
 from iris_cli.commands import export as export_cmd
 from iris_cli.commands import analyze as analyze_cmd
@@ -69,6 +77,16 @@ app.command(name="mask")(mask_cmd.mask)
 app.command(name="entity")(entities_cmd.get_entity)
 app.command(name="propagate")(propagate_cmd.propagate)
 app.command(name="timeline")(timeline_cmd.timeline)
+app.command(name="preview")(preview_cmd.preview)
+app.command(name="split")(split_cmd.split)
+app.command(name="trim")(trim_cmd.trim)
+app.command(name="snapshot")(snapshot_cmd.snapshot)
+app.command(name="revert")(snapshot_cmd.revert)
+app.command(name="grade")(grade_cmd.grade)
+app.command(name="score")(score_cmd.score)
+app.command(name="remix")(remix_cmd.remix)
+app.command(name="batch-generate")(batch_cmd.batch_generate)
+app.command(name="batch-accept")(batch_cmd.batch_accept)
 app.command(name="narrate")(narrate_cmd.narrate)
 app.command(name="export")(export_cmd.export)
 app.command(name="analyze")(analyze_cmd.analyze)
