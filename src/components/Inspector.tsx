@@ -61,7 +61,7 @@ function AiTab() {
   const { state, dispatch } = useEDL();
   const selected = state.clips.find((c) => c.id === state.selectedId) ?? null;
   const [prompt, setPrompt] = useState("");
-  const [bbox, setBbox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const bbox = state.bbox;
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -238,7 +238,7 @@ function AiTab() {
               {describeBbox(bbox)}
               <button
                 className="bbox-clear mono"
-                onClick={() => setBbox(null)}
+                onClick={() => dispatch({ type: "set_bbox", bbox: null })}
                 title="clear region selection"
                 style={{
                   background: "none",

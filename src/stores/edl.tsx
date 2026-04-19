@@ -64,6 +64,8 @@ export type Clip = {
   sourceAssetId?: string;
 };
 
+export type BBox = { x: number; y: number; w: number; h: number };
+
 export type State = {
   /** library pool — imported + generated media, not on the timeline yet */
   sources: MediaAsset[];
@@ -73,6 +75,8 @@ export type State = {
   /** timeline-time in seconds (read/written by preview + timeline) */
   playhead: number;
   playing: boolean;
+  /** bounding box selection for AI generation (normalized 0-1) */
+  bbox: BBox | null;
 };
 
 export const initialState: State = {
@@ -81,6 +85,7 @@ export const initialState: State = {
   selectedId: null,
   playhead: 0,
   playing: false,
+  bbox: null,
 };
 
 // ─── helpers ──────────────────────────────────────────────────────────
@@ -127,6 +132,7 @@ export type Action =
   | { type: "set_volume"; id: string; v: number }
   | { type: "reorder"; from: number; to: number }
   | { type: "replace"; id: string; with: Clip }
+  | { type: "set_bbox"; bbox: BBox | null }
   | { type: "hydrate"; sources: MediaAsset[]; clips: Clip[] };
 
 function reducer(state: State, a: Action): State {
@@ -251,8 +257,10 @@ function reducer(state: State, a: Action): State {
 
     case "replace": {
       const clips = state.clips.map((c) => (c.id === a.id ? a.with : c));
-      return { ...state, clips, selectedId: a.with.id };
+      return { ...state, clips, selectedId: a.with.id, bbox: null };
     }
+    case "set_bbox":
+      return { ...state, bbox: a.bbox };
   }
 }
 

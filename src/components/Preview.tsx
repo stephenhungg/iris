@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { clipAtTime, duration, sourceTimeFor, totalDuration, useEDL } from "../stores/edl";
 import { Icon } from "./Icon";
+import BoundingBox from "./BoundingBox";
 import "./preview.css";
 
 /**
@@ -12,6 +13,7 @@ import "./preview.css";
 export function Preview() {
   const { state, dispatch } = useEDL();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const currentClipIdRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -87,9 +89,20 @@ export function Preview() {
 
   return (
     <div className="pv">
-      <div className="pv__stage">
+      <div className="pv__stage" ref={stageRef} style={{ position: 'relative' }}>
         {activeClip ? (
-          <video ref={videoRef} className="pv__video" playsInline />
+          <>
+            <video ref={videoRef} className="pv__video" playsInline />
+            <BoundingBox
+              videoWidth={videoRef.current?.videoWidth ?? 1920}
+              videoHeight={videoRef.current?.videoHeight ?? 1080}
+              containerRef={stageRef}
+              disabled={state.playing}
+              onBoxDrawn={(bbox) => dispatch({ type: "set_bbox", bbox })}
+              onClear={() => dispatch({ type: "set_bbox", bbox: null })}
+              mask={null}
+            />
+          </>
         ) : (
           <div className="pv__placeholder mono">no clip</div>
         )}
