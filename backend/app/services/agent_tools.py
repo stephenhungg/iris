@@ -5,7 +5,10 @@ but operates directly on the DB session instead of going through HTTP.
 This keeps the agent's tool calls in-process and avoids auth round-trips.
 """
 
+import json
 import logging
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -16,10 +19,20 @@ from sqlalchemy.orm import selectinload
 from app.models.job import Job, Variant
 from app.models.project import Project
 from app.models.segment import Segment
-from app.services import storage
+from app.models.timeline_snapshot import TimelineSnapshot
+from app.services import color as color_service
+from app.services import ffmpeg, storage
 from app.services.timeline_builder import build_timeline
+from google import genai
+from google.genai import types
 
 log = logging.getLogger("iris.agent_tools")
+
+MIN_SEG_LEN = 2.0
+MAX_SEG_LEN = 5.0
+MAX_BATCH_EDITS = 10
+GEMINI_MODEL = "gemini-2.5-flash"
+FRAME_COUNT = 5
 
 # ---- dispatcher ----
 
@@ -74,6 +87,307 @@ async def _get_project_or_error(
     if proj is None or proj.session_id != session_id:
         raise ValueError(f"project not found or access denied: {project_id}")
     return proj
+
+
+async def _get_segment_or_error(
+    db: AsyncSession,
+    project_id: str,
+    segment_id: str,
+) -> Segment:
+    segment = await db.get(Segment, segment_id)
+    if segment is None or segment.project_id != project_id:
+        raise ValueError(f"segment not found: {segment_id}")
+    return segment
+
+
+async def _get_owned_segment_or_error(
+    db: AsyncSession,
+    segment_id: str,
+    session_id: str,
+) -> tuple[Segment, Project]:
+    row = (
+        await db.execute(
+            select(Segment, Project)
+            .join(Project, Project.id == Segment.project_id)
+            .where(
+                Segment.id == segment_id,
+                Project.session_id == session_id,
+            )
+        )
+    ).one_or_none()
+    if row is None:
+        raise ValueError(f"segment not found: {segment_id}")
+    segment, project = row
+    return segment, project
+
+
+async def _get_variant_for_session_or_error(
+    db: AsyncSession,
+    variant_id: str,
+    session_id: str,
+) -> Variant:
+    variant = (
+        await db.execute(
+            select(Variant)
+            .where(Variant.id == variant_id)
+            .options(
+                selectinload(Variant.job).selectinload(Job.project),
+            )
+        )
+    ).scalar_one_or_none()
+    if variant is None or variant.job is None or variant.job.project is None:
+        raise ValueError(f"variant not found: {variant_id}")
+    if variant.job.project.session_id != session_id:
+        raise ValueError(f"variant not found: {variant_id}")
+    return variant
+
+
+def _segment_dict(segment: Segment) -> dict[str, Any]:
+    return {
+        "id": segment.id,
+        "project_id": segment.project_id,
+        "start_ts": segment.start_ts,
+        "end_ts": segment.end_ts,
+        "source": segment.source,
+        "url": storage.normalize_url_like(segment.url, fallback=segment.url),
+        "variant_id": segment.variant_id,
+        "order_index": segment.order_index,
+        "active": segment.active,
+    }
+
+
+def _snapshot_payload(segment: Segment) -> dict[str, Any]:
+    return {
+        "project_id": segment.project_id,
+        "start_ts": segment.start_ts,
+        "end_ts": segment.end_ts,
+        "source": segment.source,
+        "url": segment.url,
+        "variant_id": segment.variant_id,
+        "order_index": segment.order_index,
+        "active": segment.active,
+    }
+
+
+def _validate_preview_timestamp(ts: float, duration: float) -> None:
+    if ts < 0:
+        raise ValueError("ts must be >= 0")
+    if ts > duration + 1e-3:
+        raise ValueError("ts past project duration")
+
+
+def _validate_preview_bounds(start: float, end: float, duration: float) -> None:
+    if end <= start:
+        raise ValueError("end must be greater than start")
+    if start < 0:
+        raise ValueError("start must be >= 0")
+    if end > duration + 1e-3:
+        raise ValueError("end past project duration")
+
+
+def _validate_segment_length(start_ts: float, end_ts: float) -> None:
+    length = end_ts - start_ts
+    if length < MIN_SEG_LEN or length > MAX_SEG_LEN:
+        raise ValueError(
+            f"segment length must be {MIN_SEG_LEN}-{MAX_SEG_LEN}s (got {length:.2f}s)"
+        )
+
+
+def _validate_bbox_bounds(bbox: dict[str, Any]) -> None:
+    x = float(bbox.get("x", 0.0))
+    y = float(bbox.get("y", 0.0))
+    w = float(bbox.get("w", 0.0))
+    h = float(bbox.get("h", 0.0))
+    if x + w > 1.0001 or y + h > 1.0001:
+        raise ValueError("bbox extends outside the frame")
+
+
+def _find_timeline_item(items: list[Any], ts: float) -> Any:
+    for item in items:
+        if item.start_ts - 1e-3 <= ts < item.end_ts - 1e-3:
+            return item
+    if items and abs(ts - items[-1].end_ts) <= 1e-3:
+        return items[-1]
+    raise ValueError("timeline item not found")
+
+
+async def _resolve_timeline_source_path(
+    proj: Project,
+    item: Any,
+) -> Path:
+    if item.source == "generated":
+        return await storage.path_from_url(item.url)
+
+    src = Path(proj.video_path)
+    if src.exists():
+        return src
+    return await storage.path_from_url(proj.video_url)
+
+
+async def _extract_preview_frame_result(
+    proj: Project,
+    items: list[Any],
+    ts: float,
+) -> dict[str, Any]:
+    item = _find_timeline_item(items, ts)
+    src = await _resolve_timeline_source_path(proj, item)
+    if item.source == "generated":
+        frame_ts = max(0.0, ts - item.start_ts)
+        frame_ts = min(frame_ts, max(0.0, item.duration - 1e-3))
+    else:
+        frame_ts = min(ts, max(0.0, proj.duration - 1e-3))
+
+    frame_path, _ = storage.new_path("previews", "jpg")
+    await ffmpeg.extract_frame(src, frame_ts, frame_path)
+    frame_url = await storage.publish(frame_path, content_type="image/jpeg")
+    return {"ts": ts, "url": frame_url}
+
+
+async def _deactivate_overlapping_generated_segments(
+    db: AsyncSession,
+    segment: Segment,
+) -> None:
+    overlapping = (
+        await db.execute(
+            select(Segment).where(
+                Segment.project_id == segment.project_id,
+                Segment.active == True,  # noqa: E712
+                Segment.source == "generated",
+                Segment.start_ts < segment.end_ts,
+                Segment.end_ts > segment.start_ts,
+            )
+        )
+    ).scalars().all()
+    for existing in overlapping:
+        existing.active = False
+
+
+def _get_gemini_client() -> genai.Client:
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY is not configured")
+    return genai.Client(api_key=api_key)
+
+
+def _image_part(path: Path) -> types.Part:
+    suffix = path.suffix.lower()
+    mime_type = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+    }.get(suffix, "image/png")
+    return types.Part.from_bytes(data=path.read_bytes(), mime_type=mime_type)
+
+
+def _score_prompt(compare_to: str, prompt: str) -> str:
+    if compare_to == "original":
+        comparison_instruction = (
+            "you are also given reference frames from the original source segment. "
+            "judge whether the variant preserves scene structure and improves the edit "
+            "without introducing new artifacts or continuity breaks."
+        )
+    else:
+        comparison_instruction = (
+            "judge the variant directly against the user prompt without assuming access "
+            "to the original source segment."
+        )
+
+    return (
+        "you are a video quality rater for short generated clips. "
+        f"{comparison_instruction} "
+        "return strict json only using this schema: "
+        "{"
+        '"visual_coherence":{"score":float,"issues":[str]},'
+        '"prompt_adherence":{"score":float,"misses":[str]},'
+        '"temporal_consistency":{"score":float,"flicker_detected":bool},'
+        '"edge_quality":{"score":float,"issues":[str]},'
+        '"overall":float,'
+        '"recommendation":"accept"|"remix"|"reject"'
+        "}. "
+        "all scores must be floats from 0.0 to 10.0. "
+        "keep issue and miss lists concise and concrete. "
+        f"user prompt: {prompt}"
+    )
+
+
+def _continuity_prompt(boundary_ts: float) -> str:
+    return (
+        "you are judging continuity across a video edit boundary. "
+        f"the first image is the last frame before the cut near t={boundary_ts:.3f}s. "
+        "the second image is the first frame after the cut. "
+        "return strict json only using this schema: "
+        '{'
+        '"score":float,'
+        '"issues":[{"type":str,"severity":float}]'
+        "}. "
+        "scores and severities must be floats from 0.0 to 10.0. "
+        "only include issues for meaningful continuity problems like jump cuts, "
+        "subject mismatch, lighting change, color shift, framing mismatch, or object pop."
+    )
+
+
+async def _generate_json(
+    *,
+    client: genai.Client,
+    prompt_text: str,
+    frame_paths: list[Path],
+) -> dict[str, Any]:
+    contents = [types.Part.from_text(text=prompt_text)]
+    contents.extend(_image_part(path) for path in frame_paths)
+
+    response = await client.aio.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=contents,
+        config=types.GenerateContentConfig(response_mime_type="application/json"),
+    )
+    return json.loads(response.text)
+
+
+async def _sample_video_frames(
+    *,
+    src: Path,
+    temp_dir: Path,
+    prefix: str,
+    num_frames: int,
+    start_ts: float = 0.0,
+    end_ts: float | None = None,
+) -> list[Path]:
+    probe_data = await ffmpeg.probe(src)
+    duration = float(probe_data.get("duration", 0.0))
+    sample_start = max(0.0, start_ts)
+    sample_end = duration if end_ts is None else min(float(end_ts), duration)
+    if sample_end <= sample_start:
+        sample_end = max(sample_start + 1e-3, duration)
+
+    span = max(sample_end - sample_start, 1e-3)
+    frame_paths: list[Path] = []
+    for index in range(num_frames):
+        ts = sample_start + ((index + 0.5) * span / num_frames)
+        ts = min(max(sample_start, ts), max(sample_start, sample_end - 1e-3))
+        out = temp_dir / f"{prefix}_{index:02d}.png"
+        await ffmpeg.extract_frame(src, ts, out)
+        frame_paths.append(out)
+    return frame_paths
+
+
+async def _boundary_frame(
+    *,
+    proj: Project,
+    item: Any,
+    is_end: bool,
+    output_path: Path,
+) -> Path:
+    clip_path = await _resolve_timeline_source_path(proj, item)
+    if not clip_path.exists():
+        raise ValueError("timeline source video not found")
+
+    epsilon = min(0.04, max(item.duration / 10.0, 0.001))
+    if item.source == "original":
+        ts = max(0.0, item.end_ts - epsilon) if is_end else max(0.0, item.start_ts)
+    else:
+        ts = max(0.0, item.duration - epsilon) if is_end else 0.0
+    return await ffmpeg.extract_frame(clip_path, ts, output_path)
 
 
 # ---- tool handlers ----

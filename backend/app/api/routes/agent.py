@@ -186,6 +186,227 @@ TOOL_DECLARATIONS = [
             required=["project_id"],
         ),
     ),
+    types.FunctionDeclaration(
+        name="preview_frame",
+        description="Get a preview frame for a project timeline at a specific timestamp.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "project_id": types.Schema(type=types.Type.STRING, description="The project ID"),
+                "ts": types.Schema(
+                    type=types.Type.NUMBER,
+                    description="Timestamp in seconds",
+                ),
+            },
+            required=["project_id", "ts"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="preview_strip",
+        description="Get a thumbnail strip for scrubbing across a timeline range.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "project_id": types.Schema(type=types.Type.STRING, description="The project ID"),
+                "start": types.Schema(
+                    type=types.Type.NUMBER,
+                    description="Start timestamp in seconds",
+                ),
+                "end": types.Schema(
+                    type=types.Type.NUMBER,
+                    description="End timestamp in seconds",
+                ),
+                "fps": types.Schema(
+                    type=types.Type.NUMBER,
+                    description="Frames per second to sample (default 1.0)",
+                ),
+            },
+            required=["project_id", "start", "end"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="split_segment",
+        description="Split a timeline segment at a timestamp.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "project_id": types.Schema(type=types.Type.STRING, description="The project ID"),
+                "segment_id": types.Schema(type=types.Type.STRING, description="The segment ID"),
+                "split_ts": types.Schema(
+                    type=types.Type.NUMBER,
+                    description="Timestamp in seconds to split at",
+                ),
+            },
+            required=["project_id", "segment_id", "split_ts"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="trim_segment",
+        description="Trim a segment to new start and end boundaries.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "project_id": types.Schema(type=types.Type.STRING, description="The project ID"),
+                "segment_id": types.Schema(type=types.Type.STRING, description="The segment ID"),
+                "new_start_ts": types.Schema(
+                    type=types.Type.NUMBER,
+                    description="New segment start timestamp in seconds",
+                ),
+                "new_end_ts": types.Schema(
+                    type=types.Type.NUMBER,
+                    description="New segment end timestamp in seconds",
+                ),
+            },
+            required=["project_id", "segment_id", "new_start_ts", "new_end_ts"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="delete_segment",
+        description="Soft delete a timeline segment by marking it inactive.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "project_id": types.Schema(type=types.Type.STRING, description="The project ID"),
+                "segment_id": types.Schema(type=types.Type.STRING, description="The segment ID"),
+            },
+            required=["project_id", "segment_id"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="color_grade",
+        description="Apply color grading adjustments to a segment.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "segment_id": types.Schema(type=types.Type.STRING, description="The segment ID"),
+                "brightness": types.Schema(type=types.Type.NUMBER, description="Brightness adjustment"),
+                "contrast": types.Schema(type=types.Type.NUMBER, description="Contrast adjustment"),
+                "saturation": types.Schema(type=types.Type.NUMBER, description="Saturation adjustment"),
+                "temperature": types.Schema(type=types.Type.NUMBER, description="Color temperature adjustment"),
+                "gamma": types.Schema(type=types.Type.NUMBER, description="Gamma adjustment"),
+                "hue_shift": types.Schema(type=types.Type.NUMBER, description="Hue shift adjustment"),
+            },
+            required=["segment_id"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="grade_preview",
+        description="Preview color grading adjustments on a single frame of a segment.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "segment_id": types.Schema(type=types.Type.STRING, description="The segment ID"),
+                "brightness": types.Schema(type=types.Type.NUMBER, description="Brightness adjustment"),
+                "contrast": types.Schema(type=types.Type.NUMBER, description="Contrast adjustment"),
+                "saturation": types.Schema(type=types.Type.NUMBER, description="Saturation adjustment"),
+                "temperature": types.Schema(type=types.Type.NUMBER, description="Color temperature adjustment"),
+                "gamma": types.Schema(type=types.Type.NUMBER, description="Gamma adjustment"),
+                "hue_shift": types.Schema(type=types.Type.NUMBER, description="Hue shift adjustment"),
+            },
+            required=["segment_id"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="score_variant",
+        description="Get detailed quality scoring for a generated variant.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "variant_id": types.Schema(type=types.Type.STRING, description="The variant ID"),
+                "compare_to": types.Schema(
+                    type=types.Type.STRING,
+                    description="Comparison target: prompt or original (default prompt)",
+                ),
+            },
+            required=["variant_id"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="score_continuity",
+        description="Check temporal consistency across the current timeline.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "project_id": types.Schema(type=types.Type.STRING, description="The project ID"),
+            },
+            required=["project_id"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="remix_variant",
+        description="Create a refined remix job from an existing variant.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "variant_id": types.Schema(type=types.Type.STRING, description="The source variant ID"),
+                "modifier_prompt": types.Schema(
+                    type=types.Type.STRING,
+                    description="How to refine the existing variant",
+                ),
+                "preserve_composition": types.Schema(
+                    type=types.Type.BOOLEAN,
+                    description="Whether to preserve the original composition (default true)",
+                ),
+            },
+            required=["variant_id", "modifier_prompt"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="batch_generate",
+        description="Submit multiple generation jobs in a single batch.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "edits": types.Schema(
+                    type=types.Type.ARRAY,
+                    items=types.Schema(
+                        type=types.Type.OBJECT,
+                        properties={
+                            "project_id": types.Schema(type=types.Type.STRING, description="The project ID"),
+                            "start_ts": types.Schema(type=types.Type.NUMBER, description="Segment start timestamp in seconds"),
+                            "end_ts": types.Schema(type=types.Type.NUMBER, description="Segment end timestamp in seconds"),
+                            "bbox": types.Schema(
+                                type=types.Type.OBJECT,
+                                properties={
+                                    "x": types.Schema(type=types.Type.NUMBER),
+                                    "y": types.Schema(type=types.Type.NUMBER),
+                                    "w": types.Schema(type=types.Type.NUMBER),
+                                    "h": types.Schema(type=types.Type.NUMBER),
+                                },
+                            ),
+                            "prompt": types.Schema(type=types.Type.STRING, description="What change to make"),
+                        },
+                        required=["project_id", "start_ts", "end_ts", "bbox", "prompt"],
+                    ),
+                    description="Batch edit requests to submit",
+                ),
+            },
+            required=["edits"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="snapshot_timeline",
+        description="Save a checkpoint of the current project timeline.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "project_id": types.Schema(type=types.Type.STRING, description="The project ID"),
+            },
+            required=["project_id"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="revert_timeline",
+        description="Revert a project timeline to a saved checkpoint.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "project_id": types.Schema(type=types.Type.STRING, description="The project ID"),
+                "snapshot_id": types.Schema(type=types.Type.STRING, description="The snapshot ID"),
+            },
+            required=["project_id", "snapshot_id"],
+        ),
+    ),
 ]
 
 TOOLS = [types.Tool(function_declarations=TOOL_DECLARATIONS)]

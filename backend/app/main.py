@@ -13,17 +13,22 @@ from app.api.routes import (
     upload,
     projects,
     generate,
+    scoring,
+    remix,
     identify,
     jobs,
     accept,
     entities,
     propagate,
     timeline,
+    timeline_ops,
     narrate,
     export,
     mask,
+    color,
     agent,
     conversations,
+    preview,
 )
 
 
@@ -74,15 +79,20 @@ app.include_router(health.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(generate.router, prefix="/api")
+app.include_router(scoring.router, prefix="/api")
+app.include_router(remix.router, prefix="/api")
 app.include_router(identify.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(accept.router, prefix="/api")
 app.include_router(entities.router, prefix="/api")
 app.include_router(propagate.router, prefix="/api")
 app.include_router(timeline.router, prefix="/api")
+app.include_router(timeline_ops.router, prefix="/api")
 app.include_router(narrate.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(mask.router, prefix="/api")
+app.include_router(color.router, prefix="/api")
 app.include_router(agent.router, prefix="/api")
 app.include_router(conversations.router, prefix="/api")
+app.include_router(preview.router, prefix="/api")
 app.include_router(ai_observability_router, prefix="/api/ai")
