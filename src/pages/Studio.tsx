@@ -19,7 +19,7 @@ import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
 import { VibePrompt } from "../components/VibePrompt";
-import { getTimeline, upload } from "../api/client";
+import { exportVideo, getTimeline, upload } from "../api/client";
 import { Icon } from "../components/Icon";
 import "../styles/global.css";
 import "./studio.css";
@@ -212,6 +212,22 @@ function StudioInner({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [state.playing, state.selectedId, dispatch]);
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    const projectId = state.sources[0]?.projectId;
+    if (!projectId || state.clips.length === 0) return;
+    setExporting(true);
+    try {
+      const res = await exportVideo(projectId);
+      window.open(res.export_url, "_blank");
+    } catch (err) {
+      alert(`Export failed: ${err}`);
+    } finally {
+      setExporting(false);
+    }
+  }, [state.sources, state.clips.length]);
 
   const hasSources = state.sources.length > 0;
   const projectLabel = state.sources[0]?.projectId.slice(0, 8);
