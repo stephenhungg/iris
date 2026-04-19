@@ -11,34 +11,34 @@ type ShowcaseCard = {
 
 const DEFAULT_CARDS: ShowcaseCard[] = [
   {
-    image: '/frames/card-vibe.gif',
-    label: 'Planning / intent',
-    title: 'intent into structure',
-    description: 'Prompt-driven direction turns a rough idea into concrete editing options with timing, framing, and purpose.',
-  },
-  {
-    image: '/frames/card-generation.gif',
-    label: 'Generation / variants',
-    title: 'multiple takes, one decision',
-    description: 'Generate alternate outcomes for the exact region you selected, then compare the options before committing.',
-  },
-  {
     image: '/frames/card-library.gif',
-    label: 'Tracking / continuity',
-    title: 'continuity through the cut',
-    description: 'Once a subject is identified, Iris can follow it through surrounding frames so the edit stays coherent.',
-  },
-  {
-    image: '/frames/card-export.gif',
-    label: 'Workflow / delivery',
-    title: 'from edit to export',
-    description: 'Keep narration, presentation, and export inside the same workflow instead of stitching together disconnected tools.',
+    label: '01 / library',
+    title: 'start from your library',
+    description: 'Upload a clip or pick up where you left off. Every reel lives here with its edits, variants, and timeline intact.',
   },
   {
     image: '/frames/card-editing.gif',
-    label: 'Editing / timeline',
-    title: 'the edit in motion',
-    description: 'See the full editing loop in action — select a region, prompt, generate, and splice the result back into your timeline.',
+    label: '02 / select + prompt',
+    title: 'draw a box, describe the change',
+    description: 'Scrub to the moment, draw a bounding box around what you want to change, and describe the edit in plain language.',
+  },
+  {
+    image: '/frames/card-generation.gif',
+    label: '03 / generate',
+    title: 'multiple takes, one decision',
+    description: 'Generate alternate outcomes for the selected region, compare the options, and accept the strongest result.',
+  },
+  {
+    image: '/frames/card-vibe.gif',
+    label: '04 / agent chat',
+    title: 'let the agent drive',
+    description: 'Describe what you want in the chat. The agent analyzes your video, identifies regions, generates edits, and shows you the results.',
+  },
+  {
+    image: '/frames/card-export.gif',
+    label: '05 / export',
+    title: 'from edit to export',
+    description: 'When the cut is ready, export the final video. All edits are stitched together into a single MP4.',
   },
 ]
 
