@@ -19,7 +19,6 @@ import { Inspector } from "../components/Inspector";
 import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
-import { VibePrompt } from "../components/VibePrompt";
 import { AgentChat } from "../components/AgentChat";
 import { VideoScrubber } from "../components/VideoScrubber";
 import { AgentProvider } from "../stores/agent";
@@ -428,17 +427,22 @@ function StudioInner({
       const res = await upload(file);
       // Drop imported media into the library pool. The user chooses when
       // it lands on the timeline via the plus button in the Library.
-      dispatch({
-        type: "add_source",
-        asset: newMediaAsset({
-          url: res.video_url,
-          duration: res.duration,
-          fps: res.fps,
-          projectId: res.project_id,
-          label: file.name.replace(/\.[^.]+$/, ""),
-          kind: "source",
-        }),
+      const asset = newMediaAsset({
+        url: res.video_url,
+        duration: res.duration,
+        fps: res.fps,
+        projectId: res.project_id,
+        label: file.name.replace(/\.[^.]+$/, ""),
+        kind: "source",
       });
+      dispatch({ type: "add_source", asset });
+      // Vibe mode hides the Library sidebar entirely, so the usual plus-
+      // button affordance is gone. Auto-drop new imports straight onto
+      // the timeline there — otherwise the clip would just vanish into
+      // a pool the user can't see.
+      if (mode === "vibe") {
+        dispatch({ type: "add_to_timeline", assetId: asset.id });
+      }
     } catch (e) {
       alert(`upload failed: ${e}`);
     } finally {
@@ -788,7 +792,6 @@ function StudioInner({
                   }))}
                 />
               )}
-              {mode === 'vibe' && <VibePrompt />}
             </>
           ) : hydratingProject ? (
             <div
