@@ -788,7 +788,7 @@ function StudioInner({
                   }))}
                 />
               )}
-              {mode === 'pro' && <VibePrompt />}
+              {mode === 'vibe' && <VibePrompt />}
             </>
           ) : hydratingProject ? (
             <div

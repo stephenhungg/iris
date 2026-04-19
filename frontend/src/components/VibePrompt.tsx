@@ -3,12 +3,27 @@ import { useEDL, clipAtTime, sourceTimeFor, type Clip } from '../stores/edl';
 import { useGenerationSession } from '../hooks/useGenerationSession';
 import { GenerationReveal } from '../features/reveal/GenerationReveal';
 
+const HINT_DISMISS_KEY = 'iris.vibe.hintDismissed';
+
 export function VibePrompt() {
   const { state } = useEDL();
   const [lockedContext, setLockedContext] = useState<{
     clip: Clip;
     previewFrameTs: number | null;
   } | null>(null);
+  const [hintDismissed, setHintDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.sessionStorage.getItem(HINT_DISMISS_KEY) === '1';
+  });
+
+  function dismissHint() {
+    setHintDismissed(true);
+    try {
+      window.sessionStorage.setItem(HINT_DISMISS_KEY, '1');
+    } catch {
+      // sessionStorage can throw in private mode; fine to ignore
+    }
+  }
 
   // get the clip at current playhead
   const hit = clipAtTime(state.clips, state.playhead);
@@ -56,9 +71,19 @@ export function VibePrompt() {
   }
 
   if (!activeClip || activeClip.kind !== 'source' || !activeClip.projectId) {
+    if (hintDismissed) return null;
     return (
       <div className="reveal-host reveal-host--floating">
         <div className="reveal reveal--floating">
+          <button
+            type="button"
+            className="reveal__dismiss mono"
+            aria-label="dismiss vibe mode hint"
+            title="dismiss hint"
+            onClick={dismissHint}
+          >
+            ×
+          </button>
           <div className="reveal__composer">
             <div className="reveal__heading">
               <div>
