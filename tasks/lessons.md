@@ -8,3 +8,4 @@
 - variant types from the backend include `id`, `index`, `status`, and `error` fields. always declare these in the frontend type even if you don't immediately use them — they're needed for progressive reveal, error handling, and keying.
 - the EDL `hydrate` action must clear all transient edit state (bbox, mask, identified, identifying) to prevent stale data from leaking across project sessions.
 - integration tests using `httpx.AsyncClient` with `ASGITransport` don't trigger the fastapi lifespan. db tables and job runner must be set up explicitly in a fixture.
+- if a “vibe” flow still requires the user to think in raw edl/source-range semantics, it is not actually a vibe flow yet. validate the first-run path against backend constraints like segment length before treating the interaction as product-ready.

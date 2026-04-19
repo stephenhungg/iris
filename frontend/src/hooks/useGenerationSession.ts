@@ -16,10 +16,14 @@ import { newClip, useEDL, type Clip } from "../stores/edl";
 type GenerationTarget = Pick<
   Clip,
   "id" | "projectId" | "sourceStart" | "sourceEnd" | "volume"
->;
+> & {
+  sourceClipStart: number;
+  sourceClipEnd: number;
+};
 
 type UseGenerationSessionArgs = {
   clip: Clip | null;
+  sourceClip?: Clip | null;
   bbox: BBox | null;
   previewFrameTs: number | null;
   onAccepted?: (payload: AcceptedVariantPayload) => void | Promise<void>;
@@ -35,6 +39,7 @@ export type AcceptedVariantPayload = {
 
 export function useGenerationSession({
   clip,
+  sourceClip,
   bbox,
   previewFrameTs,
   onAccepted,
@@ -85,6 +90,7 @@ export function useGenerationSession({
 
   async function run(): Promise<boolean> {
     if (!canGenerate || !clip || !clip.projectId) return false;
+    const baseClip = sourceClip ?? clip;
     closeStream();
     setBusy(true);
     setErr(null);
@@ -93,11 +99,13 @@ export function useGenerationSession({
     setAcceptingIdx(null);
     setLogs([]);
     generationTargetRef.current = {
-      id: clip.id,
+      id: baseClip.id,
       projectId: clip.projectId,
       sourceStart: clip.sourceStart,
       sourceEnd: clip.sourceEnd,
-      volume: clip.volume,
+      volume: baseClip.volume,
+      sourceClipStart: baseClip.sourceStart,
+      sourceClipEnd: baseClip.sourceEnd,
     };
     try {
       const { job_id } = await generate({
@@ -171,7 +179,20 @@ export function useGenerationSession({
         generatedFromClipId: target.id,
         volume: target.volume,
       });
-      dispatch({ type: "replace", id: target.id, with: replacement });
+      const replacesWholeClip =
+        Math.abs(target.sourceStart - target.sourceClipStart) < 1e-3 &&
+        Math.abs(target.sourceEnd - target.sourceClipEnd) < 1e-3;
+      if (replacesWholeClip) {
+        dispatch({ type: "replace", id: target.id, with: replacement });
+      } else {
+        dispatch({
+          type: "replace_range",
+          id: target.id,
+          start: target.sourceStart,
+          end: target.sourceEnd,
+          with: replacement,
+        });
+      }
       setPrompt("");
       clearSession({ keepPrompt: false });
       if (onAccepted) {

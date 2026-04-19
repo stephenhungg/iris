@@ -27,6 +27,10 @@
 - [completed] align the backend agent prompt and cli skill surface with the richer preview/score/remix/snapshot workflow that now exists
 - [pending] expose the most useful pro surfaces in frontend code structure first (`score`, `remix`, preview/scrub context), then decide what to ship visibly in the dashboard
 - [pending] repair the remaining docs/reference parity gaps for cli/backend surfaces (`docs/reference/*.mdx` still overclaim and drift from the real commands/routes)
+- [completed] make vibe generation target a valid 2–5s playhead-centered window instead of the whole selected/uploaded clip
+- [completed] replace only the generated window inside the edl so vibe edits patch a moment instead of overwriting entire source clips
+- [completed] fix vibe scrubber markers to use true timeline offsets rather than clip-local source offsets
+- [completed] surface the active ai edit window clearly in the vibe/pro ai review ui so the target is explicit during generation
 - [completed] fix the editor truth blockers: async export polling, project reopen hydration, and any frontend/backend contract mismatches
 - [completed] expose the causal editing flow in the dashboard: entity appearances, continuity pack, propagation actions, and clear status/progress
 - [completed] add the cinematic reveal layer: before/after compare, stronger variant presentation, and elevenlabs narration playback
@@ -81,3 +85,8 @@
 - studio shell cleanup: the right rail no longer collapses into a disconnected chat-only pane in vibe mode. checklist + inspector stay mounted, and the agent lives as a tab inside the same rail so clip context, continuity state, and chat stop competing as separate products.
 - agent surface cleanup: agent history now preserves prior assistant/model turns instead of downgrading them to user messages, export now has a dedicated `get_export_status` tool, and the agent system prompt reflects the actual preview/snapshot/score/remix workflow instead of pretending the product ends at generate-and-accept.
 - verification: `bun run lint` passed, `bun run build` passed twice after the refactor, and `python3 -m py_compile backend/app/api/routes/agent.py backend/app/services/agent_tools.py` passed.
+- vibe edit flow cleanup: both `VibePrompt` and the inspector ai tab now derive a real playhead-centered edit window, pass that exact window through generation, and preserve the original source clip separately so accept can patch the right range back into the timeline.
+- vibe timeline integrity: generated accepts now use `replace_range` when the ai target is only a subrange, which stops vibe edits from nuking an entire source clip just because the user paused on one moment.
+- scrubber truthfulness: vibe scrubber segment markers now come from accumulated timeline spans rather than `sourceStart/sourceEnd`, so the scrubber finally reflects where clips actually sit in the edited reel.
+- target clarity: the reveal ui now exposes the active window label directly, and short clips below the 2s floor fail early with an explicit explanation instead of silently marching into a backend rejection.
+- verification: `bun run lint` passed, `bun run build` passed, and the only remaining build warning is the existing oversized frontend chunk (`dist/assets/index-*.js` ~1.3 MB).

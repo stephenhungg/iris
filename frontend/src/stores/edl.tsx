@@ -142,6 +142,16 @@ export function clipAtTime(clips: Clip[], t: number) {
 export const sourceTimeFor = (c: Clip, offsetInClip: number) =>
   c.sourceStart + Math.max(0, Math.min(duration(c), offsetInClip));
 
+export function timelineSpans(clips: Clip[]) {
+  let acc = 0;
+  return clips.map((clip) => {
+    const start = acc;
+    const end = start + duration(clip);
+    acc = end;
+    return { clip, start, end };
+  });
+}
+
 // ─── actions ──────────────────────────────────────────────────────────
 
 export type Action =
@@ -157,6 +167,7 @@ export type Action =
   | { type: "set_volume"; id: string; v: number }
   | { type: "reorder"; from: number; to: number }
   | { type: "replace"; id: string; with: Clip }
+  | { type: "replace_range"; id: string; start: number; end: number; with: Clip }
   | { type: "set_bbox"; bbox: BBox | null }
   | { type: "set_mask"; mask: Mask | null }
   | { type: "set_identified"; entity: IdentifiedEntity | null; loading: boolean }
@@ -357,6 +368,45 @@ function coreReducer(state: State, a: Action): State {
       return {
         ...state,
         clips,
+        selectedId: a.with.id,
+        bbox: null,
+        mask: null,
+        identified: null,
+        identifying: false,
+      };
+    }
+    case "replace_range": {
+      const idx = state.clips.findIndex((c) => c.id === a.id);
+      if (idx < 0) return state;
+      const current = state.clips[idx];
+      if (a.start < current.sourceStart || a.end > current.sourceEnd || a.start >= a.end) {
+        return state;
+      }
+
+      const replacementClips: Clip[] = [];
+      if (a.start - current.sourceStart > 1e-3) {
+        replacementClips.push({
+          ...current,
+          id: cryptoUid(),
+          sourceEnd: a.start,
+        });
+      }
+      replacementClips.push(a.with);
+      if (current.sourceEnd - a.end > 1e-3) {
+        replacementClips.push({
+          ...current,
+          id: cryptoUid(),
+          sourceStart: a.end,
+        });
+      }
+
+      return {
+        ...state,
+        clips: [
+          ...state.clips.slice(0, idx),
+          ...replacementClips,
+          ...state.clips.slice(idx + 1),
+        ],
         selectedId: a.with.id,
         bbox: null,
         mask: null,

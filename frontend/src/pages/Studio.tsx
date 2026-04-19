@@ -9,6 +9,7 @@ import {
 import {
   EDLProvider,
   newMediaAsset,
+  timelineSpans,
   totalDuration,
   useEDL,
   type Clip,
@@ -784,10 +785,10 @@ function StudioInner({
                   duration={initialProject?.duration ?? state.clips.reduce((sum, c) => sum + (c.sourceEnd - c.sourceStart), 0)}
                   playhead={state.playhead}
                   onSeek={(ts) => dispatch({ type: 'set_playhead', t: ts })}
-                  segments={state.clips.map(c => ({
-                    start_ts: c.sourceStart,
-                    end_ts: c.sourceEnd,
-                    source: c.kind === 'generated' ? 'generated' as const : 'original' as const,
+                  segments={timelineSpans(state.clips).map(({ clip, start, end }) => ({
+                    start_ts: start,
+                    end_ts: end,
+                    source: clip.kind === 'generated' ? 'generated' as const : 'original' as const,
                   }))}
                 />
               )}
