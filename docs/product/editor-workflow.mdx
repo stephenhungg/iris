@@ -1,0 +1,158 @@
+---
+title: "editor workflow."
+description: "move from source clip to accepted result with iris's localized, prompt-driven editing loop."
+---
+
+# editor workflow.
+
+<div className="docs-hero">
+  <div className="docs-hero__row">
+    <div>
+      <div className="docs-hero__eyebrow">product loop</div>
+      <h1>select. prompt. accept. continue.</h1>
+      <p>
+        the iris editor is built around changing a specific part of a specific
+        moment, then preserving enough continuity that the result feels authored
+        instead of accidental.
+      </p>
+    </div>
+    <div className="docs-slab">
+      <div className="docs-section__eyebrow">the difference</div>
+      <ul className="docs-mini-list">
+        <li>not full-scene generation</li>
+        <li>not frame-by-frame manual compositing</li>
+        <li>editorial control with generation inside the loop</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<Tip>
+  think of iris as an editor with generation built into the loop, not a generator with a thin editing shell wrapped around it.
+</Tip>
+
+<div className="docs-metric-grid">
+  <div className="docs-metric">
+    <div className="docs-metric__value">01</div>
+    <div className="docs-metric__label">upload</div>
+    <p>start from a project-backed source clip.</p>
+  </div>
+  <div className="docs-metric">
+    <div className="docs-metric__value">02</div>
+    <div className="docs-metric__label">select</div>
+    <p>lock onto the exact moment and region you want to change.</p>
+  </div>
+  <div className="docs-metric">
+    <div className="docs-metric__value">03</div>
+    <div className="docs-metric__label">generate</div>
+    <p>prompt an edit and compare multiple interpretations.</p>
+  </div>
+  <div className="docs-metric">
+    <div className="docs-metric__value">04</div>
+    <div className="docs-metric__label">propagate</div>
+    <p>carry the accepted look through surrounding context.</p>
+  </div>
+</div>
+
+<div className="docs-stage">
+  <div className="docs-section__eyebrow">core workflow</div>
+  <h2 className="docs-section__title">the editing loop.</h2>
+  <p className="docs-section__lead">
+    each step exists to preserve timing, selection accuracy, and user judgment.
+    the product is intentionally built around review and acceptance, not one-shot output.
+  </p>
+
+  <Steps>
+  <Step title="upload or open a project">
+    start from a source video in your library or create a new project by uploading a fresh clip.
+  </Step>
+  <Step title="find the moment">
+    scrub the video until you reach the exact frame or short range that needs to change.
+  </Step>
+  <Step title="select the subject">
+    draw a bounding box over the object or region you care about. iris can use identify and mask flows to refine that target.
+  </Step>
+  <Step title="describe the edit">
+    write the change in plain language. the prompt is about editorial intent, not raw rendering parameters.
+  </Step>
+  <Step title="generate options">
+    iris creates candidate variants for the selected moment instead of trying to replace the entire scene.
+  </Step>
+  <Step title="review and accept">
+    compare the outputs, choose the strongest interpretation, and commit that decision into the editing flow.
+  </Step>
+  <Step title="carry it forward">
+    use continuity-aware tooling to keep the accepted result coherent through nearby frames and surrounding context.
+  </Step>
+  </Steps>
+</div>
+
+## why this workflow exists.
+
+full-scene generation is too global for many real edits.
+
+traditional editing is precise, but every meaningful visual change is still manual.
+
+iris exists between those models. it is designed for:
+
+- local edits instead of total scene replacement
+- selection and timing instead of broad prompting
+- multiple options instead of one irreversible output
+- editorial choice instead of blind automation
+
+<div className="docs-flow-grid">
+  <div className="docs-flow">
+    <h3>library.</h3>
+    <p>holds uploaded and generated media that belongs to the current project context.</p>
+  </div>
+  <div className="docs-flow">
+    <h3>preview.</h3>
+    <p>where timing, frame inspection, and visual selection happen.</p>
+  </div>
+  <div className="docs-flow">
+    <h3>inspector.</h3>
+    <p>turns the current selection into an actionable ai-assisted editing flow.</p>
+  </div>
+</div>
+
+<div className="docs-band">
+  <strong>the important constraint:</strong> generation stays subordinate to timing,
+  framing, and the user’s selection. that is what makes iris feel like editing.
+</div>
+
+## main surfaces in the editor.
+
+### library.
+
+the library holds the media available to the current project, including uploads and generated assets.
+
+### preview.
+
+the preview is where users inspect frames, scrub through the clip, and make a visual selection.
+
+### inspector.
+
+the inspector turns the active selection into an actionable ai editing flow. it handles generation controls, accepted edit flow, and continuity follow-through.
+
+### timeline.
+
+the timeline is where accepted edits stop being isolated outputs and become part of an editorial sequence.
+
+<div className="docs-stage">
+  <div className="docs-section__eyebrow">acceptance</div>
+  <h2 className="docs-section__title">generated output is not the end state.</h2>
+  <p className="docs-section__lead">
+    in iris, the user is expected to judge the result and select intentionally.
+    that acceptance step is part of the product model, not cleanup after generation.
+  </p>
+</div>
+
+<Note>
+  the strongest iris interaction is not "prompt and hope." it is "select, prompt, compare, accept, continue."
+</Note>
+
+## related pages.
+
+- [continuity](/product/continuity)
+- [library and projects](/product/library-and-projects)
+- [backend api](/reference/backend-api)

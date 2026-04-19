@@ -1,0 +1,43 @@
+---
+title: "Library and projects"
+description: "How Iris stores uploads, generated media, and saved project state."
+---
+
+# Library and projects
+
+Iris separates project browsing from active editing.
+
+## Projects page
+
+The projects route is the saved-work surface for the product.
+
+It shows:
+
+- the user's existing videos
+- counts and project metadata
+- a direct path into a new reel or an existing edit
+
+## Library behavior inside the editor
+
+Inside the editor, the library is the local media pool for the current project.
+
+Uploads and generated outputs can live there before they are committed to timeline use.
+
+That allows Iris to behave more like an editor and less like a single-shot generator.
+
+## What gets tracked
+
+At a high level, a project contains:
+
+- the source video
+- generated variants
+- accepted segments
+- timing metadata
+- timeline composition state
+
+## Related routes
+
+- `GET /api/projects`
+- `GET /api/projects/{project_id}`
+- `POST /api/upload`
+

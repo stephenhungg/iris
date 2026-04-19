@@ -1,0 +1,40 @@
+---
+title: "Continuity"
+description: "How Iris handles accepted edits across adjacent frames and ranges."
+---
+
+# Continuity
+
+Continuity is one of the defining parts of the Iris workflow.
+
+Once a user accepts a generated result, Iris can push that decision further through the surrounding cut so the edit feels authored instead of isolated.
+
+## What continuity means in Iris
+
+In this project, continuity is about preserving a chosen visual interpretation across time.
+
+That usually means:
+
+- keeping the accepted subject treatment coherent
+- helping the result survive motion and framing changes
+- reducing the feeling that a single frame was changed in isolation
+
+## Supporting product features
+
+- Accepted edit flow in the inspector
+- Continuity dashboard and status tracking
+- Multi-frame generation session helpers
+- Project-level entity awareness
+
+## Why it matters
+
+A single good frame is not enough for believable video editing.
+
+The accepted result needs to carry through enough of the surrounding sequence that the viewer reads it as an intentional editorial decision.
+
+## Related implementation areas
+
+- `frontend/src/features/continuity/`
+- `backend/app/api/routes/propagate.py`
+- `backend/app/workers/propagate_job.py`
+

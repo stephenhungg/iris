@@ -1,0 +1,44 @@
+---
+title: "Backend API"
+description: "A practical overview of the backend routes Iris exposes today."
+---
+
+# Backend API
+
+This page is a practical route overview, not a formal OpenAPI reference.
+
+## Core routes
+
+### Health
+
+- `GET /api/health`
+- `GET /api/ai/health`
+- `GET /api/ai/timeline`
+- `GET /api/ai/stream`
+
+### Projects and uploads
+
+- `POST /api/upload`
+- `GET /api/projects`
+- `GET /api/projects/{project_id}`
+
+### Generation and editing
+
+- `POST /api/generate`
+- `POST /api/identify`
+- `POST /api/mask`
+- `POST /api/accept`
+- `POST /api/propagate`
+- `POST /api/narrate`
+- `POST /api/export`
+
+### Jobs
+
+- job and worker routes that track generation and propagation progress
+
+## Notes
+
+- Uploads rely on FFmpeg and FFprobe to inspect incoming media.
+- Some AI-heavy routes rely on the GPU worker being available.
+- Storage can resolve through local media paths or object storage depending on environment configuration.
+

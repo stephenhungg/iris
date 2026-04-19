@@ -1,0 +1,49 @@
+---
+title: "Architecture"
+description: "A high-level map of the Iris codebase and the responsibilities of each major subsystem."
+---
+
+# Architecture
+
+Iris is organized as a multi-surface application with a frontend editor, a backend API, AI adapters, and an optional GPU worker.
+
+## Repository map
+
+- `frontend/`: React, Vite, route surfaces, editor UI, project browsing, continuity UI
+- `backend/`: FastAPI routes, database models, workers, media-processing pipeline
+- `ai/`: provider adapters, prompts, AI-side configuration and tests
+- `gpu-worker/`: optional segmentation and vision-heavy worker
+- `infra/`: local and deploy infrastructure helpers
+
+## Frontend responsibilities
+
+The frontend owns:
+
+- navigation between landing, projects, and editor
+- upload initiation
+- project browsing
+- selection interactions
+- generation controls
+- continuity workflow surfaces
+
+## Backend responsibilities
+
+The backend owns:
+
+- upload ingestion
+- project persistence
+- generation jobs
+- identification and mask endpoints
+- propagation and timeline updates
+- narration and export flows
+
+## Media-processing layer
+
+The FFmpeg service is the bridge between uploaded media and actual editorial operations such as probing, clipping, stitching, and keyframe extraction.
+
+## AI layer
+
+The AI layer abstracts provider-specific logic behind product-level operations.
+
+That lets the rest of the system talk about product actions such as identify, generate, narrate, and propagate instead of talking directly to provider SDKs everywhere.
+

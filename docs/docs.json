@@ -1,0 +1,96 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "iris.",
+  "description": "prompt-driven video editing docs for localized edits, variant generation, and continuity propagation.",
+  "appearance": {
+    "default": "dark",
+    "strict": true
+  },
+  "colors": {
+    "primary": "#ffffff",
+    "light": "#badcff",
+    "dark": "#000000"
+  },
+  "logo": {
+    "dark": "/images/iris-logo.svg",
+    "light": "/images/iris-logo.svg",
+    "href": "/"
+  },
+  "favicon": "/images/iris-logo.svg",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Start here",
+        "pages": [
+          "index",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Product",
+        "pages": [
+          "product/editor-workflow",
+          "product/continuity",
+          "product/library-and-projects"
+        ]
+      },
+      {
+        "group": "Build and run",
+        "pages": [
+          "build/local-development",
+          "build/deployment-and-infra",
+          "build/observability"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/architecture",
+          "reference/backend-api"
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/stephenhungg/iris"
+      },
+      {
+        "label": "workflow",
+        "href": "/product/editor-workflow"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "quickstart",
+      "href": "/quickstart"
+    }
+  },
+  "anchors": [
+    {
+      "anchor": "iris",
+      "pages": [
+        "index",
+        "quickstart",
+        "product/editor-workflow"
+      ]
+    },
+    {
+      "anchor": "reference",
+      "href": "https://github.com/stephenhungg/iris"
+    }
+  ],
+  "footer": {
+    "socials": {
+      "github": "https://github.com/stephenhungg/iris"
+    }
+  },
+  "seo": {
+    "metatags": {
+      "canonical": "https://docs.useiris.tech"
+    }
+  }
+}
