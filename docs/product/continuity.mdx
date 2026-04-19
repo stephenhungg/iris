@@ -1,6 +1,6 @@
 ---
 title: "Continuity"
-description: "How Iris handles accepted edits across adjacent frames and ranges."
+description: "How Iris handles accepted edits across adjacent frames and ranges, leveraging AI scoring for analysis."
 ---
 
 # Continuity
@@ -9,26 +9,14 @@ Continuity is one of the defining parts of the Iris workflow.
 
 Once a user accepts a generated result, Iris can push that decision further through the surrounding cut so the edit feels authored instead of isolated.
 
+## AI-driven Continuity Analysis
+
+Iris now leverages AI scoring to analyze and ensure continuity. When an edit is accepted, the system can use endpoints like `/api/score/continuity` to evaluate how well the change integrates with surrounding frames and segments. This analysis helps in propagating the edit effectively and identifying potential inconsistencies.
+
 ## What continuity means in Iris
 
 In this project, continuity is about preserving a chosen visual interpretation across time.
 
 That usually means:
 
--   keeping the visual style consistent
--   maintaining object persistence and appearance
--   ensuring smooth transitions between edited and unedited segments
-
-## Continuity Propagation
-
-When an edit is accepted, Iris analyzes the surrounding frames and segments to intelligently apply or adapt the changes. This might involve:
-
--   **Interpolation:** Smoothly blending the new edit with adjacent footage.
--   **Style Transfer:** Applying the visual style of the accepted edit to nearby frames.
--   **Object Tracking:** Ensuring modified objects maintain their identity and appearance as they move through the scene.
-
-The goal is to minimize jarring cuts and ensure the overall video flows naturally, even after significant localized changes.
-
-## Agent-Assisted Continuity
-
-The Iris agent is equipped with tools to help manage and evaluate continuity. For instance, the `score_continuity` tool allows the agent to assess how well an edit maintains visual consistency with its surroundings, providing feedback that can guide further refinement. This helps users and agents make informed decisions to preserve the overall integrity of the video.
+-   keeping...

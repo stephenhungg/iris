@@ -25,347 +25,129 @@ Returns AI provider reachability and configuration status.
 
 Returns a timeline of recent AI operations.
 
-## Projects and media
+## Preview Endpoints
 
-### `GET /api/project`
+These endpoints provide low-resolution previews of media, resolving timestamps across original and generated variant media.
 
-Returns a list of all projects for the current user.
+### `GET /api/preview/frame`
 
-### `POST /api/project`
-
-Creates a new project.
-
-**Request Body:**
-
-```json
-{
-  "name": "string",
-  "description": "string",
-  "video_url": "string"
-}
-```
-
-### `GET /api/project/{project_id}`
-
-Returns details for a specific project.
-
-### `DELETE /api/project/{project_id}`
-
-Deletes a project.
-
-### `POST /api/project/{project_id}/upload`
-
-Uploads a new video asset to the project.
-
-**Request Body:**
-
-```json
-{
-  "file_name": "string",
-  "content_type": "string"
-}
-```
-
-**Response:**
-
-```json
-{
-  "upload_url": "string",
-  "asset_id": "string"
-}
-```
-
-### `POST /api/project/{project_id}/preview/frame`
-
-Extracts and publishes a single preview frame from the project timeline at a specific timestamp.
-
-**Request Body:**
-
-```json
-{
-  "ts": 0.0
-}
-```
-
-**Response:**
-
-```json
-{
-  "frame_url": "string",
-  "timestamp": 0.0
-}
-```
-
-### `POST /api/project/{project_id}/preview/strip`
-
-Extracts a strip of preview frames across a specified range from the project timeline.
-
-**Request Body:**
-
-```json
-{
-  "start": 0.0,
-  "end": 0.0,
-  "fps": 1.0
-}
-```
-
-**Response:**
-
-```json
-{
-  "frames": [
-    {
-      "frame_url": "string",
-      "timestamp": 0.0
-    }
-  ]
-}
-```
-
-## Editing operations
-
-### `POST /api/segment/{segment_id}/split`
-
-Splits an existing segment into two new segments at a specified timestamp. The original segment is deactivated.
-
-**Request Body:**
-
-```json
-{
-  "split_ts": 0.0
-}
-```
-
-**Response:**
-
-```json
-{
-  "left": {
-    "id": "string",
-    "project_id": "string",
-    "start_ts": 0.0,
-    "end_ts": 0.0,
-    "source": "string",
-    "url": "string",
-    "variant_id": "string",
-    "order_index": 0,
-    "active": true
-  },
-  "right": {
-    "id": "string",
-    "project_id": "string",
-    "start_ts": 0.0,
-    "end_ts": 0.0,
-    "source": "string",
-    "url": "string",
-    "variant_id": "string",
-    "order_index": 0,
-    "active": true
-  }
-}
-```
-
-### `POST /api/segment/{segment_id}/trim`
-
-Trims an existing segment to new start and end timestamps within its original bounds.
-
-**Request Body:**
-
-```json
-{
-  "new_start_ts": 0.0,
-  "new_end_ts": 0.0
-}
-```
-
-**Response:**
-
-```json
-{
-  "id": "string",
-  "project_id": "string",
-  "start_ts": 0.0,
-  "end_ts": 0.0,
-  "source": "string",
-  "url": "string",
-  "variant_id": "string",
-  "order_index": 0,
-  "active": true
-}
-```
-
-### `DELETE /api/segment/{segment_id}`
-
-Soft-deletes a segment by setting its `active` status to `false`.
-
-**Response:**
-
-```json
-{
-  "deleted": true
-}
-```
-
-### `POST /api/segment/{segment_id}/color-grade`
-
-Applies color grade adjustments to a segment and creates a new generated replacement segment.
-
-**Request Body:**
-
-```json
-{
-  "brightness": 0.0,
-  "contrast": 0.0,
-  "saturation": 0.0,
-  "temperature": 0.0,
-  "gamma": 0.0,
-  "hue_shift": 0.0
-}
-```
-
-**Response:**
-
-```json
-{
-  "segment_id": "string",
-  "graded_url": "string"
-}
-```
-
-### `POST /api/segment/{segment_id}/grade-preview`
-
-Renders a graded preview frame for a segment with specified color adjustments.
-
-**Request Body:**
-
-```json
-{
-  "brightness": 0.0,
-  "contrast": 0.0,
-  "saturation": 0.0,
-  "temperature": 0.0,
-  "gamma": 0.0,
-  "hue_shift": 0.0
-}
-```
-
-**Response:**
-
-```json
-{
-  "preview_frame_url": "string"
-}
-```
-
-## AI and generation
-
-### `POST /api/ai/generate`
-
-Initiates an AI-powered video generation job.
-
-**Request Body:**
-
-```json
-{
-  "project_id": "string",
-  "prompt": "string",
-  "start_ts": 0.0,
-  "end_ts": 0.0,
-  "bounding_box": {
-    "x": 0.0,
-    "y": 0.0,
-    "width": 0.0,
-    "height": 0.0
-  }
-}
-```
-
-### `GET /api/job/{job_id}`
-
-Check the status of a generation, entity, or other non-export job and get any variant results.
-
-**Response:**
-
-```json
-{
-  "id": "string",
-  "project_id": "string",
-  "status": "pending" | "running" | "completed" | "failed",
-  "error": "string",
-  "variants": [
-    {
-      "id": "string",
-      "url": "string",
-      "preview_url": "string"
-    }
-  ]
-}
-```
-
-### `POST /api/variant/{variant_id}/accept`
-
-Accepts a generated variant, applying it to the project timeline.
-
-### `GET /api/variant/{variant_id}/score`
-
-Retrieves detailed Gemini-based scoring for a variant, comparing it to the original prompt or the original video segment.
+Returns a low-resolution image preview for a specific frame at a given timestamp within a project's timeline.
 
 **Query Parameters:**
-
-- `compare_to`: `prompt` (default) or `original`. Specifies what the variant should be compared against for scoring.
+- `project_id` (string, required): The ID of the project.
+- `timestamp` (float, required): The timestamp in seconds for the desired frame.
 
 **Response:**
-
+- `200 OK`: Returns a URL to the preview image.
 ```json
 {
-  "variant_id": "string",
-  "score": {
-    "overall_rating": "string",
-    "details": "string",
-    "fidelity_to_prompt": "string",
-    "visual_quality": "string"
-  }
+  "url": "https://example.com/path/to/preview_frame.jpg"
 }
 ```
 
-## Exports
+### `GET /api/preview/strip`
 
-### `POST /api/export`
+Returns a low-resolution video strip preview for a short duration around a given timestamp.
 
-Initiates a video export job for a project.
+**Query Parameters:**
+- `project_id` (string, required): The ID of the project.
+- `timestamp` (float, required): The center timestamp in seconds for the desired strip.
+- `duration` (float, optional, default: 2.0): The duration in seconds of the strip.
+
+**Response:**
+- `200 OK`: Returns a URL to the preview video strip.
+```json
+{
+  "url": "https://example.com/path/to/preview_strip.mp4"
+}
+```
+
+### `GET /api/preview/range`
+
+Returns a low-resolution video preview for a specified time range, stitching together original and variant media as needed.
+
+**Query Parameters:**
+- `project_id` (string, required): The ID of the project.
+- `start_ts` (float, required): The start timestamp in seconds of the range.
+- `end_ts` (float, required): The end timestamp in seconds of the range.
+
+**Response:**
+- `200 OK`: Returns a URL to the preview video range.
+```json
+{
+  "url": "https://example.com/path/to/preview_range.mp4"
+}
+```
+
+## Scoring Endpoints
+
+These endpoints provide AI-driven scoring and analysis of generated media variants and continuity.
+
+### `POST /api/score`
+
+Scores a single generated media variant based on a given prompt or criteria.
 
 **Request Body:**
-
 ```json
 {
   "project_id": "string",
-  "format": "mp4"
+  "segment_id": "string",
+  "variant_id": "string",
+  "prompt": "string"
 }
 ```
 
 **Response:**
-
+- `200 OK`: Returns a score or analysis result for the variant.
 ```json
 {
-  "export_job_id": "string",
-  "status": "pending",
-  "message": "Export job created — check status with get_export_status"
+  "score": 0.85,
+  "feedback": "The variant effectively addresses the prompt, with minor visual artifacts."
 }
 ```
 
-### `GET /api/export/{export_job_id}`
+### `POST /api/score/compare`
 
-Check the status of an export job and retrieve the output URLs when it is done.
+Compares two generated media variants and ranks them based on a given prompt or criteria.
 
-**Response:**
-
+**Request Body:**
 ```json
 {
-  "export_job_id": "string",
-  "status": "pending" | "running" | "completed" | "failed",
-  "export_url": "string",
-  "download_url": "string",
-  "error": "string"
+  "project_id": "string",
+  "segment_id": "string",
+  "variant_id_1": "string",
+  "variant_id_2": "string",
+  "prompt": "string"
+}
+```
+
+**Response:**
+- `200 OK`: Returns a comparison result, indicating which variant is preferred and why.
+```json
+{
+  "preferred_variant_id": "string",
+  "comparison_notes": "Variant 1 has better lighting and color grading, while Variant 2 shows some blur."
+}
+```
+
+### `POST /api/score/continuity`
+
+Analyzes the continuity of an accepted edit across adjacent frames or segments.
+
+**Request Body:**
+```json
+{
+  "project_id": "string",
+  "segment_id": "string",
+  "entity_job_id": "string"
+}
+```
+
+**Response:**
+- `200 OK`: Returns an analysis of continuity, potentially highlighting areas of inconsistency.
+```json
+{
+  "continuity_score": 0.92,
+  "analysis": "Continuity is largely maintained, with a slight jump detected at 15.2s."
 }
 ```
