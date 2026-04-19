@@ -23,210 +23,73 @@ Returns AI provider reachability and configuration status.
 
 ### `GET /api/ai/timeline`
 
-Returns a timeline of recent AI operations.
+Returns a timeline of recent AI operations with timing information.
 
-## Preview
+## Media Previews
 
-### `GET /api/preview/{pid}/frame`
+These endpoints provide various ways to preview media from a project, supporting timeline scrubbing, filmstrip generation, and range playback.
 
-Returns a single frame from a project at a given timestamp.
+### `GET /api/preview/{id}/frame`
 
-**Query Parameters:**
-- `ts` (float): The timestamp of the frame to retrieve.
+Returns a single preview JPEG image for a specific timestamp within a project.
 
-### `GET /api/preview/{pid}/strip`
-
-Returns a strip of frames for a given time range and frame rate.
+**Path Parameters:**
+- `id`: The ID of the project or media asset.
 
 **Query Parameters:**
-- `start` (float): The start timestamp of the range.
-- `end` (float): The end timestamp of the range.
-- `fps` (float, optional): Frames per second for the strip. Defaults to `1.0`.
+- `ts` (float, required): The timeline-space timestamp in seconds for which to retrieve the frame. Must be non-negative.
 
-### `GET /api/preview/{pid}/range`
+**Response:**
+```json
+{
+  "ts": 10.5,
+  "url": "https://example.com/path/to/frame_10_5.jpg"
+}
+```
 
-Returns a preview of a time range within a project.
+### `GET /api/preview/{id}/strip`
+
+Returns an ordered filmstrip of preview frames covering a specified time range.
+
+**Path Parameters:**
+- `id`: The ID of the project or media asset.
 
 **Query Parameters:**
-- `start` (float): The start timestamp of the range.
-- `end` (float): The end timestamp of the range.
+- `start` (float, required): The start timestamp (in seconds) of the range.
+- `end` (float, required): The end timestamp (in seconds) of the range.
+- `fps` (float, required): The desired frames per second for the strip.
 
-## Timeline Surgery
-
-### `POST /api/timeline/{pid}/split`
-
-Splits a timeline segment at a specified timestamp.
-
-**Request Body:**
+**Response:**
 ```json
 {
-  "segment_id": "string",
-  "split_ts": 0.0
+  "frames": [
+    {
+      "ts": 0.0,
+      "url": "https://example.com/path/to/frame_0.jpg"
+    },
+    {
+      "ts": 1.0,
+      "url": "https://example.com/path/to/frame_1.jpg"
+    }
+  ]
 }
 ```
 
-### `POST /api/timeline/{pid}/trim`
+### `GET /api/preview/{id}/range`
 
-Trims a timeline segment to new start and end timestamps.
+Returns a URL to a rendered low-resolution MP4 video covering a specified slice of the timeline.
 
-**Request Body:**
+**Path Parameters:**
+- `id`: The ID of the project or media asset.
+
+**Query Parameters:**
+- `start` (float, required): The start timestamp (in seconds) of the range.
+- `end` (float, required): The end timestamp (in seconds) of the range.
+
+**Response:**
 ```json
 {
-  "segment_id": "string",
-  "new_start_ts": 0.0,
-  "new_end_ts": 0.0
-}
-```
-
-### `POST /api/timeline/{pid}/delete`
-
-Deletes a timeline segment.
-
-**Request Body:**
-```json
-{
-  "segment_id": "string"
-}
-```
-
-### `POST /api/timeline/{pid}/reorder`
-
-Reorders timeline segments within a project.
-
-**Request Body:**
-```json
-{
-  "segment_ids": ["string", "string"],
-  "order": [0, 1]
-}
-```
-
-### `POST /api/timeline/{pid}/snapshot`
-
-Creates a snapshot of the current project timeline.
-
-### `POST /api/timeline/{pid}/revert`
-
-Reverts the project timeline to a specified snapshot.
-
-**Request Body:**
-```json
-{
-  "snapshot_id": "string"
-}
-```
-
-## Color Grading
-
-### `POST /api/segments/{sid}/grade`
-
-Applies color grading adjustments to a specific segment.
-
-**Request Body:**
-```json
-{
-  "adjustments": {
-    "brightness": 0.0,
-    "saturation": 0.0
-  }
-}
-```
-
-### `POST /api/segments/{sid}/grade/preview`
-
-Previews color grading adjustments for a specific segment without applying them.
-
-**Request Body:**
-```json
-{
-  "adjustments": {
-    "brightness": 0.0,
-    "saturation": 0.0
-  }
-}
-```
-
-### `POST /api/grade/match`
-
-Matches the color grading of a source segment to a reference segment.
-
-**Request Body:**
-```json
-{
-  "source_id": "string",
-  "reference_id": "string"
-}
-```
-
-## Scoring
-
-### `POST /api/score`
-
-Scores a single generated variant based on a comparison target.
-
-**Request Body:**
-```json
-{
-  "variant_id": "string",
-  "compare_to": "string" // e.g., "prompt"
-}
-```
-
-### `POST /api/score/compare`
-
-Compares and scores multiple variants against each other.
-
-**Request Body:**
-```json
-{
-  "variant_ids": ["string", "string"]
-}
-```
-
-### `POST /api/score/continuity`
-
-Scores the overall continuity of a project.
-
-**Request Body:**
-```json
-{
-  "project_id": "string"
-}
-```
-
-## Remix & Batch
-
-### `POST /api/remix`
-
-Remixes an existing variant with a modifier prompt.
-
-**Request Body:**
-```json
-{
-  "variant_id": "string",
-  "modifier_prompt": "string",
-  "preserve_composition": true
-}
-```
-
-### `POST /api/batch/generate`
-
-Submits a request to generate multiple edits in a batch.
-
-**Request Body:**
-```json
-{
-  "edits": [] // Array of edit objects
-}
-```
-
-### `POST /api/batch/accept`
-
-Accepts multiple batch generation results.
-
-**Request Body:**
-```json
-{
-  "accepts": [] // Array of accept objects
+  "preview_url": "https://example.com/path/to/preview_range.mp4",
+  "duration": 5.0
 }
 ```
