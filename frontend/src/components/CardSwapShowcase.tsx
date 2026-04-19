@@ -11,7 +11,7 @@ type ShowcaseCard = {
 
 const DEFAULT_CARDS: ShowcaseCard[] = [
   {
-    image: '/frames/frame_120.jpg',
+    image: '/frames/card-agent.jpg',
     label: 'Planning / intent',
     title: 'intent into structure',
     description: 'Prompt-driven direction turns a rough idea into concrete editing options with timing, framing, and purpose.',
@@ -29,7 +29,7 @@ const DEFAULT_CARDS: ShowcaseCard[] = [
     description: 'Once a subject is identified, Iris can follow it through surrounding frames so the edit stays coherent.',
   },
   {
-    image: '/frames/frame_030.jpg',
+    image: '/frames/card-export.jpg',
     label: 'Workflow / delivery',
     title: 'from edit to export',
     description: 'Keep narration, presentation, and export inside the same workflow instead of stitching together disconnected tools.',
