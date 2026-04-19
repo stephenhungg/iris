@@ -89,7 +89,7 @@ export default function ScrollFrames({
     let currentSmooth = START_FRAME - 1
     let running = true
 
-    // slow ambient drift when not scrolling
+    // gentle ambient motion when not scrolling
     let lastScrollTime = Date.now()
     let ambientOffset = 0
 
@@ -120,13 +120,13 @@ export default function ScrollFrames({
     }
 
     // smooth animation loop — lerps between current and target frame
-    function animate() {
+    function animate(time = performance.now()) {
       if (!running) return
 
-      // ambient drift when idle for 500ms+
+      // keep the background subtly alive when the user pauses.
       const idleTime = Date.now() - lastScrollTime
-      if (idleTime > 500) {
-        ambientOffset += 0.015 // slow creep backwards through frames
+      if (idleTime > 250) {
+        ambientOffset = Math.sin(time * 0.00045) * 6
         const scrollTop = window.scrollY
         const scrollRange = (document.documentElement.scrollHeight - window.innerHeight) * 0.3
         const progress = Math.max(0, Math.min(1, scrollTop / scrollRange))

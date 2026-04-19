@@ -125,8 +125,8 @@ void main(){
   float cM2=smoothstep(.35,.55,cv)*smoothstep(.75,.35,cv);
   bO+=vM2*cM2*.9;
   bO-=lD*.18;
-  rO*=u_refract*u_chroma;
-  bO*=u_refract*u_chroma;
+  rO*=u_refract*u_chroma*.45;
+  bO*=u_refract*u_chroma*1.2;
   float sf=u_blur;
   float rP=fract(fl+rO);
   float rC=mG(hi.r,lo.r,rP,sf+.018+u_refract*cv*.025,cv);
@@ -245,6 +245,45 @@ function processImage(img) {
   return outData;
 }
 
+function createTextMask({
+  text,
+  fontFamily,
+  fontSize = 320,
+  fontWeight = 400,
+  letterSpacing = 0,
+  paddingX = 80,
+  paddingY = 60,
+}) {
+  const measureCanvas = document.createElement('canvas');
+  const measureCtx = measureCanvas.getContext('2d');
+  measureCtx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+
+  const letters = [...text];
+  const metrics = measureCtx.measureText(text);
+  const trackedWidth = metrics.width + Math.max(0, letters.length - 1) * letterSpacing;
+  const ascent = metrics.actualBoundingBoxAscent || fontSize * 0.8;
+  const descent = metrics.actualBoundingBoxDescent || fontSize * 0.2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(trackedWidth + paddingX * 2);
+  canvas.height = Math.ceil(ascent + descent + paddingY * 2);
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#000000';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+
+  let x = paddingX;
+  const y = paddingY + ascent;
+  for (const char of letters) {
+    ctx.fillText(char, x, y);
+    x += ctx.measureText(char).width + letterSpacing;
+  }
+
+  return canvas;
+}
+
 function hexToRgb(hex) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
@@ -254,6 +293,8 @@ function hexToRgb(hex) {
 
 export default function MetallicPaint({
   imageSrc,
+  text,
+  textOptions = {},
   seed = 42,
   scale = 4,
   refraction = 0.01,
@@ -287,6 +328,7 @@ export default function MetallicPaint({
   const speedRef = useRef(speed);
   const mouseRef = useRef({ x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5 });
   const mouseAnimRef = useRef(mouseAnimation);
+  const resizeRef = useRef(() => {});
 
   const [ready, setReady] = useState(false);
   const [textureReady, setTextureReady] = useState(false);
@@ -378,39 +420,94 @@ export default function MetallicPaint({
     imgDataRef.current = imgData;
   }, []);
 
+  const resizeCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const gl = glRef.current;
+    const uniforms = uniformsRef.current;
+    const imgData = imgDataRef.current;
+    if (!canvas || !gl) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width * devicePixelRatio));
+    const height = Math.max(1, Math.round(rect.height * devicePixelRatio));
+
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+      gl.viewport(0, 0, width, height);
+    }
+
+    gl.uniform1f(uniforms.u_ratio, width / height);
+    if (imgData) {
+      gl.uniform1f(uniforms.u_imgRatio, imgData.width / imgData.height);
+    }
+  }, []);
+
+  useEffect(() => {
+    resizeRef.current = resizeCanvas;
+  }, [resizeCanvas]);
+
   useEffect(() => {
     if (!initGL()) return;
 
-    const canvas = canvasRef.current;
-    const gl = glRef.current;
-    const side = 1000 * devicePixelRatio;
-    canvas.width = side;
-    canvas.height = side;
-    gl.viewport(0, 0, side, side);
+    resizeCanvas();
 
     setReady(true);
+
+    const canvas = canvasRef.current;
+    const resizeObserver = new ResizeObserver(() => resizeRef.current());
+    if (canvas) resizeObserver.observe(canvas);
+    window.addEventListener('resize', resizeRef.current);
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (textureRef.current && glRef.current) {
         glRef.current.deleteTexture(textureRef.current);
       }
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', resizeRef.current);
     };
-  }, [initGL]);
+  }, [initGL, resizeCanvas]);
 
   useEffect(() => {
-    if (!ready || !imageSrc) return;
+    if (!ready || (!imageSrc && !text)) return;
 
     setTextureReady(false);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const imgData = processImage(img);
-      uploadTexture(imgData);
-      setTextureReady(true);
+    let cancelled = false;
+
+    const load = async () => {
+      if (text) {
+        if (document.fonts?.ready) await document.fonts.ready;
+        if (cancelled) return;
+        const mask = createTextMask({
+          text,
+          ...textOptions,
+        });
+        const imgData = processImage(mask);
+        uploadTexture(imgData);
+        resizeRef.current();
+        if (!cancelled) setTextureReady(true);
+        return;
+      }
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        if (cancelled) return;
+        const imgData = processImage(img);
+        uploadTexture(imgData);
+        resizeRef.current();
+        setTextureReady(true);
+      };
+      img.src = imageSrc;
     };
-    img.src = imageSrc;
-  }, [ready, imageSrc, uploadTexture]);
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, imageSrc, text, textOptions, uploadTexture]);
 
   useEffect(() => {
     const gl = glRef.current;

@@ -6,10 +6,24 @@ import Lenis from 'lenis'
 import MetallicPaint from './components/MetallicPaint'
 import Noise from './components/Noise'
 import ScrollFrames from './components/ScrollFrames'
+import SmokeOrbBackground from './components/SmokeOrbBackground'
+import CardSwapShowcase from './components/CardSwapShowcase'
+import ASCIIText from './components/ASCIIText'
+import FloatingToolbar from './components/FloatingToolbar'
 import { useAuth } from './lib/useAuth'
 import { listProjects, type ProjectListItem } from './api/client'
 
 const IRIS_SVG = '/iris-logo.svg'
+const IRIS_METAL_TINT = '#badcff'
+const IRIS_WORDMARK_TEXT = 'iris.'
+const IRIS_WORDMARK_MASK = {
+  fontFamily: 'Sentient, Georgia, serif',
+  fontSize: 344,
+  fontWeight: 300,
+  letterSpacing: 26,
+  paddingX: 0,
+  paddingY: 56,
+}
 
 // motion design system (lottiefiles + framerlabs + palmer)
 //
@@ -191,14 +205,15 @@ function PillNav({ onStudio }: { onStudio: () => void }) {
       {show && (
         <motion.nav data-intro="nav" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={{ duration: DUR.slow, ease: EASE.premium }}
           style={{ position: 'fixed', bottom: '24px', left: 0, right: 0, marginLeft: 'auto', marginRight: 'auto', width: 'fit-content', zIndex: 50, display: 'flex', alignItems: 'center', gap: '24px', padding: '10px 12px 10px 24px', background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-          {['product', 'editor', 'about'].map(l => (
-            <a key={l} href={`#${l}`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>{l}</a>
+            {[
+              { key: 'about-primary', label: 'About' },
+              { key: 'editor', label: 'Editor' },
+              { key: 'about-secondary', label: 'About' },
+            ].map(({ key, label }) => (
+            <a key={key} href={`#${label}`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>{label}</a>
           ))}
           <AuthChip />
-          <Magnetic intensity={0.25}>
-            <button onClick={onStudio} style={{ padding: '8px 20px', background: '#fff', color: '#000', border: 'none', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '0.06em', cursor: 'pointer', transition: 'transform 0.2s' }}>open studio</button>
-          </Magnetic>
         </motion.nav>
       )}
     </AnimatePresence>
@@ -284,63 +299,70 @@ function Hero({ onStudio }: { onStudio: () => void }) {
         <div data-intro="chrome"
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', opacity: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>iris®</span>
-            <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
-              {['v0.1', '2026', 'cal hacks'].map((tag, i) => (
-                <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)' }}>{tag}</span>
-              ))}
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em' }}>IRIS®</span>
+              <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+                {['v0.1', '2026', 'Cal Hacks'].map((tag, i) => (
+                  <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)' }}>{tag}</span>
+                ))}
+              </div>
             </div>
-          </div>
-          <div data-intro="chrome" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6, opacity: 0 }}>
-            ai-powered video editor<br />speak your edits into existence
-          </div>
+            <div data-intro="chrome" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6, opacity: 0 }}>
+              AI-powered video editor<br />Speak your edits into existence.
+            </div>
         </div>
 
         {/* title — centered on screen during intro, settles into layout after */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: '48px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: '48px', paddingLeft: 'clamp(112px, 14vw, 280px)' }}>
           {/* metallic paint logo — appears after title reveal */}
           <div data-intro="metallic"
-            style={{ width: 'clamp(80px, 12vw, 200px)', height: 'clamp(80px, 12vw, 200px)', flexShrink: 0, opacity: 0, marginRight: 'clamp(16px, 3vw, 40px)', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
-            <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#ffffff" darkColor="#000000" tintColor="#c0c0c0" />
-          </div>
+              style={{ width: 'clamp(80px, 12vw, 200px)', height: 'clamp(80px, 12vw, 200px)', flexShrink: 0, opacity: 0, marginRight: 'clamp(-18px, -1.4vw, -10px)', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden', zIndex: 2 }}>
+              <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#f4fbff" darkColor="#000000" tintColor={IRIS_METAL_TINT} />
+            </div>
 
-          {/* dual-layer text for wipe reveal */}
-          <div style={{ position: 'relative' }}>
-            <h1 data-intro="logo-dark"
-              style={{ fontFamily: 'var(--font-display)', fontWeight: 200, fontSize: 'clamp(80px, 12vw, 200px)', lineHeight: 0.85, letterSpacing: '0.25em', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite', filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
-              iris.
-            </h1>
+            <div data-intro="logo-dark"
+              style={{ opacity: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '18px', filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
+            <div style={{ position: 'relative', width: 'clamp(560px, 62vw, 1240px)', height: 'clamp(128px, 15vw, 252px)', marginLeft: 'clamp(-338px, -20vw, -220px)', marginTop: 'clamp(14px, 1.4vw, 24px)' }}>
+              <MetallicPaint text={IRIS_WORDMARK_TEXT} textOptions={IRIS_WORDMARK_MASK} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#f4fbff" darkColor="#000000" tintColor={IRIS_METAL_TINT} />
+              <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>
+                {IRIS_WORDMARK_TEXT}
+              </span>
+            </div>
+
+            <div style={{ marginLeft: 'clamp(36px, 4.2vw, 74px)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <Magnetic intensity={0.18}>
+                <button onClick={onStudio} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '15px 34px', border: 'none', width: '194px', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', color: '#000', fontWeight: 700, letterSpacing: '0.14em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s, transform 0.3s', textAlign: 'center', boxSizing: 'border-box' }}
+                  onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 48px rgba(190,220,255,0.22)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Open Studio</button>
+              </Magnetic>
+              <Magnetic intensity={0.18}>
+                <button style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '15px 34px', border: '1px solid rgba(255,255,255,0.14)', width: '194px', background: 'linear-gradient(135deg, rgba(10,10,12,0.96), rgba(0,0,0,0.92), rgba(18,22,28,0.96), rgba(0,0,0,0.92), rgba(10,10,12,0.96))', backgroundSize: '200% 100%', color: 'rgba(236,244,255,0.92)', fontWeight: 700, letterSpacing: '0.14em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s, transform 0.3s', textAlign: 'center', boxSizing: 'border-box' }}
+                  onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 48px rgba(190,220,255,0.16)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Demo Video</button>
+              </Magnetic>
+            </div>
           </div>
         </div>
 
         {/* bottom row */}
         <div data-intro="chrome"
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '40px', alignItems: 'end', opacity: 0 }}>
+          style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '40px', alignItems: 'end', opacity: 0 }}>
           <div style={{ maxWidth: '320px' }}>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
-              point at a moment.
+                Point at a moment.
             </p>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
-              say what changes.
+                Say what changes.
             </p>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0 }}>
-              reality rewrites itself.
+                Reality rewrites itself.
             </p>
           </div>
-          <div>
-            <Magnetic intensity={0.2}>
-              <button onClick={onStudio} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '16px 40px', border: 'none', width: 'fit-content', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s' }}
-                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 40px rgba(255,255,255,0.12)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>open studio</button>
-            </Magnetic>
-          </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', lineHeight: 2, textAlign: 'right' }}>
-            <div>prompt-driven editing</div><div>causal entity tracking</div><div>powered by gemini + veo</div>
+              <div>Prompt-driven editing</div><div>Causal entity tracking</div><div>Powered by Gemini + Veo</div>
           </div>
         </div>
       </motion.div>
 
       <div data-intro="chrome" style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', opacity: 0 }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)', letterSpacing: '0.2em' }}>scroll</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)', letterSpacing: '0.16em' }}>Scroll</span>
         <motion.div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)' }} animate={{ scaleY: [1, 0.4, 1] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
       </div>
     </section>
@@ -385,8 +407,8 @@ function Marquee() {
   return (
     <ScrollReveal y={0}
       style={{ overflow: 'hidden', whiteSpace: 'nowrap', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '24px 0' }}>
-      <motion.div animate={{ x: [0, -3000] }} transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-        style={{ display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: 'clamp(60px, 8vw, 100px)', fontWeight: 300, letterSpacing: '-0.02em', color: 'transparent', WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>{text}</motion.div>
+        <motion.div animate={{ x: [0, -3000] }} transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+          style={{ display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: 'clamp(60px, 8vw, 100px)', fontWeight: 500, letterSpacing: '-0.05em', color: 'transparent', WebkitTextStroke: '1px rgba(255,255,255,0.1)', textTransform: 'lowercase' }}>{text}</motion.div>
     </ScrollReveal>
   )
 }
@@ -402,7 +424,7 @@ const STEPS = [
 
 function Thesis() {
   return (
-    <section style={{ position: 'relative', padding: '200px 64px 160px', maxWidth: '1200px', margin: '0 auto' }}>
+    <section id="about" style={{ position: 'relative', padding: '200px 64px 160px', maxWidth: '1200px', margin: '0 auto' }}>
       {/* decorative section number */}
       <div style={{ position: 'absolute', top: '80px', right: '0', fontFamily: 'var(--font-display)', fontSize: '300px', fontWeight: 300, color: '#fff', opacity: 0.03, lineHeight: 1, pointerEvents: 'none', userSelect: 'none' }}>01</div>
 
@@ -413,12 +435,12 @@ function Thesis() {
         style={{ position: 'absolute', bottom: '12%', left: '2%', width: '200px', height: '140px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0.2 }} />
 
       <ScrollReveal y={0}
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>© iris — 001 / about</ScrollReveal>
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.14em', marginBottom: '40px' }}>IRIS / 001 / About</ScrollReveal>
 
-      <ScrollReveal as="h2" y={-40}
-        style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '0' }}>
-        generation<br /><span style={{ fontStyle: 'italic', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite' }}>is the edit.</span>
-      </ScrollReveal>
+        <ScrollReveal as="h2" y={-40}
+          style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.92, letterSpacing: '-0.05em', color: '#fff', marginBottom: '0', textTransform: 'lowercase' }}>
+          generation<br /><span style={{ background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite' }}>is the edit.</span>
+        </ScrollReveal>
 
       {/* divider line */}
       <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.06)', margin: '40px 0' }} />
@@ -439,8 +461,8 @@ function Thesis() {
               <div key={i} style={{ cursor: 'default', transition: 'transform 0.3s, text-shadow 0.3s' }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) { valEl.style.color = '#fff'; valEl.style.textShadow = '0 0 40px rgba(255,255,255,0.15)' } }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) { valEl.style.color = '#fff'; valEl.style.textShadow = 'none' } }}>
-                <div data-stat-val="" style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '4px', transition: 'color 0.3s, text-shadow 0.3s' }}>{s.val}</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>{s.label}</div>
+                <div data-stat-val="" style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 500, color: '#fff', letterSpacing: '-0.04em', marginBottom: '4px', transition: 'color 0.3s, text-shadow 0.3s' }}>{s.val}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.08em' }}>{s.label}</div>
               </div>
             ))}
           </ScrollReveal>
@@ -454,7 +476,7 @@ function Thesis() {
                 onMouseEnter={e => { const p = e.currentTarget.parentElement!; p.style.paddingLeft = '16px'; p.style.borderColor = 'rgba(255,255,255,0.15)'; const num = p.querySelector('[data-step-num]') as HTMLElement | null; if (num) num.style.color = 'rgba(255,255,255,0.5)' }}
                 onMouseLeave={e => { const p = e.currentTarget.parentElement!; p.style.paddingLeft = '0'; p.style.borderColor = 'rgba(255,255,255,0.06)'; const num = p.querySelector('[data-step-num]') as HTMLElement | null; if (num) num.style.color = 'rgba(255,255,255,0.15)' }}>
                 <span data-step-num="" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', minWidth: '20px', transition: 'color 0.3s' }}>{s.num}</span>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em' }}>{s.label}</span>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 500, color: '#fff', letterSpacing: '-0.04em', textTransform: 'lowercase' }}>{s.label}</span>
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.25)', lineHeight: 1.6, paddingLeft: '40px' }}>{s.desc}</div>
             </ScrollReveal>
@@ -467,36 +489,20 @@ function Thesis() {
 
 // ── features ────────────────────────────────────────────────────────
 
-const FEATURE_FRAMES = ['/frames/frame_100.jpg', '/frames/frame_060.jpg', '/frames/frame_030.jpg', '/frames/frame_090.jpg']
-
 function Features() {
   return (
-    <section style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
+    <section id="features" style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
       <ScrollReveal y={0}
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>© iris — 002 / capabilities</ScrollReveal>
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.14em', marginBottom: '40px' }}>IRIS / 002 / Capabilities</ScrollReveal>
 
-      <ScrollReveal as="h2" y={-40}
-        style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(40px, 6vw, 96px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '80px' }}>
-        blending <span style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.4)' }}>intelligence</span><br />with intention.
+        <ScrollReveal as="h2" y={-40}
+        style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 'clamp(40px, 6vw, 96px)', lineHeight: 0.92, letterSpacing: '-0.05em', color: '#fff', marginBottom: '80px', textTransform: 'lowercase' }}>
+        blending <span style={{ color: 'rgba(255,255,255,0.4)' }}>intelligence</span><br />with intention.
       </ScrollReveal>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px' }}>
-        {[
-          { title: 'causal editing', desc: 'change something once. iris finds every other frame where that entity appears and offers a continuity pack of consistent replacements.', label: 'entity tracking' },
-          { title: 'creative director', desc: 'describe a vibe. gemini interprets your intent into structured edit plans with tone, color grading, and spatial awareness.', label: 'gemini ai' },
-          { title: 'before / after', desc: 'the transformation is the product. wipe between original and generated variants instantly. the reveal is the magic trick.', label: 'comparison' },
-          { title: 'voice narration', desc: "elevenlabs generates cinematic voiceover for your reveals. the transformation doesn't just look different. it sounds different.", label: 'elevenlabs' },
-        ].map((f, i) => (
-          <ScrollReveal key={i} delay={i * 0.08}
-            style={{ padding: '48px 40px', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)', cursor: 'default', transition: 'background 0.3s, border-color 0.3s' }}
-            className="feature-card">
-            <div data-feature-img="" style={{ width: '100%', height: '120px', background: `url(${FEATURE_FRAMES[i]}) center/cover`, opacity: 0.15, marginBottom: '16px', borderRadius: '2px', transition: 'opacity 0.3s' }} />
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', marginBottom: '16px' }}>{f.label}</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '12px' }}>{f.title}</div>
-            <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'rgba(255,255,255,0.3)', lineHeight: 1.7 }}>{f.desc}</div>
-          </ScrollReveal>
-        ))}
-      </div>
+      <ScrollReveal y={24}>
+        <CardSwapShowcase />
+      </ScrollReveal>
     </section>
   )
 }
@@ -528,13 +534,13 @@ function SocialProof() {
   return (
     <section style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
       <ScrollReveal y={0}
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '64px' }}>© iris — 003 / signal</ScrollReveal>
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.14em', marginBottom: '64px' }}>IRIS / 003 / Signal</ScrollReveal>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {TESTIMONIALS.map((t, i) => (
           <ScrollReveal key={i} delay={i * 0.1}
             style={{ padding: '48px 0', paddingRight: i < 2 ? '40px' : '0', paddingLeft: i > 0 ? '40px' : '0', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-            <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '20px', lineHeight: 1.5, color: 'rgba(255,255,255,0.5)', marginBottom: '32px' }}>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,0.5)', marginBottom: '32px', letterSpacing: '-0.03em', textTransform: 'lowercase' }}>
               &ldquo;{t.quote}&rdquo;
             </p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -582,35 +588,76 @@ function TechStrip() {
 
 function CTA({ onStudio }: { onStudio: () => void }) {
   return (
-    <section style={{ padding: '200px 64px', textAlign: 'center' }}>
+    <section id="rewrite" style={{ position: 'relative', padding: '200px 64px', textAlign: 'center', overflow: 'hidden', isolation: 'isolate' }}>
+      <SmokeOrbBackground />
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', background: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.12) 18%, rgba(0,0,0,0.02) 40%, rgba(0,0,0,0.08) 74%, rgba(0,0,0,0.36) 100%)' }} />
+      <div style={{ position: 'relative', zIndex: 1 }}>
       <ScrollReveal y={0}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '64px' }}>© iris — 004 / rewrite</ScrollReveal>
 
-      {/* decorative frame strip */}
       <ScrollReveal y={0}
-        style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginBottom: '64px' }}>
-        {['/frames/frame_020.jpg', '/frames/frame_070.jpg', '/frames/frame_130.jpg'].map((src, i) => (
-          <img key={i} src={src} alt="" style={{ width: '300px', height: '180px', objectFit: 'cover', opacity: 0.2, border: '1px solid rgba(255,255,255,0.06)' }} />
-        ))}
+        style={{ display: 'flex', justifyContent: 'center', marginBottom: '64px' }}>
+        <div
+          style={{
+            position: 'relative',
+            width: 'min(1040px, 100%)',
+            height: '260px',
+            borderRadius: '28px',
+            border: '1px solid rgba(255,255,255,0.06)',
+            background: 'linear-gradient(180deg, rgba(8,8,10,0.58) 0%, rgba(10,10,12,0.42) 100%)',
+            boxShadow: '0 40px 120px rgba(0,0,0,0.34), inset 0 0 0 1px rgba(255,255,255,0.02)',
+            backdropFilter: 'blur(22px)',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.04), transparent 62%)',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: '-18%',
+              background: 'radial-gradient(circle at 50% 50%, rgba(0,0,0,0.42), transparent 68%)',
+              filter: 'blur(38px)',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+          <ASCIIText
+            text="<iris>"
+            enableWaves
+            asciiFontSize={7}
+            textFontSize={272}
+            planeBaseHeight={15.5}
+            textColor="#f4f4f4"
+          />
+        </div>
       </ScrollReveal>
 
       <ScrollReveal as="h2" y={-40}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '32px' }}>
-        rewrite <span style={{ fontStyle: 'italic' }}>reality.</span>
+        rewrite <span>reality.</span>
       </ScrollReveal>
       <ScrollReveal as="p" y={0} delay={0.1}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', marginBottom: '48px' }}>
-        start editing with prompts, not tools.
+        Start editing with prompts, not tools.
       </ScrollReveal>
       <ScrollReveal delay={0.2}>
         <Magnetic intensity={0.2}>
           <button onClick={onStudio}
             style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', padding: '18px 56px', border: 'none', background: '#fff', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', transition: 'all 0.3s' }}
-            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>open studio</button>
+            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Open Studio</button>
         </Magnetic>
       </ScrollReveal>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '20px' }}>
+      <div style={{ display: 'none', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '20px' }}>
         no account required · free during beta
+      </div>
       </div>
     </section>
   )
@@ -620,19 +667,19 @@ function CTA({ onStudio }: { onStudio: () => void }) {
 
 function Footer() {
   const footerLinks: Record<string, string[]> = {
-    product: ['editor', 'pricing', 'changelog'],
-    resources: ['docs', 'api', 'github'],
-    company: ['about', 'twitter', 'contact'],
+    Product: ['Editor', 'Pricing', 'Changelog'],
+    Resources: ['Docs', 'API', 'GitHub'],
+    Company: ['About', 'Twitter', 'Contact'],
   }
 
   return (
     <footer style={{ position: 'relative', padding: '120px 64px 60px', borderTop: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
       {/* ghost watermark */}
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontFamily: 'var(--font-display)', fontSize: 'clamp(120px, 20vw, 300px)', fontWeight: 300, color: '#fff', opacity: 0.03, pointerEvents: 'none', userSelect: 'none', letterSpacing: '-0.03em' }}>iris</div>
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontFamily: 'var(--font-display)', fontSize: 'clamp(120px, 20vw, 300px)', fontWeight: 500, color: '#fff', opacity: 0.03, pointerEvents: 'none', userSelect: 'none', letterSpacing: '-0.05em', textTransform: 'lowercase' }}>iris</div>
 
       {/* closing philosophy */}
       <ScrollReveal as="p" y={0}
-        style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 'clamp(20px, 3vw, 36px)', color: 'rgba(255,255,255,0.12)', lineHeight: 1.1, marginBottom: '64px' }}>
+        style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 3vw, 36px)', fontWeight: 500, color: 'rgba(255,255,255,0.12)', lineHeight: 1.1, marginBottom: '64px', letterSpacing: '-0.04em', textTransform: 'lowercase' }}>
         the edit is the story.
       </ScrollReveal>
 
@@ -758,7 +805,7 @@ export default function App() {
   }, [status, navigate])
 
   return (
-    <div style={{ background: '#000', minHeight: '100vh', color: '#fff', textTransform: 'lowercase' }}>
+      <div style={{ background: '#000', minHeight: '100vh', color: '#fff' }}>
       {/* ascii flower loader */}
       <AnimatePresence mode="wait">
         {!loaderDone && <Loader onComplete={() => setLoaderDone(true)} />}
@@ -770,13 +817,13 @@ export default function App() {
       </div>
 
       <ScrollFrames dimOpacity={0.4}>
-        <PillNav onStudio={goStudio} />
+        <FloatingToolbar />
         <Hero onStudio={goStudio} />
         <Marquee />
         <Thesis />
+        <TechStrip />
         <Features />
         <SocialProof />
-        <TechStrip />
         <CTA onStudio={goStudio} />
         <Footer />
       </ScrollFrames>

@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url('https://fonts.cdnfonts.com/css/sentient');
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
@@ -7,8 +6,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-display: 'Sentient', Georgia, serif;
-  --font-heading: 'Sentient', Georgia, serif;
+  --font-display: 'Geist Variable', system-ui, sans-serif;
+  --font-heading: 'Geist Variable', system-ui, sans-serif;
   --font-body: 'Geist Variable', system-ui, sans-serif;
   --font-sans: 'Geist Variable', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'SF Mono', monospace;
