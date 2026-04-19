@@ -126,10 +126,25 @@ export type Action =
   | { type: "remove"; id: string }
   | { type: "set_volume"; id: string; v: number }
   | { type: "reorder"; from: number; to: number }
-  | { type: "replace"; id: string; with: Clip };
+  | { type: "replace"; id: string; with: Clip }
+  | { type: "hydrate"; sources: MediaAsset[]; clips: Clip[] };
 
 function reducer(state: State, a: Action): State {
   switch (a.type) {
+    case "hydrate": {
+      // wholesale replace library + timeline. used when reopening a saved
+      // reel so we rebuild the EDL from the backend's segment rows
+      // instead of starting from a blank canvas.
+      return {
+        ...state,
+        sources: a.sources,
+        clips: a.clips,
+        selectedId: null,
+        playhead: 0,
+        playing: false,
+      };
+    }
+
     case "add_source": {
       if (state.sources.some((s) => s.id === a.asset.id)) return state;
       return { ...state, sources: [...state.sources, a.asset] };

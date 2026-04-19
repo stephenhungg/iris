@@ -6,13 +6,19 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
-import { EDLProvider, newMediaAsset, useEDL } from "../stores/edl";
+import {
+  EDLProvider,
+  newMediaAsset,
+  useEDL,
+  type Clip,
+  type MediaAsset,
+} from "../stores/edl";
 import { Preview } from "../components/Preview";
 import { Inspector } from "../components/Inspector";
 import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
-import { upload } from "../api/client";
+import { getTimeline, upload } from "../api/client";
 import { Icon } from "../components/Icon";
 import "../styles/global.css";
 import "./studio.css";
@@ -58,17 +64,18 @@ function StudioInner({
   const [uploading, setUploading] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // hydrate an existing project once, if one was passed in. the EDL store
-  // is created fresh per Studio mount so we don't need to de-dup. we also
-  // drop the source straight onto the timeline so resuming feels like
-  // "picking up where i left off" rather than an empty timeline with a
-  // library item.
+  // hydrate an existing project once, if one was passed in. we fetch the
+  // saved segment rows from the backend and rebuild the EDL so resuming
+  // gives you back your splits and accepted AI variants exactly as you
+  // left them. falls back to a single full-length clip if the timeline
+  // fetch fails (e.g. offline, brand-new project with no segments yet).
   const hydratedRef = useRef(false);
   useEffect(() => {
     if (hydratedRef.current) return;
     if (!initialProject) return;
     hydratedRef.current = true;
-    const asset = newMediaAsset({
+
+    const sourceAsset: MediaAsset = newMediaAsset({
       url: initialProject.videoUrl,
       duration: initialProject.duration,
       fps: initialProject.fps,
@@ -76,8 +83,65 @@ function StudioInner({
       label: initialProject.label || initialProject.projectId.slice(0, 8),
       kind: "source",
     });
-    dispatch({ type: "add_source", asset });
-    dispatch({ type: "add_to_timeline", assetId: asset.id });
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const tl = await getTimeline(initialProject.projectId);
+        if (cancelled) return;
+        // segments are timestamps into either the original video (source=
+        // "original", sub-range is start_ts..end_ts inside the full file)
+        // or a standalone generated clip (source="generated", the variant
+        // file holds exactly that span, so its sub-range is 0..span).
+        const clips: Clip[] = tl.segments.map((seg) => {
+          const span = Math.max(0.01, seg.end_ts - seg.start_ts);
+          if (seg.source === "generated") {
+            return {
+              id: crypto.randomUUID(),
+              kind: "generated" as const,
+              url: seg.url,
+              sourceStart: 0,
+              sourceEnd: span,
+              mediaDuration: span,
+              volume: seg.audio ? 1 : 0,
+              projectId: initialProject.projectId,
+            };
+          }
+          return {
+            id: crypto.randomUUID(),
+            kind: "source" as const,
+            url: seg.url,
+            sourceStart: seg.start_ts,
+            sourceEnd: seg.end_ts,
+            mediaDuration: initialProject.duration,
+            volume: seg.audio ? 1 : 0,
+            projectId: initialProject.projectId,
+            sourceAssetId: sourceAsset.id,
+            label: sourceAsset.label,
+          };
+        });
+        dispatch({ type: "hydrate", sources: [sourceAsset], clips });
+      } catch {
+        if (cancelled) return;
+        // no timeline (new project, network hiccup) — fall back to one
+        // full-length clip pointing at the source video.
+        const fallback: Clip = {
+          id: crypto.randomUUID(),
+          kind: "source",
+          url: sourceAsset.url,
+          sourceStart: 0,
+          sourceEnd: sourceAsset.duration,
+          mediaDuration: sourceAsset.duration,
+          volume: 1,
+          projectId: sourceAsset.projectId,
+          sourceAssetId: sourceAsset.id,
+          label: sourceAsset.label,
+        };
+        dispatch({ type: "hydrate", sources: [sourceAsset], clips: [fallback] });
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [initialProject, dispatch]);
 
   async function handleFile(file: File) {

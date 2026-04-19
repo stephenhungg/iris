@@ -8,6 +8,7 @@ from app.models.project import Project
 from app.models.segment import Segment
 from app.models.session import Session as SessionModel
 from app.schemas.timeline import TimelineOut, TimelineSegment
+from app.services import storage
 
 router = APIRouter(tags=["timeline"])
 
@@ -34,6 +35,10 @@ async def get_timeline(
         )
     ).scalars().all()
 
+    # re-sign the stored URLs so reels reopened after the 7-day presign
+    # window still play. same trick as /api/projects.
+    base_url = storage.normalize_url_like(proj.video_url, fallback=proj.video_url)
+
     # Timeline construction: walk from 0..duration and fill gaps between
     # generated segments with implicit "original" segments pointing at the
     # source video. Overlapping generated segments should be pre-flattened
@@ -47,7 +52,7 @@ async def get_timeline(
                     start_ts=cursor,
                     end_ts=seg.start_ts,
                     source="original",
-                    url=proj.video_url,
+                    url=base_url,
                     audio=True,
                 )
             )
@@ -56,7 +61,7 @@ async def get_timeline(
                 start_ts=seg.start_ts,
                 end_ts=seg.end_ts,
                 source="generated",
-                url=seg.url,
+                url=storage.normalize_url_like(seg.url, fallback=seg.url),
                 audio=False,
             )
         )
@@ -68,7 +73,7 @@ async def get_timeline(
                 start_ts=cursor,
                 end_ts=proj.duration,
                 source="original",
-                url=proj.video_url,
+                url=base_url,
                 audio=True,
             )
         )
@@ -80,7 +85,7 @@ async def get_timeline(
                 start_ts=0.0,
                 end_ts=proj.duration,
                 source="original",
-                url=proj.video_url,
+                url=base_url,
                 audio=True,
             )
         )
