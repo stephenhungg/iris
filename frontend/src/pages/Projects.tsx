@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { listProjects, type ProjectListItem } from '../api/client'
+import OrganicDarkBackground from '../components/OrganicDarkBackground'
+import TiltedCard from '../components/TiltedCard'
 import { useAuth } from '../lib/useAuth'
 import './projects.css'
 
-// palmer spring — matches the landing page
 const SPRING_BOUNCY = { type: 'spring' as const, stiffness: 350, damping: 40, mass: 1 }
 const SPRING_BADGE = { type: 'spring' as const, stiffness: 350, damping: 40, mass: 1.5 }
+const BLANK_POSTER =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='10' viewBox='0 0 16 10'><rect width='16' height='10' fill='%23060606'/></svg>"
 
 export function Projects({
   onExit,
@@ -36,18 +39,45 @@ export function Projects({
 
   return (
     <div className="projects-page">
-      {/* sticky top bar */}
+      <div className="projects-background">
+        <OrganicDarkBackground />
+        <div className="projects-background__veil" />
+      </div>
+
       <header className="projects-topbar">
-        <button className="projects-back" onClick={onExit}>
-          <span className="arrow">←</span>
-          <span>back to landing</span>
-        </button>
-        <div className="projects-user">
-          signed in as <strong>{String(display).toLowerCase()}</strong>
+        <div className="projects-topbar__left">
+          <button className="projects-brand" onClick={onExit}>
+            <span className="projects-brand__mark" aria-hidden />
+            <span className="projects-brand__word">iris</span>
+          </button>
+          <div className="projects-crumbs" aria-hidden>
+            <span>home</span>
+            <span className="projects-crumbs__divider">/</span>
+            <span className="projects-crumbs__current">library</span>
+          </div>
+        </div>
+
+        <div className="projects-topbar__center">
+          <span className="projects-topbar__eyebrow">media archive</span>
+          <span className="projects-topbar__title">my videos</span>
+        </div>
+
+        <div className="projects-topbar__right">
+          <button className="projects-back" onClick={onExit}>
+            <span className="arrow">←</span>
+            <span>landing</span>
+          </button>
+          <button className="projects-create" onClick={onNew}>
+            <span className="projects-create__icon">+</span>
+            <span>new reel</span>
+          </button>
+          <div className="projects-user">
+            <span className="projects-user__label">signed in</span>
+            <strong>{String(display).toLowerCase()}</strong>
+          </div>
         </div>
       </header>
 
-      {/* hero header */}
       <motion.section
         className="projects-header"
         initial={{ opacity: 0, y: 30 }}
@@ -56,20 +86,19 @@ export function Projects({
       >
         <div className="projects-sectionnum">002 / library</div>
         <h1 className="projects-title">
-          your <span className="chrome">reels</span>
+          your <span className="chrome">videos</span>
         </h1>
         <div className="projects-subhead">
           <p>
             every reel you've cut lives here. pick one up where you left off,
-            or start a fresh edit — iris remembers nothing you didn't teach it.
+            or start a fresh edit - iris remembers nothing you didn't teach it.
           </p>
           <div className="projects-count">
-            {items === null ? '—' : String(items.length).padStart(3, '0')} reels
+            {items === null ? '-' : String(items.length).padStart(3, '0')} videos
           </div>
         </div>
       </motion.section>
 
-      {/* body */}
       <AnimatePresence mode="wait">
         {items === null && !err && (
           <motion.div
@@ -107,19 +136,37 @@ export function Projects({
               show: { transition: { staggerChildren: 0.06, delayChildren: 0.15 } },
             }}
           >
-            {/* "new reel" tile always first */}
             <motion.button
-              className="proj-new"
+              className="proj-tilt-shell"
               onClick={onNew}
               variants={{
                 hidden: { opacity: 0, y: 24 },
                 show: { opacity: 1, y: 0, transition: SPRING_BOUNCY },
               }}
-              whileHover={{ scale: 1.015 }}
               whileTap={{ scale: 0.985 }}
             >
-              <div className="proj-new__plus">+</div>
-              <div>new reel</div>
+              <TiltedCard
+                imageSrc={BLANK_POSTER}
+                altText="new reel"
+                captionText="new reel"
+                containerHeight="100%"
+                containerWidth="100%"
+                imageHeight="100%"
+                imageWidth="100%"
+                rotateAmplitude={8}
+                scaleOnHover={1.04}
+                showMobileWarning={false}
+                showTooltip
+                displayOverlayContent
+                className="proj-tilt-card"
+                overlayClassName="proj-tilt-overlay"
+                overlayContent={(
+                  <div className="proj-new">
+                    <div className="proj-new__plus">+</div>
+                    <div>new reel</div>
+                  </div>
+                )}
+              />
             </motion.button>
 
             {items.map((p, i) => (
@@ -136,8 +183,6 @@ export function Projects({
     </div>
   )
 }
-
-// ─── card ──────────────────────────────────────────────────────────
 
 function ProjectCard({
   project,
@@ -157,6 +202,7 @@ function ProjectCard({
     v.currentTime = 0
     v.play().catch(() => {})
   }
+
   function handleLeave() {
     const v = videoRef.current
     if (!v) return
@@ -167,64 +213,78 @@ function ProjectCard({
   const created = formatRelative(project.created_at)
   const idShort = project.project_id.slice(0, 8)
   const dur = formatDuration(project.duration)
-  const res = `${project.width}×${project.height}`
+  const res = `${project.width}x${project.height}`
 
   return (
     <motion.div
-      className="proj-card"
-      onClick={onOpen}
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
+      className="proj-tilt-shell"
       variants={{
         hidden: { opacity: 0, y: 24 },
         show: { opacity: 1, y: 0, transition: SPRING_BOUNCY },
       }}
-      whileHover={{ y: -3 }}
       transition={SPRING_BOUNCY}
     >
-      <video
-        ref={videoRef}
-        className="proj-card__video"
-        src={project.video_url}
-        preload="metadata"
-        muted
-        loop
-        playsInline
-        // nudge to just after 0 so the browser actually renders a
-        // poster frame from the video (otherwise we just see black
-        // with preload=metadata on some browsers).
-        onLoadedMetadata={(e) => {
-          const v = e.currentTarget
-          if (v.currentTime === 0) v.currentTime = 0.05
-        }}
-        onSeeked={() => setReady(true)}
-        onLoadedData={() => setReady(true)}
-        style={{ opacity: ready ? 1 : 0, transition: 'opacity 0.4s ease' }}
+      <TiltedCard
+        imageSrc={BLANK_POSTER}
+        altText={`project ${idShort}`}
+        captionText={`${idShort} · ${dur}`}
+        containerHeight="100%"
+        containerWidth="100%"
+        imageHeight="100%"
+        imageWidth="100%"
+        rotateAmplitude={8}
+        scaleOnHover={1.035}
+        showMobileWarning={false}
+        showTooltip
+        displayOverlayContent
+        className="proj-tilt-card"
+        overlayClassName="proj-tilt-overlay"
+        onClick={onOpen}
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
+        overlayContent={(
+          <div className="proj-card">
+            <video
+              ref={videoRef}
+              className="proj-card__video"
+              src={project.video_url}
+              preload="metadata"
+              muted
+              loop
+              playsInline
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget
+                if (v.currentTime === 0) v.currentTime = 0.05
+              }}
+              onSeeked={() => setReady(true)}
+              onLoadedData={() => setReady(true)}
+              style={{ opacity: ready ? 1 : 0, transition: 'opacity 0.4s ease' }}
+            />
+            {!ready && <div className="proj-card__poster" />}
+
+            <div className="proj-card__glow" />
+            <div className="proj-card__scrim" />
+
+            <div className="proj-card__corner">
+              reel · {String(index + 1).padStart(3, '0')}
+            </div>
+
+            <div className="proj-card__meta">
+              <div>
+                <div className="proj-card__id">{idShort}</div>
+                <div className="proj-card__created">{created}</div>
+              </div>
+              <div className="proj-card__stats">
+                <span>{dur}</span>
+                <span>{res} · {Math.round(project.fps)}fps</span>
+              </div>
+            </div>
+          </div>
+        )}
       />
-      {!ready && <div className="proj-card__poster" />}
-
-      <div className="proj-card__glow" />
-      <div className="proj-card__scrim" />
-
-      <div className="proj-card__corner">
-        reel · {String(index + 1).padStart(3, '0')}
-      </div>
-
-      <div className="proj-card__meta">
-        <div>
-          <div className="proj-card__id">{idShort}</div>
-          <div className="proj-card__created">{created}</div>
-        </div>
-        <div className="proj-card__stats">
-          <span>{dur}</span>
-          <span>{res} · {Math.round(project.fps)}fps</span>
-        </div>
-      </div>
     </motion.div>
   )
 }
-
-// ─── formatters ────────────────────────────────────────────────────
 
 function formatDuration(sec: number): string {
   if (!isFinite(sec) || sec < 0) return '0:00'
@@ -250,5 +310,7 @@ function formatRelative(iso: string): string {
     return new Date(iso).toLocaleDateString(undefined, {
       month: 'short', day: 'numeric', year: '2-digit',
     }).toLowerCase()
-  } catch { return '' }
+  } catch {
+    return ''
+  }
 }
