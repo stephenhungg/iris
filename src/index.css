@@ -88,6 +88,15 @@ body {
 .font-body { font-family: var(--font-body); }
 .font-mono { font-family: var(--font-mono); }
 
+/* feature card hover */
+.feature-card:hover {
+  background: rgba(255,255,255,0.035) !important;
+  border-top-color: rgba(255,255,255,0.15) !important;
+}
+.feature-card:hover [data-feature-img] {
+  opacity: 0.3 !important;
+}
+
 @layer base {
   * {
     @apply border-border;

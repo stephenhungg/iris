@@ -97,8 +97,9 @@ export default function ScrollFrames({
       lastScrollTime = Date.now()
 
       const scrollTop = window.scrollY
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight
-      const progress = Math.max(0, Math.min(1, scrollTop / docHeight))
+      // compress: full frame sequence plays within first 30% of page scroll
+      const scrollRange = (document.documentElement.scrollHeight - window.innerHeight) * 0.3
+      const progress = Math.max(0, Math.min(1, scrollTop / scrollRange))
 
       // reverse: start at last frame, go backwards to 1/3
       const frameRange = START_FRAME - END_FRAME
@@ -127,8 +128,8 @@ export default function ScrollFrames({
       if (idleTime > 500) {
         ambientOffset += 0.015 // slow creep backwards through frames
         const scrollTop = window.scrollY
-        const docHeight = document.documentElement.scrollHeight - window.innerHeight
-        const progress = Math.max(0, Math.min(1, scrollTop / docHeight))
+        const scrollRange = (document.documentElement.scrollHeight - window.innerHeight) * 0.3
+        const progress = Math.max(0, Math.min(1, scrollTop / scrollRange))
         const frameRange = START_FRAME - END_FRAME
         targetFrame = START_FRAME - 1 - progress * frameRange + ambientOffset
       }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react'
 import gsap from 'gsap'
+import Lenis from 'lenis'
 import MetallicPaint from './components/MetallicPaint'
 import Noise from './components/Noise'
 import ScrollFrames from './components/ScrollFrames'
@@ -270,14 +271,14 @@ function Hero({ onStudio }: { onStudio: () => void }) {
   const y = useTransform(scrollYProgress, [0, 0.5], [0, -100])
 
   return (
-    <section ref={ref} style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '120px 64px 0', overflow: 'hidden', willChange: 'transform' }}>
+    <section ref={ref} style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 64px', overflow: 'hidden', willChange: 'transform' }}>
       {/* scattered preview images — controlled by GSAP intro timeline */}
       <img data-intro="hero-images" src="/frames/frame_045.jpg" alt=""
-        style={{ position: 'absolute', top: '12%', right: '8%', width: '200px', height: '130px', objectFit: 'cover', transform: 'rotate(2deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
+        style={{ position: 'absolute', top: '12%', right: '8%', width: '200px', height: '130px', objectFit: 'cover', transform: 'rotate(2deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 0, opacity: 0 }} />
       <img data-intro="hero-images" src="/frames/frame_080.jpg" alt=""
-        style={{ position: 'absolute', top: '58%', left: '3%', width: '160px', height: '100px', objectFit: 'cover', transform: 'rotate(-3deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
+        style={{ position: 'absolute', top: '58%', left: '3%', width: '160px', height: '100px', objectFit: 'cover', transform: 'rotate(-3deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 0, opacity: 0 }} />
       <img data-intro="hero-images" src="/frames/frame_120.jpg" alt=""
-        style={{ position: 'absolute', top: '40%', right: '4%', width: '180px', height: '120px', objectFit: 'cover', transform: 'rotate(1deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
+        style={{ position: 'absolute', top: '40%', right: '4%', width: '180px', height: '120px', objectFit: 'cover', transform: 'rotate(1deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 0, opacity: 0 }} />
 
       <motion.div style={{ opacity, y }}>
         {/* top bar — chrome, hidden initially */}
@@ -296,15 +297,21 @@ function Hero({ onStudio }: { onStudio: () => void }) {
           </div>
         </div>
 
-        {/* title — GSAP controls the reveal */}
-        <div data-intro="logo"
-          style={{ display: 'flex', alignItems: 'center', gap: 'clamp(16px, 3vw, 40px)', marginBottom: '48px' }}>
-          <div style={{ width: 'clamp(100px, 18vw, 280px)', height: 'clamp(100px, 18vw, 280px)', flexShrink: 0, willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
+        {/* title — centered on screen during intro, settles into layout after */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: '48px' }}>
+          {/* metallic paint logo — appears after title reveal */}
+          <div data-intro="metallic"
+            style={{ width: 'clamp(80px, 12vw, 200px)', height: 'clamp(80px, 12vw, 200px)', flexShrink: 0, opacity: 0, marginRight: 'clamp(16px, 3vw, 40px)', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
             <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#ffffff" darkColor="#000000" tintColor="#c0c0c0" />
           </div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(120px, 22vw, 320px)', lineHeight: 0.85, letterSpacing: '-0.04em', filter: 'drop-shadow(0 0 80px rgba(255,255,255,0.08))' }}>
-            iris
-          </h1>
+
+          {/* dual-layer text for wipe reveal */}
+          <div style={{ position: 'relative' }}>
+            <h1 data-intro="logo-dark"
+              style={{ fontFamily: 'var(--font-display)', fontWeight: 200, fontSize: 'clamp(80px, 12vw, 200px)', lineHeight: 0.85, letterSpacing: '0.25em', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite', filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
+              iris.
+            </h1>
+          </div>
         </div>
 
         {/* bottom row */}
@@ -312,13 +319,13 @@ function Hero({ onStudio }: { onStudio: () => void }) {
           style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '40px', alignItems: 'end', opacity: 0 }}>
           <div style={{ maxWidth: '320px' }}>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
-              point at a moment in your video.
+              point at a moment.
             </p>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
-              describe what should change.
+              say what changes.
             </p>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0 }}>
-              watch reality rewrite itself.
+              reality rewrites itself.
             </p>
           </div>
           <div>
@@ -341,16 +348,47 @@ function Hero({ onStudio }: { onStudio: () => void }) {
   )
 }
 
+// ── scroll reveal ──────────────────────────────────────────────────
+// scroll-linked opacity+y, replaces whileInView to eliminate lenis/IO flicker
+
+function ScrollReveal({ children, y: yOffset = 30, className, style, as: Tag = 'div', delay = 0 }: {
+  children: React.ReactNode
+  y?: number
+  className?: string
+  style?: React.CSSProperties
+  as?: 'div' | 'section' | 'p' | 'h2'
+  delay?: number
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start end', 'end 80%'],  // animate as element crosses bottom 20% of viewport
+  })
+
+  // map scroll progress to opacity and y — with optional delay (shifts the active range)
+  const clampedProgress = useTransform(scrollYProgress, [delay, Math.min(delay + 0.6, 1)], [0, 1], { clamp: true })
+  const opacity = useTransform(clampedProgress, [0, 1], [0, 1])
+  const yVal = useTransform(clampedProgress, [0, 1], [yOffset, 0])
+
+  const MotionTag = motion[Tag] as typeof motion.div
+
+  return (
+    <MotionTag ref={ref} className={className} style={{ ...style, opacity, y: yVal }}>
+      {children}
+    </MotionTag>
+  )
+}
+
 // ── marquee ─────────────────────────────────────────────────────────
 
 function Marquee() {
   const text = 'scrub · select · prompt · transform · '.repeat(10)
   return (
-    <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
+    <ScrollReveal y={0}
       style={{ overflow: 'hidden', whiteSpace: 'nowrap', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '24px 0' }}>
       <motion.div animate={{ x: [0, -3000] }} transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
         style={{ display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: 'clamp(60px, 8vw, 100px)', fontWeight: 300, letterSpacing: '-0.02em', color: 'transparent', WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>{text}</motion.div>
-    </motion.div>
+    </ScrollReveal>
   )
 }
 
@@ -369,61 +407,58 @@ function Thesis() {
       {/* decorative section number */}
       <div style={{ position: 'absolute', top: '80px', right: '0', fontFamily: 'var(--font-display)', fontSize: '300px', fontWeight: 300, color: '#fff', opacity: 0.03, lineHeight: 1, pointerEvents: 'none', userSelect: 'none' }}>01</div>
 
-      {/* scattered images */}
-      <motion.img src="/frames/frame_040.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.25 }} viewport={{ once: true }}
-        transition={{ duration: DUR.standard, ease: EASE.premium }}
-        style={{ position: 'absolute', top: '10%', right: '6%', width: '240px', height: '160px', objectFit: 'cover', rotate: '-1deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
-      <motion.img src="/frames/frame_110.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.2 }} viewport={{ once: true }}
-        transition={{ duration: DUR.standard, ease: EASE.premium }}
-        style={{ position: 'absolute', bottom: '12%', left: '2%', width: '200px', height: '140px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+      {/* scattered images — low target opacity, so just use inline style fade */}
+      <img src="/frames/frame_040.jpg" alt=""
+        style={{ position: 'absolute', top: '10%', right: '6%', width: '240px', height: '160px', objectFit: 'cover', rotate: '-1deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0.25 }} />
+      <img src="/frames/frame_110.jpg" alt=""
+        style={{ position: 'absolute', bottom: '12%', left: '2%', width: '200px', height: '140px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0.2 }} />
 
-      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>001 / about</motion.div>
+      <ScrollReveal y={0}
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>© iris — 001 / about</ScrollReveal>
 
-      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-100px' }} transition={{ duration: DUR.slow, ease: EASE.premium }}
+      <ScrollReveal as="h2" y={-40}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '0' }}>
         generation<br /><span style={{ fontStyle: 'italic', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite' }}>is the edit.</span>
-      </motion.h2>
+      </ScrollReveal>
 
       {/* divider line */}
       <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.06)', margin: '40px 0' }} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '120px' }}>
         <div>
-          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
+          <ScrollReveal as="p"
             style={{ fontFamily: 'var(--font-body)', fontSize: '15px', lineHeight: 1.8, color: 'rgba(255,255,255,0.35)', marginBottom: '32px' }}>
             runway generates video from nothing. premiere edits footage frame by frame. neither lets you point at a specific moment and say "make this different."
-          </motion.p>
-          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium, delay: 0.1 }}
+          </ScrollReveal>
+          <ScrollReveal as="p" delay={0.1}
             style={{ fontFamily: 'var(--font-body)', fontSize: '15px', lineHeight: 1.8, color: 'rgba(255,255,255,0.35)', marginBottom: '48px' }}>
             iris merges both into one action. scrub to a frame, draw a box, describe the change. the ai generates multiple interpretations. you pick one. it replaces that segment in your timeline.
-          </motion.p>
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium, delay: 0.2 }}
+          </ScrollReveal>
+          <ScrollReveal y={0} delay={0.2}
             style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
-            {[{ val: '3', label: 'variants per edit' }, { val: '<40s', label: 'generation time' }, { val: '∞', label: 'iterations' }].map((s, i) => (
-              <div key={i} style={{ cursor: 'default', transition: 'transform 0.3s' }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) valEl.style.color = 'rgba(255,255,255,1)' }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) valEl.style.color = '#fff' }}>
-                <div data-stat-val="" style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '4px', transition: 'color 0.3s' }}>{s.val}</div>
+            {[{ val: '3×', label: 'variants per edit' }, { val: '40s', label: 'to transform' }, { val: '∞', label: 'iterations' }].map((s, i) => (
+              <div key={i} style={{ cursor: 'default', transition: 'transform 0.3s, text-shadow 0.3s' }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) { valEl.style.color = '#fff'; valEl.style.textShadow = '0 0 40px rgba(255,255,255,0.15)' } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) { valEl.style.color = '#fff'; valEl.style.textShadow = 'none' } }}>
+                <div data-stat-val="" style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '4px', transition: 'color 0.3s, text-shadow 0.3s' }}>{s.val}</div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>{s.label}</div>
               </div>
             ))}
-          </motion.div>
+          </ScrollReveal>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {STEPS.map((s, i) => (
-            <motion.div key={s.num} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: DUR.standard, ease: EASE.premium, delay: i * STAGGER.standard }}
-              style={{ padding: '28px 0', cursor: 'default', borderBottom: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.3s' }}
-              onMouseEnter={e => { e.currentTarget.style.paddingLeft = '16px'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
-              onMouseLeave={e => { e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '20px', marginBottom: '8px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', minWidth: '20px' }}>{s.num}</span>
+            <ScrollReveal key={s.num} delay={i * 0.08}
+              style={{ padding: '28px 0', cursor: 'default', borderBottom: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.3s' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '20px', marginBottom: '8px' }}
+                onMouseEnter={e => { const p = e.currentTarget.parentElement!; p.style.paddingLeft = '16px'; p.style.borderColor = 'rgba(255,255,255,0.15)'; const num = p.querySelector('[data-step-num]') as HTMLElement | null; if (num) num.style.color = 'rgba(255,255,255,0.5)' }}
+                onMouseLeave={e => { const p = e.currentTarget.parentElement!; p.style.paddingLeft = '0'; p.style.borderColor = 'rgba(255,255,255,0.06)'; const num = p.querySelector('[data-step-num]') as HTMLElement | null; if (num) num.style.color = 'rgba(255,255,255,0.15)' }}>
+                <span data-step-num="" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', minWidth: '20px', transition: 'color 0.3s' }}>{s.num}</span>
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em' }}>{s.label}</span>
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.25)', lineHeight: 1.6, paddingLeft: '40px' }}>{s.desc}</div>
-            </motion.div>
+            </ScrollReveal>
           ))}
         </div>
       </div>
@@ -438,13 +473,13 @@ const FEATURE_FRAMES = ['/frames/frame_100.jpg', '/frames/frame_060.jpg', '/fram
 function Features() {
   return (
     <section style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
-      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>002 / capabilities</motion.div>
+      <ScrollReveal y={0}
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>© iris — 002 / capabilities</ScrollReveal>
 
-      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: DUR.slow, ease: EASE.premium }}
+      <ScrollReveal as="h2" y={-40}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(40px, 6vw, 96px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '80px' }}>
         blending <span style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.4)' }}>intelligence</span><br />with intention.
-      </motion.h2>
+      </ScrollReveal>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px' }}>
         {[
@@ -453,16 +488,64 @@ function Features() {
           { title: 'before / after', desc: 'the transformation is the product. wipe between original and generated variants instantly. the reveal is the magic trick.', label: 'comparison' },
           { title: 'voice narration', desc: "elevenlabs generates cinematic voiceover for your reveals. the transformation doesn't just look different. it sounds different.", label: 'elevenlabs' },
         ].map((f, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            transition={{ duration: DUR.standard, ease: EASE.premium, delay: i * STAGGER.standard }}
-            style={{ padding: '48px 40px', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.3s', cursor: 'default', transform: 'translateY(0)', boxShadow: 'none' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderTopColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,255,255,0.03)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderTopColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }}>
-            <div style={{ width: '100%', height: '120px', background: `url(${FEATURE_FRAMES[i]}) center/cover`, opacity: 0.15, marginBottom: '16px', borderRadius: '2px' }} />
+          <ScrollReveal key={i} delay={i * 0.08}
+            style={{ padding: '48px 40px', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)', cursor: 'default', transition: 'background 0.3s, border-color 0.3s' }}
+            className="feature-card">
+            <div data-feature-img="" style={{ width: '100%', height: '120px', background: `url(${FEATURE_FRAMES[i]}) center/cover`, opacity: 0.15, marginBottom: '16px', borderRadius: '2px', transition: 'opacity 0.3s' }} />
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', marginBottom: '16px' }}>{f.label}</div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '12px' }}>{f.title}</div>
             <div style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'rgba(255,255,255,0.3)', lineHeight: 1.7 }}>{f.desc}</div>
-          </motion.div>
+          </ScrollReveal>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ── social proof ───────────────────────────────────────────────────
+
+const TESTIMONIALS = [
+  {
+    quote: 'the gap between "i want this different" and "this is different" has never been this small.',
+    name: 'hackathon judge',
+    role: 'cal hacks xi',
+    code: 'T-01',
+  },
+  {
+    quote: 'point, describe, done. everything else is just software catching up.',
+    name: 'beta tester',
+    role: 'filmmaker',
+    code: 'T-02',
+  },
+  {
+    quote: 'the wipe reveal is the product. the transformation is the magic trick.',
+    name: 'early user',
+    role: 'content creator',
+    code: 'T-03',
+  },
+]
+
+function SocialProof() {
+  return (
+    <section style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
+      <ScrollReveal y={0}
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '64px' }}>© iris — 003 / signal</ScrollReveal>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        {TESTIMONIALS.map((t, i) => (
+          <ScrollReveal key={i} delay={i * 0.1}
+            style={{ padding: '48px 0', paddingRight: i < 2 ? '40px' : '0', paddingLeft: i > 0 ? '40px' : '0', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+            <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '20px', lineHeight: 1.5, color: 'rgba(255,255,255,0.5)', marginBottom: '32px' }}>
+              &ldquo;{t.quote}&rdquo;
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>{t.name}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>{t.role}</div>
+              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.08)', letterSpacing: '0.15em' }}>{t.code}</span>
+            </div>
+          </ScrollReveal>
         ))}
       </div>
     </section>
@@ -471,16 +554,28 @@ function Features() {
 
 // ── tech strip ──────────────────────────────────────────────────────
 
+const TECH = [
+  { name: 'gemini 2.5 pro', role: 'intelligence', code: '01' },
+  { name: 'veo 3.1',        role: 'generation',   code: '02' },
+  { name: 'elevenlabs',     role: 'voice',         code: '03' },
+  { name: 'sam2',           role: 'tracking',      code: '04' },
+  { name: 'vultr gpu',      role: 'compute',       code: '05' },
+]
+
 function TechStrip() {
   return (
-    <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
-      style={{ padding: '80px 64px', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'center', gap: '64px', alignItems: 'center' }}>
-      {['gemini 2.5 pro', 'veo 3.1', 'elevenlabs', 'sam2', 'vultr gpu'].map((t, i) => (
-        <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', transition: 'color 0.3s', cursor: 'default' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.15)')}>{t}</span>
+    <ScrollReveal as="section" y={0}
+      style={{ padding: '80px 64px', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'center', gap: '0' }}>
+      {TECH.map((t, i) => (
+        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '0 40px', borderRight: i < TECH.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none', cursor: 'default', transition: 'all 0.3s' }}
+          onMouseEnter={e => { const name = e.currentTarget.querySelector('[data-tech-name]') as HTMLElement | null; if (name) name.style.color = 'rgba(255,255,255,0.7)' }}
+          onMouseLeave={e => { const name = e.currentTarget.querySelector('[data-tech-name]') as HTMLElement | null; if (name) name.style.color = 'rgba(255,255,255,0.3)' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.08)', letterSpacing: '0.15em' }}>{t.code}</span>
+          <span data-tech-name="" style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', transition: 'color 0.3s' }}>{t.name}</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em' }}>{t.role}</span>
+        </div>
       ))}
-    </motion.section>
+    </ScrollReveal>
   )
 }
 
@@ -489,30 +584,32 @@ function TechStrip() {
 function CTA({ onStudio }: { onStudio: () => void }) {
   return (
     <section style={{ padding: '200px 64px', textAlign: 'center' }}>
+      <ScrollReveal y={0}
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '64px' }}>© iris — 004 / rewrite</ScrollReveal>
+
       {/* decorative frame strip */}
-      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium }}
+      <ScrollReveal y={0}
         style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginBottom: '64px' }}>
         {['/frames/frame_020.jpg', '/frames/frame_070.jpg', '/frames/frame_130.jpg'].map((src, i) => (
           <img key={i} src={src} alt="" style={{ width: '300px', height: '180px', objectFit: 'cover', opacity: 0.2, border: '1px solid rgba(255,255,255,0.06)' }} />
         ))}
-      </motion.div>
+      </ScrollReveal>
 
-      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: DUR.slow, ease: EASE.premium }}
+      <ScrollReveal as="h2" y={-40}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '32px' }}>
         rewrite <span style={{ fontStyle: 'italic' }}>reality.</span>
-      </motion.h2>
-      <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: DUR.standard, ease: EASE.premium, delay: 0.1 }}
+      </ScrollReveal>
+      <ScrollReveal as="p" y={0} delay={0.1}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', marginBottom: '48px' }}>
         start editing with prompts, not tools.
-      </motion.p>
-      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-        transition={{ duration: DUR.standard, ease: EASE.premium, delay: 0.2 }}>
+      </ScrollReveal>
+      <ScrollReveal delay={0.2}>
         <Magnetic intensity={0.2}>
           <button onClick={onStudio}
             style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', padding: '18px 56px', border: 'none', background: '#fff', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', transition: 'all 0.3s' }}
             onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>open studio</button>
         </Magnetic>
-      </motion.div>
+      </ScrollReveal>
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '20px' }}>
         no account required · free during beta
       </div>
@@ -530,7 +627,16 @@ function Footer() {
   }
 
   return (
-    <footer style={{ padding: '80px 64px 40px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+    <footer style={{ position: 'relative', padding: '120px 64px 60px', borderTop: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+      {/* ghost watermark */}
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontFamily: 'var(--font-display)', fontSize: 'clamp(120px, 20vw, 300px)', fontWeight: 300, color: '#fff', opacity: 0.03, pointerEvents: 'none', userSelect: 'none', letterSpacing: '-0.03em' }}>iris</div>
+
+      {/* closing philosophy */}
+      <ScrollReveal as="p" y={0}
+        style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 'clamp(20px, 3vw, 36px)', color: 'rgba(255,255,255,0.12)', lineHeight: 1.1, marginBottom: '64px' }}>
+        the edit is the story.
+      </ScrollReveal>
+
       {/* link grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', maxWidth: '480px', paddingBottom: '40px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '40px' }}>
         {Object.entries(footerLinks).map(([heading, links]) => (
@@ -550,6 +656,7 @@ function Footer() {
       {/* bottom row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '16px', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>iris®</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.08)', letterSpacing: '0.15em' }}>© iris — fin</span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em' }}>© 2026 · built at cal hacks</span>
       </div>
     </footer>
@@ -566,71 +673,41 @@ function useIntroTimeline() {
     // phase 1: ascii loader (handled by React state, not GSAP)
     // phase 2: hero reveal (GSAP takes over after loader completes)
 
-    gsap.set('[data-intro="logo"]', { opacity: 0, scale: 0.97, color: '#1a1a1a' })
-    gsap.set('[data-intro="chrome"]', { opacity: 0, y: 16 })
-    gsap.set('[data-intro="subtext"]', { opacity: 0, y: 10 })
-    gsap.set('[data-intro="hero-images"]', { opacity: 0, scale: 0.95 })
-    gsap.set('[data-intro="nav"]', { opacity: 0, y: 30 })
+    // simple fade in. everything at once. 1 second.
+    gsap.set('[data-intro="logo-dark"]', { opacity: 0 })
+    gsap.set('[data-intro="metallic"]', { opacity: 0 })
+    gsap.set('[data-intro="chrome"]', { opacity: 0 })
+    gsap.set('[data-intro="subtext"]', { opacity: 0 })
+    gsap.set('[data-intro="hero-images"]', { opacity: 0 })
+    gsap.set('[data-intro="nav"]', { opacity: 0 })
 
-    // dramatic reveal: logo emerges from darkness
-    tl.to('[data-intro="logo"]', {
+    // 1. iris text first
+    tl.to('[data-intro="logo-dark"], [data-intro="metallic"]', {
       opacity: 1,
-      duration: DUR.dramatic,
-      ease: 'cubic-bezier(0.05, 0.7, 0.1, 1)', // MD3 emphasized — entrance
+      duration: 0.8,
+      ease: 'power2.out',
     })
 
-    // brightens to white
-    .to('[data-intro="logo"]', {
-      color: '#ffffff',
-      duration: DUR.slow,
-      ease: 'cubic-bezier(0.4, 0, 0.2, 1)', // premium signature
-    })
-
-    // split-phase scale: pop then settle
-    .to('[data-intro="logo"]', {
-      scale: 1.03,
-      duration: DUR.quick,
-      ease: 'cubic-bezier(0, 0, 0.39, 2.99)', // framerlabs popUp
-    })
-    .to('[data-intro="logo"]', {
-      scale: 1.0,
-      duration: DUR.quick,
-      ease: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', // framerlabs settle
-    })
-
-    // subtitle: entrance with emphasized ease (never opacity-only)
-    .to('[data-intro="subtext"]', {
-      opacity: 1,
-      y: 0,
-      duration: DUR.standard,
-      stagger: STAGGER.dramatic,
-      ease: 'cubic-bezier(0.05, 0.7, 0.1, 1)', // emphasized entrance
-    }, '-=0.15')
-
-    // chrome: standard entrance
-    .to('[data-intro="chrome"]', {
-      opacity: 1,
-      y: 0,
-      duration: DUR.standard,
-      stagger: STAGGER.standard,
-      ease: 'cubic-bezier(0.4, 0, 0.2, 1)', // premium signature
-    }, '-=0.2')
-
-    // hero images: secondary layer
+    // 2. background images
     .to('[data-intro="hero-images"]', {
       opacity: 0.35,
-      scale: 1,
-      duration: DUR.slow,
-      stagger: STAGGER.standard,
-      ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    }, '-=0.2')
+      duration: 0.8,
+      ease: 'power2.out',
+    }, '-=0.3')
 
-    // nav: last, emphasized entrance
+    // 3. text + chrome
+    .to('[data-intro="chrome"], [data-intro="subtext"]', {
+      opacity: 1,
+      duration: 0.6,
+      ease: 'power2.out',
+    }, '-=0.3')
+
+    // 4. nav last — slides up from below
     .to('[data-intro="nav"]', {
       opacity: 1,
       y: 0,
-      duration: DUR.slow,
-      ease: 'cubic-bezier(0.05, 0.7, 0.1, 1)', // emphasized
+      duration: 0.8,
+      ease: 'power2.out',
     }, '-=0.1')
 
   }, [])
@@ -644,6 +721,19 @@ export default function App() {
   const [studioBoot, setStudioBoot] = useState<StudioInitialProject | undefined>(undefined)
   const runIntro = useIntroTimeline()
   const { status } = useAuth()
+
+  // weighted smooth scroll (framer-style inertia)
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.4,           // scroll deceleration duration — higher = heavier feel
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // exponential decay
+      touchMultiplier: 1.5,    // mobile feel
+      infinite: false,
+    })
+    function raf(time: number) { lenis.raf(time); requestAnimationFrame(raf) }
+    requestAnimationFrame(raf)
+    return () => lenis.destroy()
+  }, [])
 
   useEffect(() => {
     if (!loaderDone) return
@@ -732,6 +822,7 @@ export default function App() {
         <Marquee />
         <Thesis />
         <Features />
+        <SocialProof />
         <TechStrip />
         <CTA onStudio={goStudio} />
         <Footer />
