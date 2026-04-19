@@ -54,8 +54,27 @@ export function ToolCallCard({ id, tool, args, status, result }: ToolCallCardPro
     typeof result === "object" &&
     "variants" in (result as Record<string, unknown>);
 
+  // Count only variants that actually finished with a URL — otherwise
+  // "1 variant(s) ready" is a lie when veo rate-limits or the worker
+  // errored, and the user stares at nothing wondering where the
+  // preview is.
   const resultSummary = hasVariants
-    ? `${((result as Record<string, unknown[]>).variants ?? []).length} variant(s) ready`
+    ? (() => {
+        const variants =
+          ((result as Record<string, unknown>).variants as
+            | Array<Record<string, unknown>>
+            | undefined) ?? [];
+        const ready = variants.filter((v) => typeof v.url === "string" && v.url);
+        const errored = variants.filter((v) => v.status === "error");
+        if (ready.length > 0) {
+          return `${ready.length} variant(s) ready`;
+        }
+        if (errored.length > 0) {
+          const errBlurb = (errored[0].error as string | undefined) ?? "unknown";
+          return `generation failed: ${errBlurb.slice(0, 120)}`;
+        }
+        return `${variants.length} variant(s), none ready yet`;
+      })()
     : null;
 
   return (

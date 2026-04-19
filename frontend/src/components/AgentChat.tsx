@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { useAgentStream } from "../hooks/useAgentStream";
-import { useAgent, type AgentMessage, type SuggestedEdit, type VariantPreview } from "../stores/agent";
+import { useEDL, totalDuration } from "../stores/edl";
+import {
+  useAgent,
+  type AgentMessage,
+  type PromptPlan,
+  type SuggestedEdit,
+  type VariantPreview,
+} from "../stores/agent";
 import { AgentInput } from "./AgentInput";
 import { ToolCallCard } from "./ToolCallCard";
 
@@ -15,7 +22,8 @@ interface AgentChatProps {
 
 export function AgentChat({ projectId }: AgentChatProps) {
   const { messages, streaming, sendMessage, clearChat } = useAgentStream(projectId);
-  const { dispatch } = useAgent();
+  const { state: edlState } = useEDL();
+  const { dispatch: agentDispatch } = useAgent();
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -31,9 +39,46 @@ export function AgentChat({ projectId }: AgentChatProps) {
   const handleSend = useCallback(
     (text: string) => {
       if (!projectId) return;
-      void sendMessage({ projectId, message: text });
+      // Snapshot the live editor state so the agent knows what "here" and
+      // "now" mean. Without this the backend Gemini asks the user for
+      // project_id / bbox even though the UI already has both.
+      void sendMessage({
+        projectId,
+        message: text,
+        playheadTs: edlState.playhead,
+        duration: totalDuration(edlState.clips),
+        bbox: edlState.bbox ?? null,
+      });
     },
-    [projectId, sendMessage],
+    [projectId, sendMessage, edlState.playhead, edlState.clips, edlState.bbox],
+  );
+
+  // Suggestion cards are a "generating…" status note — the user can't
+  // accept from here because the render almost certainly isn't done yet.
+  // The real accept lives on VariantPreviewCard once variants arrive.
+  const handleDismissSuggestion = useCallback(
+    (ts: number) => {
+      agentDispatch({ type: "dismiss_suggestion", ts });
+    },
+    [agentDispatch],
+  );
+
+  // Variant card "apply" — user picked a specific finished variant. Ask
+  // the agent to call accept_variant with that index so the generated
+  // clip lands on the timeline. Studio listens for the completion event
+  // (iris:timeline-refresh) and re-hydrates the EDL from the server.
+  const handleApplyVariant = useCallback(
+    (jobId: string, variantIndex: number) => {
+      if (!projectId) return;
+      void sendMessage({
+        projectId,
+        message: `Accept variant ${variantIndex} for job ${jobId} and apply it to the timeline. After the tool succeeds, confirm it's applied in one sentence.`,
+        playheadTs: edlState.playhead,
+        duration: totalDuration(edlState.clips),
+        bbox: edlState.bbox ?? null,
+      });
+    },
+    [projectId, sendMessage, edlState.playhead, edlState.clips, edlState.bbox],
   );
 
   return (
@@ -307,6 +352,133 @@ export function AgentChat({ projectId }: AgentChatProps) {
           text-align: center;
           margin-top: 2px;
         }
+
+        /* ── prompt plan card (gemini prompt rewriter) ─ */
+
+        .prompt-plan {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 14px;
+          border-radius: 6px;
+          border: 1px solid rgba(195, 167, 104, 0.22);
+          background:
+            linear-gradient(180deg, rgba(195, 167, 104, 0.05), rgba(195, 167, 104, 0.015)),
+            var(--panel-2, rgba(20, 18, 16, 0.6));
+          position: relative;
+          overflow: hidden;
+        }
+        .prompt-plan::before {
+          content: "";
+          position: absolute;
+          inset: 0 auto 0 0;
+          width: 2px;
+          background: linear-gradient(180deg,
+            rgba(195, 167, 104, 0),
+            rgba(195, 167, 104, 0.65) 45%,
+            rgba(195, 167, 104, 0));
+          opacity: 0.9;
+        }
+        .prompt-plan__head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+        .prompt-plan__badge {
+          font-family: var(--f-mono);
+          font-size: 9px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: rgba(195, 167, 104, 0.9);
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .prompt-plan__badge::before {
+          content: "";
+          width: 6px;
+          height: 6px;
+          border-radius: 999px;
+          background: rgba(195, 167, 104, 0.85);
+          box-shadow: 0 0 8px rgba(195, 167, 104, 0.55);
+        }
+        .prompt-plan__vendor {
+          font-family: var(--f-mono);
+          font-size: 9px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--ink-ghost);
+          padding: 3px 7px;
+          border: 1px solid var(--edge);
+          border-radius: 999px;
+        }
+        .prompt-plan__lane {
+          display: grid;
+          grid-template-columns: 56px 1fr;
+          gap: 10px;
+          align-items: start;
+        }
+        .prompt-plan__lane-k {
+          font-family: var(--f-mono);
+          font-size: 9px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--ink-ghost);
+          padding-top: 2px;
+        }
+        .prompt-plan__user {
+          color: var(--ink-fade, rgba(255, 255, 255, 0.7));
+          font-size: 12px;
+          line-height: 1.45;
+          font-style: italic;
+        }
+        .prompt-plan__veo {
+          color: rgba(255, 244, 220, 0.94);
+          font-size: 12px;
+          line-height: 1.55;
+          border-left: 1px solid rgba(195, 167, 104, 0.35);
+          padding: 2px 0 2px 10px;
+        }
+        .prompt-plan__loading {
+          display: inline-flex;
+          gap: 4px;
+          color: var(--ink-ghost);
+          font-family: var(--f-mono);
+          font-size: 10px;
+          letter-spacing: 0.08em;
+          padding: 2px 0 2px 10px;
+          border-left: 1px solid rgba(195, 167, 104, 0.35);
+        }
+        .prompt-plan__loading span {
+          animation: prompt-plan-dot 1.1s ease-in-out infinite;
+        }
+        .prompt-plan__loading span:nth-child(2) { animation-delay: 0.18s; }
+        .prompt-plan__loading span:nth-child(3) { animation-delay: 0.36s; }
+        @keyframes prompt-plan-dot {
+          0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+          40% { opacity: 1; transform: translateY(-1px); }
+        }
+        .prompt-plan__meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 8px;
+        }
+        .prompt-plan__chip {
+          font-family: var(--f-mono);
+          font-size: 9px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--ink-fade);
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--edge);
+          padding: 3px 7px;
+          border-radius: 999px;
+        }
+        .prompt-plan__chip-k {
+          color: var(--ink-ghost);
+          margin-right: 5px;
+        }
       `}</style>
 
       <div className="agent-chat">
@@ -335,18 +507,8 @@ export function AgentChat({ projectId }: AgentChatProps) {
             <MessageRenderer
               key={`${msg.type}-${msg.ts}-${i}`}
               message={msg}
-              onAcceptSuggestion={(ts, suggestion, startTs, endTs) => {
-                dispatch({ type: "accept_suggestion", ts });
-                if (projectId) {
-                  void sendMessage({
-                    projectId,
-                    message: `Execute the suggested edit: ${suggestion} from ${startTs}s to ${endTs}s`,
-                  });
-                }
-              }}
-              onDismissSuggestion={(ts) => {
-                dispatch({ type: "dismiss_suggestion", ts });
-              }}
+              onDismissSuggestion={handleDismissSuggestion}
+              onApplyVariant={handleApplyVariant}
             />
           ))}
 
@@ -368,12 +530,12 @@ export function AgentChat({ projectId }: AgentChatProps) {
 
 function MessageRenderer({
   message,
-  onAcceptSuggestion,
   onDismissSuggestion,
+  onApplyVariant,
 }: {
   message: AgentMessage;
-  onAcceptSuggestion?: (ts: number, suggestion: string, startTs: number, endTs: number) => void;
-  onDismissSuggestion?: (ts: number) => void;
+  onDismissSuggestion: (ts: number) => void;
+  onApplyVariant: (jobId: string, variantIndex: number) => void;
 }) {
   switch (message.type) {
     case "user":
@@ -405,7 +567,22 @@ function MessageRenderer({
     case "variant_preview":
       return (
         <div className="msg msg--tool">
-          <VariantPreviewCard variants={message.variants} />
+          <VariantPreviewCard
+            jobId={message.jobId}
+            variants={message.variants}
+            onApply={onApplyVariant}
+          />
+        </div>
+      );
+
+    case "prompt_plan":
+      return (
+        <div className="msg msg--tool">
+          <PromptPlanCard
+            userPrompt={message.userPrompt}
+            plan={message.plan}
+            vendor={message.vendor}
+          />
         </div>
       );
 
@@ -415,8 +592,7 @@ function MessageRenderer({
           <SuggestionCard
             edit={message.edit}
             accepted={message.accepted}
-            onAccept={() => onAcceptSuggestion?.(message.ts, message.edit.suggestion, message.edit.start_ts, message.edit.end_ts)}
-            onDismiss={() => onDismissSuggestion?.(message.ts)}
+            onDismiss={() => onDismissSuggestion(message.ts)}
           />
         </div>
       );
@@ -439,19 +615,17 @@ function MessageRenderer({
 function SuggestionCard({
   edit,
   accepted,
-  onAccept,
   onDismiss,
 }: {
   edit: SuggestedEdit;
   accepted?: boolean;
-  onAccept?: () => void;
-  onDismiss?: () => void;
+  onDismiss: () => void;
 }) {
   const resolved = accepted != null;
 
   return (
     <div className="suggestion-card">
-      <p className="suggestion-card__label">suggested edit</p>
+      <p className="suggestion-card__label">generating edit</p>
       <p className="suggestion-card__text">{edit.suggestion}</p>
       {edit.rationale && (
         <p className="suggestion-card__rationale">{edit.rationale}</p>
@@ -472,10 +646,17 @@ function SuggestionCard({
         </span>
       ) : (
         <div className="suggestion-card__actions">
-          <button className="suggestion-card__btn suggestion-card__btn--accept" onClick={onAccept}>
-            accept
+          <span className="suggestion-card__rationale" style={{ margin: 0, flex: 1 }}>
+            rendering… apply from the variant preview once it's ready
+          </span>
+          <button
+            type="button"
+            className="suggestion-card__btn"
+            onClick={onDismiss}
+            title="hide this card"
+          >
+            dismiss
           </button>
-          <button className="suggestion-card__btn" onClick={onDismiss}>dismiss</button>
         </div>
       )}
     </div>
@@ -484,7 +665,20 @@ function SuggestionCard({
 
 // ─── variant preview ──────────────────────────────────────────────────
 
-function VariantPreviewCard({ variants }: { variants: VariantPreview[] }) {
+function VariantPreviewCard({
+  jobId,
+  variants,
+  onApply,
+}: {
+  jobId: string;
+  variants: VariantPreview[];
+  onApply: (jobId: string, variantIndex: number) => void;
+}) {
+  // eslint-disable-next-line no-console
+  console.log(
+    `[VariantPreviewCard] render job=${jobId} variants=${variants?.length ?? 0}`,
+    variants,
+  );
   return (
     <div className="variant-preview">
       <span className="variant-preview__label">
@@ -513,9 +707,102 @@ function VariantPreviewCard({ variants }: { variants: VariantPreview[] }) {
             {v.description && (
               <p className="variant-preview__desc">{v.description}</p>
             )}
+            {v.url && (
+              <button
+                type="button"
+                className="suggestion-card__btn suggestion-card__btn--accept"
+                style={{ marginTop: 4, width: "100%" }}
+                onClick={() => onApply(jobId, v.index)}
+                title="apply this variant to the timeline"
+              >
+                apply
+              </button>
+            )}
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── prompt plan card ────────────────────────────────────────────────
+//
+// Surfaces the prompt-rewriting layer so users can SEE what Gemini
+// turned their one-liner into before it lands in Veo. Without this the
+// whole "intelligent prompt expansion" value prop is invisible to the
+// user and the edit feels like a black box. Shows the original request,
+// the rewritten 40-80 word Veo brief, and a few chips describing the
+// plan's intent, tone, and conditioning strategy.
+
+function PromptPlanCard({
+  userPrompt,
+  plan,
+  vendor,
+}: {
+  userPrompt: string;
+  plan: PromptPlan | null;
+  vendor: string | null;
+}) {
+  const ready = plan != null;
+  const chips: Array<{ k: string; v: string }> = [];
+  if (plan) {
+    if (plan.intent)
+      chips.push({ k: "intent", v: plan.intent });
+    if (plan.conditioning_strategy)
+      chips.push({
+        k: "condition",
+        v: plan.conditioning_strategy.replace(/_/g, " "),
+      });
+    if (plan.tone) chips.push({ k: "tone", v: plan.tone });
+    if (plan.region_emphasis)
+      chips.push({ k: "region", v: plan.region_emphasis });
+    if (plan.color_grading)
+      chips.push({ k: "grade", v: plan.color_grading });
+  }
+
+  return (
+    <div className="prompt-plan">
+      <div className="prompt-plan__head">
+        <span className="prompt-plan__badge">
+          {ready ? "gemini → veo brief" : "rewriting prompt"}
+        </span>
+        {ready && vendor && (
+          <span className="prompt-plan__vendor">→ {vendor}</span>
+        )}
+      </div>
+
+      {userPrompt && (
+        <div className="prompt-plan__lane">
+          <span className="prompt-plan__lane-k">you</span>
+          <p className="prompt-plan__user">{userPrompt}</p>
+        </div>
+      )}
+
+      <div className="prompt-plan__lane">
+        <span className="prompt-plan__lane-k">gemini</span>
+        {ready ? (
+          <p className="prompt-plan__veo">
+            {plan.prompt_for_veo || plan.description || "(no prompt returned)"}
+          </p>
+        ) : (
+          <span className="prompt-plan__loading" aria-label="rewriting prompt">
+            <span>•</span>
+            <span>•</span>
+            <span>•</span>
+          </span>
+        )}
+      </div>
+
+      {chips.length > 0 && (
+        <div className="prompt-plan__meta">
+          {chips.map((c) => (
+            <span key={c.k} className="prompt-plan__chip">
+              <span className="prompt-plan__chip-k">{c.k}</span>
+              {c.v}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -25,6 +25,39 @@ def _load_prompt(name: str) -> str:
     return (PROMPTS_DIR / f"{name}.txt").read_text()
 
 
+# ``Part.from_uri`` only accepts HTTPS / gs:// / File API URIs — handing it a
+# local filesystem path makes Gemini return 400 INVALID_ARGUMENT ("Unsupported
+# file URI type"), which was silently firing on every bbox draw + every
+# scoring pass. This helper DTRT:
+#   • HTTPS / gs:// / File API URI  → ``Part.from_uri`` (Gemini fetches it)
+#   • anything else (local path)     → read bytes, ``Part.from_bytes``
+def _image_part_from_path(path: str) -> types.Part:
+    low = path.lower()
+    if low.startswith(("http://", "https://", "gs://")) or low.startswith(
+        "https://generativelanguage.googleapis.com/files/"
+    ):
+        # guess mime from the url's path component; query-string signatures
+        # don't affect the suffix we care about.
+        url_path = path.split("?", 1)[0].lower()
+        if url_path.endswith(".png"):
+            mime = "image/png"
+        elif url_path.endswith(".webp"):
+            mime = "image/webp"
+        else:
+            mime = "image/jpeg"
+        return types.Part.from_uri(file_uri=path, mime_type=mime)
+
+    p = Path(path)
+    ext = p.suffix.lower()
+    mime = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+    }.get(ext, "image/png")
+    return types.Part.from_bytes(data=p.read_bytes(), mime_type=mime)
+
+
 def get_client() -> genai.Client:
     settings = get_settings()
     settings.require_real_ai(provider="gemini")
@@ -117,10 +150,7 @@ async def identify_entity(
     """
     client = get_client()
 
-    image = types.Part.from_bytes(
-        data=Path(reference_crop_path).read_bytes(),
-        mime_type="image/png",
-    )
+    image = _image_part_from_path(reference_crop_path)
 
     system_prompt = _load_prompt("entity_identify")
 
@@ -156,10 +186,10 @@ async def search_keyframes_for_entity(
     system_prompt = _load_prompt("entity_search")
 
     parts: list[types.Part] = [types.Part.from_text(
-        f"Find this entity in the following keyframes: {entity_description}"
+        text=f"Find this entity in the following keyframes: {entity_description}"
     )]
     for path in keyframe_paths[:10]:
-        parts.append(types.Part.from_bytes(data=Path(path).read_bytes(), mime_type="image/png"))
+        parts.append(_image_part_from_path(path))
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
@@ -192,10 +222,10 @@ async def score_variant(
     system_prompt = _load_prompt("quality_score")
 
     parts: list[types.Part] = [types.Part.from_text(
-        f"Original prompt: {original_prompt}"
+        text=f"Original prompt: {original_prompt}"
     )]
     for path in variant_frame_paths:
-        parts.append(types.Part.from_bytes(data=Path(path).read_bytes(), mime_type="image/png"))
+        parts.append(_image_part_from_path(path))
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",

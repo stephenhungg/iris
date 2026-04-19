@@ -261,6 +261,29 @@ function StudioInner({
   const projectId = initialProject?.projectId;
   const initialProjectRef = useRef(initialProject);
   initialProjectRef.current = initialProject;
+
+  // Always-current snapshot of the EDL so event-driven effects (like
+  // ``iris:timeline-refresh``) can read the *live* source list without
+  // closing over stale values or forcing a re-run of their useEffect on
+  // every tiny state change.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // The "effective" project id is the one AgentChat actually sends to the
+  // backend — it falls back to whatever source the user just uploaded in
+  // vibe mode so the chat keeps working even before we've persisted a
+  // reopen-able reel. The timeline-refresh listener MUST key on this same
+  // fallback chain, otherwise uploading-in-vibe-mode silently skips the
+  // listener attach and ``accept_variant`` lands on the server but the
+  // preview never updates. (This was the "pressing apply does nothing"
+  // bug — initialProject was undefined, so projectId was undefined, so
+  // the useEffect early-returned before registering the listener.)
+  const effectiveProjectId =
+    projectId
+    ?? state.sources.find((asset) => asset.kind === "source")?.projectId
+    ?? state.sources[0]?.projectId
+    ?? null;
+
   useEffect(() => {
     if (!projectId) return;
     setHydratingProject(true);
@@ -352,6 +375,105 @@ function StudioInner({
 
     return () => { cancelled = true; };
   }, [projectId, dispatch]);
+
+  // ─── silent re-hydrate on agent-driven timeline mutations ─────────
+  //
+  // When the agent accepts a variant (or splits / deletes / reverts)
+  // the DB gets a new Segment row but the saved EDL doesn't — so
+  // preferring tl.edl here would hand us back the stale pre-accept
+  // timeline. Rebuild from `tl.segments` instead, which timeline_builder
+  // already splits around generated regions for us, then let the normal
+  // auto-save persist the new EDL on top.
+  useEffect(() => {
+    if (!effectiveProjectId) {
+      // eslint-disable-next-line no-console
+      console.warn("[studio] timeline-refresh listener NOT attached: no projectId");
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.log("[studio] timeline-refresh listener attached for project", effectiveProjectId);
+
+    const pid = effectiveProjectId;
+    const handler = async (ev: Event) => {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[studio] iris:timeline-refresh fired for project",
+        pid,
+        "detail=",
+        (ev as CustomEvent).detail,
+      );
+      try {
+        const tl = await getTimeline(pid);
+
+        // Prefer the saved initialProject snapshot (from ?reopen=), but
+        // fall back to constructing one from the live EDL source asset —
+        // this is the vibe-mode upload path where the parent route never
+        // provided an initialProject prop. Without this fallback the
+        // handler aborted via the ref mismatch and the preview stayed
+        // frozen on the original clip.
+        const snap = initialProjectRef.current;
+        const liveSource = stateRef.current.sources.find(
+          (a) => a.kind === "source" && a.projectId === pid,
+        );
+        let project: StudioInitialProject | null = null;
+        if (snap && snap.projectId === pid) {
+          project = {
+            projectId: pid,
+            videoUrl: snap.videoUrl,
+            duration: snap.duration,
+            fps: snap.fps,
+            label: snap.label,
+          };
+        } else if (liveSource) {
+          project = {
+            projectId: pid,
+            videoUrl: liveSource.url,
+            duration: liveSource.duration,
+            fps: liveSource.fps,
+            label: liveSource.label,
+          };
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[studio] refresh aborted: no project snapshot and no live source for",
+            pid,
+          );
+          return;
+        }
+        const sourceUrl =
+          tl.segments.find((seg) => seg.source === "original")?.url
+          ?? project.videoUrl;
+        const sourceAsset = buildSourceAsset(project, sourceUrl);
+        const clips: Clip[] =
+          tl.segments.length > 0
+            ? tl.segments.map((seg) => buildTimelineClip(seg, project!, sourceAsset))
+            : [];
+        // eslint-disable-next-line no-console
+        console.log(
+          `[studio] refresh rebuilt ${clips.length} clip(s) from ${tl.segments.length} segment(s)`,
+          tl.segments.map((s) => ({ source: s.source, start: s.start_ts, end: s.end_ts })),
+        );
+        if (clips.length === 0) return;
+        const sources = [sourceAsset, ...buildGeneratedAssets(project, tl.segments)];
+        // Deliberately do NOT stamp lastSavedSigRef here — we want the
+        // auto-save effect to pick up the new state and persist it, so
+        // the next full reload sees the generated clip in the saved EDL.
+        dispatch({ type: "hydrate", sources, clips });
+        // eslint-disable-next-line no-console
+        console.log("[studio] hydrate dispatched with", clips.length, "clip(s)");
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[studio] timeline refresh failed:", err);
+      }
+    };
+
+    window.addEventListener("iris:timeline-refresh", handler);
+    return () => {
+      // eslint-disable-next-line no-console
+      console.log("[studio] timeline-refresh listener DETACHED from project", pid);
+      window.removeEventListener("iris:timeline-refresh", handler);
+    };
+  }, [effectiveProjectId, dispatch]);
 
   // ─── auto-save ────────────────────────────────────────────────────
   //
@@ -550,11 +672,7 @@ function StudioInner({
   }, []);
 
   const hasSources = state.sources.length > 0;
-  const continuityProjectId =
-    initialProject?.projectId
-    ?? state.sources.find((asset) => asset.kind === "source")?.projectId
-    ?? state.sources[0]?.projectId
-    ?? null;
+  const continuityProjectId = effectiveProjectId;
   const continuity = useContinuityDashboard(continuityProjectId);
 
   // bridge agent tool calls → EDL timeline refresh

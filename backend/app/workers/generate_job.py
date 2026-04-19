@@ -105,15 +105,35 @@ async def _run_variant(
                 **{k: v for k, v in evt.items() if k != "kind"},
             )
 
+    log.info(
+        "[gen.variant] START job=%s variant=%s frame=%s plan_keys=%s",
+        job_id,
+        variant_id,
+        "yes" if frame_path else "none (text-only)",
+        sorted(plan.keys()) if isinstance(plan, dict) else "?",
+    )
+
     try:
+        import time as _time
+        t0 = _time.monotonic()
         result = await ai.runway.generate(
             str(clip_path),
             plan,
             frame_path=frame_path,
             on_tick=tick,
         )
+        log.info(
+            "[gen.variant] veo OK job=%s variant=%s took=%.1fs url=%s",
+            job_id,
+            variant_id,
+            _time.monotonic() - t0,
+            (result or {}).get("url"),
+        )
     except Exception as e:
-        log.exception("variant %s failed", variant_id)
+        log.exception(
+            "[gen.variant] veo FAILED job=%s variant=%s err=%s",
+            job_id, variant_id, str(e)[:200],
+        )
         await _emit(job_id, "veo_error", f"Veo generation failed: {e}", error=str(e)[:500])
         async with AsyncSessionLocal() as db:
             await _update_variant(db, variant_id, status="error", error=str(e)[:500])
@@ -152,8 +172,15 @@ async def _run_variant(
 
 
 async def _score_variant_safe(frames: list[str], prompt: str) -> dict | None:
+    # NB: gemini.score_variant takes (original_prompt, variant_frame_paths) —
+    # the argument order here is easy to swap by accident, which previously
+    # caused the iterator in score_variant to walk over the characters of
+    # the prompt string as if they were filesystem paths and blow up.
     try:
-        return await ai.gemini.score_variant(frames, prompt)
+        return await ai.gemini.score_variant(
+            original_prompt=prompt,
+            variant_frame_paths=frames,
+        )
     except Exception:
         log.exception("scoring failed")
         return None
@@ -358,8 +385,17 @@ async def run(job_id: str) -> None:
         ).scalars().all()
         done = [v for v in variants if v.status == "done"]
 
+    log.info(
+        "[gen.run] job=%s variants=%d done=%d err=%d",
+        job_id,
+        len(variants),
+        len(done),
+        sum(1 for v in variants if v.status == "error"),
+    )
+
     if not done:
         err = variants[0].error if variants else "generation failed"
+        log.error("[gen.run] job=%s FAILED all variants — first_error=%s", job_id, err)
         async with AsyncSessionLocal() as db:
             await _update_job(db, job_id, status="error", error=err or "generation failed")
         await _emit_terminal(job_id, "error", err or "generation failed")
@@ -386,6 +422,12 @@ async def run(job_id: str) -> None:
         else:
             await _emit(job_id, "score_skipped", "scoring was unavailable; continuing")
         await _update_job(db, job_id, status="done")
+
+    log.info(
+        "[gen.run] job=%s COMPLETE variant_url=%s",
+        job_id,
+        done[0].url,
+    )
 
     await _emit_terminal(
         job_id,

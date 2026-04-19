@@ -18,6 +18,7 @@ import {
 // ─── types ────────────────────────────────────────────────────────────
 
 export interface SuggestedEdit {
+  job_id?: string;
   start_ts: number;
   end_ts: number;
   bbox_hint?: { x: number; y: number; w: number; h: number };
@@ -52,6 +53,23 @@ export interface VariantPreview {
   prompt_adherence: number | null;
 }
 
+// ── prompt-rewrite layer payload ─────────────────────────────────────
+//
+// Before Veo runs, Gemini takes the user's raw one-liner and turns it
+// into a structured, Veo-ready brief: intent, tone, conditioning
+// strategy, and a 40–80 word prompt. The VibeStudio chat surfaces this
+// so users can actually SEE the expansion instead of just trusting
+// that "make him jump" became 60 words of cinematography.
+export interface PromptPlan {
+  description: string | null;
+  intent: string | null;
+  conditioning_strategy: string | null;
+  tone: string | null;
+  color_grading: string | null;
+  region_emphasis: string | null;
+  prompt_for_veo: string | null;
+}
+
 export type AgentMessage =
   | { type: "user"; text: string; ts: number }
   | { type: "agent"; text: string; ts: number; streaming?: boolean }
@@ -69,6 +87,17 @@ export type AgentMessage =
       type: "variant_preview";
       jobId: string;
       variants: VariantPreview[];
+      ts: number;
+    }
+  | {
+      // prompt-rewrite layer card. Starts out "rewriting…" when the
+      // backend emits ``prompt_plan_started`` and fills in once
+      // ``prompt_plan`` lands with Gemini's Veo-ready prompt.
+      type: "prompt_plan";
+      jobId: string;
+      userPrompt: string;
+      plan: PromptPlan | null;
+      vendor: string | null;
       ts: number;
     }
   | { type: "suggestion"; edit: SuggestedEdit; accepted?: boolean; ts: number }
@@ -103,6 +132,25 @@ export type AgentAction =
       type: "add_variant_preview";
       jobId: string;
       variants: VariantPreview[];
+    }
+  | {
+      // Kick off a "rewriting prompt…" card for a generate job.
+      type: "prompt_plan_started";
+      jobId: string;
+      userPrompt: string;
+    }
+  | {
+      // Fill in the card with the final rewritten Veo-ready prompt.
+      type: "prompt_plan_ready";
+      jobId: string;
+      plan: PromptPlan;
+    }
+  | {
+      // Vendor dispatch marker — "sending this to Veo now". Attaches
+      // the strategy/conditioning note onto an existing plan card.
+      type: "prompt_plan_dispatched";
+      jobId: string;
+      vendor: string;
     }
   | { type: "set_analysis"; analysis: VideoAnalysis }
   | { type: "add_error"; message: string }
@@ -225,6 +273,72 @@ function agentReducer(state: AgentState, action: AgentAction): AgentState {
           },
         ],
       };
+
+    case "prompt_plan_started": {
+      // Replace any existing plan card for this job (edge case: a retry
+      // on the same job_id should not leave a stale stub card around).
+      const filtered = state.messages.filter(
+        (m) => !(m.type === "prompt_plan" && m.jobId === action.jobId),
+      );
+      return {
+        ...state,
+        messages: [
+          ...filtered,
+          {
+            type: "prompt_plan",
+            jobId: action.jobId,
+            userPrompt: action.userPrompt,
+            plan: null,
+            vendor: null,
+            ts: now,
+          },
+        ],
+      };
+    }
+
+    case "prompt_plan_ready": {
+      // Merge the rewritten plan onto the existing stub, or create a
+      // fresh card if ``prompt_plan_started`` was never seen (e.g. the
+      // plan bridge timed out on the start event but caught the end).
+      const existing = state.messages.find(
+        (m) => m.type === "prompt_plan" && m.jobId === action.jobId,
+      );
+      if (existing) {
+        return {
+          ...state,
+          messages: state.messages.map((m) =>
+            m.type === "prompt_plan" && m.jobId === action.jobId
+              ? { ...m, plan: action.plan }
+              : m,
+          ),
+        };
+      }
+      return {
+        ...state,
+        messages: [
+          ...state.messages,
+          {
+            type: "prompt_plan",
+            jobId: action.jobId,
+            userPrompt: "",
+            plan: action.plan,
+            vendor: null,
+            ts: now,
+          },
+        ],
+      };
+    }
+
+    case "prompt_plan_dispatched": {
+      return {
+        ...state,
+        messages: state.messages.map((m) =>
+          m.type === "prompt_plan" && m.jobId === action.jobId
+            ? { ...m, vendor: action.vendor }
+            : m,
+        ),
+      };
+    }
 
     case "set_analysis":
       return { ...state, analysis: action.analysis };

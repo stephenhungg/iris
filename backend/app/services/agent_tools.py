@@ -5,6 +5,7 @@ but operates directly on the DB session instead of going through HTTP.
 This keeps the agent's tool calls in-process and avoids auth round-trips.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -585,6 +586,141 @@ async def _get_job_status(
         "status": job.status,
         "error": job.error,
         "variants": variants,
+    }
+
+
+@_register("wait_for_job")
+async def _wait_for_job(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Poll a job row until it finishes or a timeout elapses.
+
+    The agent calls this right after ``generate_edit`` so a single tool
+    turn blocks through the whole render. Without it Gemini would return
+    to the user saying "I kicked it off" and the variants would never
+    surface unless the user nudged the chat again.
+
+    We poll every second up to ``timeout_s`` (default 180s). Returns the
+    same shape as ``get_job_status`` so Gemini can read variants directly.
+    """
+    from app.db.session import AsyncSessionLocal
+
+    job_id: str = args["job_id"]
+    timeout_s: float = float(args.get("timeout_s", 180.0))
+    poll_interval_s: float = 1.0
+
+    log.info(
+        "[wait_for_job] START job_id=%s timeout_s=%.1f session=%s",
+        job_id, timeout_s, session_id[:8] + "…" if session_id else "?",
+    )
+
+    elapsed = 0.0
+    last_status_logged: str | None = None
+    while elapsed < timeout_s:
+        # Poll using a *fresh* session every iteration. The outer `db`
+        # session is shared with the agent stream loop; if we expire it
+        # to re-read the job row, other objects (e.g. the Conversation
+        # we persist at the end of the stream) get expired too and
+        # blow up with MissingGreenlet when something touches them
+        # after the async boundary.
+        async with AsyncSessionLocal() as poll_db:
+            job = (
+                await poll_db.execute(
+                    select(Job)
+                    .where(Job.id == job_id)
+                    .options(selectinload(Job.variants))
+                )
+            ).scalar_one_or_none()
+            if job is None:
+                log.error("[wait_for_job] job_id=%s NOT FOUND in db", job_id)
+                raise ValueError(f"job not found: {job_id}")
+
+            proj = await poll_db.get(Project, job.project_id)
+            if proj is None or proj.session_id != session_id:
+                log.error(
+                    "[wait_for_job] job_id=%s session mismatch: proj=%s job.session=%s req.session=%s",
+                    job_id,
+                    bool(proj),
+                    proj.session_id if proj else None,
+                    session_id,
+                )
+                raise ValueError(f"job not found: {job_id}")
+
+            # Only log when something actually changes so we don't spam
+            # a line every single second for a 3min render.
+            v_count = len(job.variants)
+            v_done = sum(1 for v in job.variants if v.status == "done")
+            v_err = sum(1 for v in job.variants if v.status == "error")
+            v_url = sum(1 for v in job.variants if v.url)
+            snapshot = f"{job.status}|{v_count}v|{v_done}done|{v_err}err|{v_url}url"
+            if snapshot != last_status_logged:
+                log.info(
+                    "[wait_for_job] job_id=%s t=%.0fs %s",
+                    job_id, elapsed, snapshot,
+                )
+                last_status_logged = snapshot
+
+            if job.status in ("done", "error", "failed", "cancelled"):
+                variants = [
+                    {
+                        "id": v.id,
+                        "index": v.index,
+                        "status": v.status,
+                        "url": v.url,
+                        "description": v.description,
+                        "visual_coherence": v.visual_coherence,
+                        "prompt_adherence": v.prompt_adherence,
+                        "error": v.error,
+                    }
+                    for v in sorted(job.variants, key=lambda v: v.index)
+                ]
+                # Summarize the useful variant count so callers (and the
+                # agent loop) can distinguish a successful render from
+                # one that left nothing usable behind (e.g. Veo 429'd).
+                ready_urls = [v for v in variants if v.get("url")]
+                variant_errors = [
+                    v.get("error") for v in variants if v.get("status") == "error" and v.get("error")
+                ]
+                log.info(
+                    "[wait_for_job] DONE job_id=%s status=%s waited=%.1fs ready=%d/%d errors=%d",
+                    job_id,
+                    job.status,
+                    elapsed,
+                    len(ready_urls),
+                    len(variants),
+                    len(variant_errors),
+                )
+                if variant_errors:
+                    for i, err in enumerate(variant_errors):
+                        log.warning(
+                            "[wait_for_job]   variant[%d] error: %s", i, err,
+                        )
+                return {
+                    "job_id": job.id,
+                    "kind": job.kind,
+                    "status": job.status,
+                    "error": job.error,
+                    "variants": variants,
+                    "variants_ready": len(ready_urls),
+                    "variant_errors": variant_errors,
+                    "waited_s": elapsed,
+                }
+
+        await asyncio.sleep(poll_interval_s)
+        elapsed += poll_interval_s
+
+    log.warning(
+        "[wait_for_job] TIMEOUT job_id=%s after %.0fs", job_id, elapsed,
+    )
+    return {
+        "job_id": job_id,
+        "status": "timeout",
+        "waited_s": elapsed,
+        "message": f"Job did not finish within {timeout_s}s.",
     }
 
 

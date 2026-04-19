@@ -19,9 +19,17 @@ def _engine_kwargs(url: str) -> dict:
     """
     kwargs: dict = {"echo": False, "future": True}
     if url.startswith("postgresql") or url.startswith("postgres"):
+        # The agent SSE stream pins a checked-out connection for the full
+        # duration of the conversation — and ``wait_for_job`` can legitimately
+        # hold it for 180s while Veo renders. At pool_size=5/overflow=10 we
+        # ran out of connections after ~15 chats and started throwing
+        # QueuePool timeout 30s errors mid-render. Give ourselves more
+        # headroom and a shorter checkout timeout so a leak surfaces
+        # as a fast error instead of a 30s hang.
         kwargs.update(
-            pool_size=5,
-            max_overflow=10,
+            pool_size=20,
+            max_overflow=40,
+            pool_timeout=10.0,
             pool_pre_ping=True,
             pool_recycle=300,
         )

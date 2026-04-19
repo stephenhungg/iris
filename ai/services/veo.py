@@ -6,6 +6,7 @@ Uses Veo 3.1 for all video generation:
 - Propagation (style-referenced generation for entity continuity)
 """
 
+import os
 import time
 import asyncio
 from pathlib import Path
@@ -24,6 +25,17 @@ MIN_DURATION = 4  # seconds
 MAX_DURATION = 8
 SUPPORTED_DURATIONS = ["4", "6", "8"]
 GENERATION_TIMEOUT = 360  # 6 minutes max
+
+# Which Veo model variant to hit. The free tier on AI Studio typically
+# only grants quota to the `-fast-` preview; the full preview requires
+# a paid plan. Default to fast so free-tier keys work out of the box;
+# set VEO_MODEL in your .env to override (e.g. for demo-quality renders
+# on a paid project, flip to "veo-3.1-generate-preview").
+DEFAULT_VEO_MODEL = "veo-3.1-fast-generate-preview"
+
+
+def _veo_model() -> str:
+    return os.environ.get("VEO_MODEL", DEFAULT_VEO_MODEL).strip() or DEFAULT_VEO_MODEL
 
 
 def _maybe_await(result):
@@ -74,7 +86,7 @@ async def generate_variant(
     )
 
     kwargs: dict = {
-        "model": "veo-3.1-generate-preview",
+        "model": _veo_model(),
         "prompt": prompt_for_veo,
         "config": config,
     }
