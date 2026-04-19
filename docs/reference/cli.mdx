@@ -18,34 +18,78 @@ description: "The Iris command-line interface for scripting and agent-driven edi
   </div>
 </div>
 
-## Installation and Authentication
+## Installation
 
-To get started with the Iris CLI, install it from the local repository and authenticate it against your Iris backend.
-
-```bash
-pip install -e ./cli
-iris auth login --base-url http://localhost:8000
-```
-
-The `iris auth login` command will prompt you for your credentials and store an authentication token for subsequent CLI commands.
-
-## Agent Skill Integration
-
-Iris provides a pre-packaged agent skill that allows AI agents (like Claude, Codex, or Cursor) to interact with the Iris CLI for automated video editing tasks.
-
-### For Claude Code User
-
-You can install the Iris agent skill directly into your Claude environment with a single command:
+To get started with the Iris CLI, install it via pip:
 
 ```bash
-mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md
+$ pip install iris-cli
 ```
 
-### For Other Agents
+## Agent Integration (e.g., Claude)
 
-For agents like Codex, Openclaw, or Cursor, you can integrate the Iris skill by pasting the contents of the `cli/SKILL.md` file directly into your agent's system prompt or configuration. This provides the agent with the necessary context and commands to utilize the Iris CLI.
+For integrating Iris with AI agents like Claude, you can set up a skill definition:
 
 ```bash
-# Example: View the skill content
-cat cli/SKILL.md
+$ mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md
 ```
+
+This command downloads the Iris CLI skill definition, allowing agents to understand and utilize Iris commands.
+
+## Core Commands
+
+### `iris analyze`
+
+Analyzes a project to extract metadata, such as scene changes, object tracking, or other temporal information.
+
+```bash
+$ iris analyze proj_iris --fps 2.0
+```
+
+-   `proj_iris`: The ID or name of the project to analyze.
+-   `--fps <float>`: (Optional) The frames per second to use for analysis.
+
+### `iris generate`
+
+Generates new video content based on a prompt and specified region within a project.
+
+```bash
+$ iris generate --project proj_iris --start 12.0 --end 14.0 --bbox "0.2,0.3,0.4,0.3" --prompt "replace the phone with a chrome orb"
+```
+
+-   `--project <string>`: The ID or name of the project.
+-   `--start <float>`: The start timestamp (in seconds) for the generation.
+-   `--end <float>`: The end timestamp (in seconds) for the generation.
+-   `--bbox "<x,y,width,height>"`: A bounding box defining the region of interest (normalized coordinates 0.0-1.0).
+-   `--prompt <string>`: The text prompt describing the desired change.
+
+### `iris score`
+
+Compares and scores multiple generated variants, helping to determine the best option.
+
+```bash
+$ iris score --compare var_01 var_02 var_03
+```
+
+-   `--compare <string> [<string>...]`: A space-separated list of variant IDs to compare.
+
+### `iris accept`
+
+Accepts a specific variant from a generation job, applying it to the project.
+
+```bash
+$ iris accept --job job_abc --variant 0
+```
+
+-   `--job <string>`: The ID of the generation job.
+-   `--variant <int>`: The index of the variant to accept (e.g., `0` for the first variant).
+
+### `iris export`
+
+Exports the final edited project or specific outputs.
+
+```bash
+$ iris export proj_iris
+```
+
+-   `proj_iris`: The ID or name of the project to export.
