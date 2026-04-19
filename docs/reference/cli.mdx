@@ -18,26 +18,21 @@ description: "CLI for the iris AI video editor — prompt-driven video editing f
   </div>
 </div>
 
-## Installation
+## Installation and Agent Setup
 
-The Iris CLI can be installed via pip:
+To install the Iris CLI and set up the agent skill for prompt-driven video editing, follow these steps:
 
-```bash
-pip install iris-edit
-```
+1.  **Install the Iris CLI:**
+    ```bash
+    pip install iris-edit
+    ```
+2.  **Set up the agent skill file:** This makes the Iris CLI available to AI agents (e.g., Claude).
+    ```bash
+    mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md
+    ```
+3.  **Authenticate with Iris:**
+    ```bash
+    iris auth login --base-url https://useiris.tech
+    ```
 
-## Agent Integration (e.g., Claude)
-
-The Iris CLI is designed for agent-driven editing. To integrate with AI agents like Claude, you can make the CLI's capabilities available as a skill.
-
-For Claude, download the `SKILL.md` file to the appropriate directory:
-
-```bash
-mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md
-```
-
-This one-liner installs the CLI and sets up the Claude skill:
-
-```bash
-pip install iris-edit && mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md
-```
+Once installed and authenticated, you can start editing videos by saying "iris edit" to your agent.
