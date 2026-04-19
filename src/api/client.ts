@@ -56,6 +56,23 @@ export type UploadResp = {
   fps: number;
 };
 
+export type Me = {
+  session_id: string;
+  user_id: string | null;
+  email: string | null;
+  signed_in: boolean;
+};
+
+export type ProjectListItem = {
+  project_id: string;
+  video_url: string;
+  duration: number;
+  fps: number;
+  width: number;
+  height: number;
+  created_at: string;
+};
+
 export type JobStatus = "pending" | "processing" | "done" | "error";
 
 export type Variant = {
@@ -98,6 +115,14 @@ export type TimelineResp = {
 };
 
 // ─── endpoints ────────────────────────────────────────────────────────
+
+export function me(): Promise<Me> {
+  return request<Me>("/api/me");
+}
+
+export function listProjects(): Promise<ProjectListItem[]> {
+  return request<ProjectListItem[]>("/api/projects");
+}
 
 export async function upload(file: File): Promise<UploadResp> {
   const fd = new FormData();

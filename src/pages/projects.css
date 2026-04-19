@@ -1,0 +1,344 @@
+/* ─── projects gallery ─────────────────────────────────────────────
+ * lives inside .projects-page so it can't bleed into Stephen's landing
+ * or the Studio CSS. mirrors the landing's chrome/palmer aesthetic:
+ * dominant black, chrome gradients for emphasis, ibm plex mono/body,
+ * wide letter-spacing, lowercase.
+ */
+
+.projects-page {
+  --chrome: linear-gradient(
+    135deg, #707070 0%, #B0B0B0 25%, #E0E0E0 50%, #B0B0B0 75%, #707070 100%
+  );
+
+  position: relative;
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  text-transform: lowercase;
+  font-family: var(--font-body, 'IBM Plex Sans', system-ui, sans-serif);
+  overflow-x: hidden;
+}
+
+.projects-page, .projects-page * { box-sizing: border-box; }
+
+/* grain overlay to match landing */
+.projects-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.035;
+  background-image:
+    repeating-radial-gradient(rgba(255,255,255,0.6) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay;
+}
+
+/* ── top bar ─────────────────────────────────────────────────────── */
+.projects-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 48px;
+  backdrop-filter: blur(24px);
+  background: rgba(0, 0, 0, 0.55);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.projects-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: color 0.2s ease;
+}
+.projects-back:hover { color: #fff; }
+.projects-back .arrow { display: inline-block; transition: transform 0.2s ease; }
+.projects-back:hover .arrow { transform: translateX(-3px); }
+
+.projects-user {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 0.08em;
+}
+.projects-user strong {
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+/* ── header ──────────────────────────────────────────────────────── */
+.projects-header {
+  position: relative;
+  padding: 80px 48px 40px;
+  z-index: 2;
+}
+
+.projects-sectionnum {
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.22);
+  letter-spacing: 0.24em;
+  margin-bottom: 24px;
+}
+
+.projects-title {
+  font-family: var(--font-display, 'IBM Plex Sans', system-ui);
+  font-weight: 300;
+  font-size: clamp(64px, 12vw, 180px);
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  margin: 0;
+  color: #fff;
+}
+
+.projects-title .chrome {
+  background: var(--chrome);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 8s ease-in-out infinite;
+  filter: drop-shadow(0 0 60px rgba(255, 255, 255, 0.08));
+}
+
+.projects-subhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 32px;
+  gap: 32px;
+}
+.projects-subhead p {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.38);
+  max-width: 480px;
+  margin: 0;
+}
+.projects-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.32);
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+
+/* ── grid ────────────────────────────────────────────────────────── */
+.projects-grid {
+  position: relative;
+  z-index: 2;
+  padding: 40px 48px 120px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 28px;
+}
+
+/* ── card ────────────────────────────────────────────────────────── */
+.proj-card {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+.proj-card:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.035);
+}
+.proj-card:hover .proj-card__glow { opacity: 1; }
+
+.proj-card__video,
+.proj-card__poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #080808;
+}
+
+/* chrome edge-glow on hover */
+.proj-card__glow {
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0) 40%, rgba(224,224,224,0.12) 50%, rgba(255,255,255,0) 60%);
+  mix-blend-mode: screen;
+}
+
+.proj-card__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.78) 0%,
+    rgba(0, 0, 0, 0.45) 35%,
+    rgba(0, 0, 0, 0) 60%
+  );
+  pointer-events: none;
+}
+
+.proj-card__meta {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.72);
+}
+.proj-card__id {
+  color: #fff;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+}
+.proj-card__created {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 10px;
+}
+.proj-card__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-end;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.5);
+}
+.proj-card__stats span:first-child {
+  color: rgba(255, 255, 255, 0.9);
+  background: var(--chrome);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.proj-card__corner {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── "new reel" card ─────────────────────────────────────────────── */
+.proj-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  background: transparent;
+  aspect-ratio: 16 / 10;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+.proj-new:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.015);
+}
+.proj-new__plus {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 200;
+  transition: all 0.3s ease;
+  background: var(--chrome);
+  background-size: 200% 100%;
+  color: #000;
+  animation: shimmer 8s ease-in-out infinite;
+}
+.proj-new:hover .proj-new__plus {
+  transform: scale(1.08);
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.18);
+}
+
+/* ── empty / loading states ─────────────────────────────────────── */
+.projects-empty {
+  padding: 100px 48px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+}
+.projects-empty h3 {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 48px;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 12px;
+  text-transform: lowercase;
+}
+.projects-empty button {
+  margin-top: 28px;
+  padding: 14px 36px;
+  background: var(--chrome);
+  background-size: 200% 100%;
+  color: #000;
+  border: none;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  animation: shimmer 8s ease-in-out infinite;
+  transition: box-shadow 0.3s ease;
+}
+.projects-empty button:hover {
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.18);
+}
+
+.projects-spinner {
+  height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.3);
+}
+.projects-spinner .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  animation: pulse 1.4s ease-in-out infinite;
+}

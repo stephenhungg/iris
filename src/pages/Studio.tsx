@@ -17,18 +17,68 @@ import { Icon } from "../components/Icon";
 import "../styles/global.css";
 import "./studio.css";
 
-export function Studio({ onExit }: { onExit: () => void }) {
+export type StudioInitialProject = {
+  projectId: string;
+  videoUrl: string;
+  duration: number;
+  fps: number;
+  label?: string;
+};
+
+export function Studio({
+  onExit,
+  onLibrary,
+  initialProject,
+}: {
+  onExit: () => void;
+  onLibrary?: () => void;
+  initialProject?: StudioInitialProject;
+}) {
   return (
     <EDLProvider>
-      <StudioInner onExit={onExit} />
+      <StudioInner
+        onExit={onExit}
+        onLibrary={onLibrary}
+        initialProject={initialProject}
+      />
     </EDLProvider>
   );
 }
 
-function StudioInner({ onExit }: { onExit: () => void }) {
+function StudioInner({
+  onExit,
+  onLibrary,
+  initialProject,
+}: {
+  onExit: () => void;
+  onLibrary?: () => void;
+  initialProject?: StudioInitialProject;
+}) {
   const { state, dispatch } = useEDL();
   const [uploading, setUploading] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  // hydrate an existing project once, if one was passed in. the EDL store
+  // is created fresh per Studio mount so we don't need to de-dup. we also
+  // drop the source straight onto the timeline so resuming feels like
+  // "picking up where i left off" rather than an empty timeline with a
+  // library item.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    if (!initialProject) return;
+    hydratedRef.current = true;
+    const asset = newMediaAsset({
+      url: initialProject.videoUrl,
+      duration: initialProject.duration,
+      fps: initialProject.fps,
+      projectId: initialProject.projectId,
+      label: initialProject.label || initialProject.projectId.slice(0, 8),
+      kind: "source",
+    });
+    dispatch({ type: "add_source", asset });
+    dispatch({ type: "add_to_timeline", assetId: asset.id });
+  }, [initialProject, dispatch]);
 
   async function handleFile(file: File) {
     setUploading(true);
@@ -79,7 +129,7 @@ function StudioInner({ onExit }: { onExit: () => void }) {
 
   return (
     <main className="studio" ref={rootRef}>
-      <TopBar onExit={onExit} projectLabel={projectLabel} />
+      <TopBar onExit={onExit} onLibrary={onLibrary} projectLabel={projectLabel} />
 
       <section className="studio__body">
         <aside className="studio__left">
@@ -208,9 +258,11 @@ function Splitter({
 
 function TopBar({
   onExit,
+  onLibrary,
   projectLabel,
 }: {
   onExit: () => void;
+  onLibrary?: () => void;
   projectLabel?: string;
 }) {
   return (
@@ -221,6 +273,19 @@ function TopBar({
           <span className="topbar__word">iris</span>
         </button>
         <span className="topbar__divider" />
+        {onLibrary && (
+          <>
+            <button
+              className="topbar__menu"
+              onClick={onLibrary}
+              title="back to my reels"
+              style={{ letterSpacing: '0.08em' }}
+            >
+              ← my reels
+            </button>
+            <span className="topbar__divider" />
+          </>
+        )}
         <TopMenuItem label="File" />
         <TopMenuItem label="Edit" />
         <TopMenuItem label="View" />

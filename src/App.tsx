@@ -4,8 +4,10 @@ import gsap from 'gsap'
 import MetallicPaint from './components/MetallicPaint'
 import Noise from './components/Noise'
 import ScrollFrames from './components/ScrollFrames'
-import { Studio } from './pages/Studio'
+import { Studio, type StudioInitialProject } from './pages/Studio'
+import { Projects } from './pages/Projects'
 import { useAuth } from './lib/useAuth'
+import { listProjects, type ProjectListItem } from './api/client'
 
 const IRIS_SVG = '/iris-logo.svg'
 
@@ -637,9 +639,11 @@ function useIntroTimeline() {
 }
 
 export default function App() {
-  const [view, setView] = useState<'landing' | 'studio'>('landing')
+  const [view, setView] = useState<'landing' | 'projects' | 'studio'>('landing')
   const [loaderDone, setLoaderDone] = useState(false)
+  const [studioBoot, setStudioBoot] = useState<StudioInitialProject | undefined>(undefined)
   const runIntro = useIntroTimeline()
+  const { status } = useAuth()
 
   useEffect(() => {
     if (!loaderDone) return
@@ -649,7 +653,66 @@ export default function App() {
     })
   }, [loaderDone, runIntro])
 
-  if (view === 'studio') return <Studio onExit={() => setView('landing')} />
+  // decide where "open studio" should drop the user. signed-in folks with a
+  // library land on the projects page; everyone else goes straight to a fresh
+  // studio with the upload dropzone.
+  const goStudio = useCallback(async () => {
+    if (status !== 'authed') {
+      setStudioBoot(undefined)
+      setView('studio')
+      return
+    }
+    try {
+      const items: ProjectListItem[] = await listProjects()
+      if (items.length === 0) {
+        setStudioBoot(undefined)
+        setView('studio')
+      } else {
+        setView('projects')
+      }
+    } catch {
+      setStudioBoot(undefined)
+      setView('studio')
+    }
+  }, [status])
+
+  if (view === 'studio') {
+    return (
+      <Studio
+        key={studioBoot?.projectId ?? 'fresh'}
+        onExit={() => { setStudioBoot(undefined); setView('landing') }}
+        onLibrary={status === 'authed'
+          ? () => { setStudioBoot(undefined); setView('projects') }
+          : undefined}
+        initialProject={studioBoot}
+      />
+    )
+  }
+
+  if (view === 'projects') {
+    return (
+      <Projects
+        onExit={() => setView('landing')}
+        onNew={() => { setStudioBoot(undefined); setView('studio') }}
+        onOpen={(projectId) => {
+          // grab meta from the list and hydrate the studio. Projects page
+          // already holds these values but we re-fetch to keep this wire thin.
+          listProjects().then((rows) => {
+            const p = rows.find((x) => x.project_id === projectId)
+            if (!p) { setView('studio'); return }
+            setStudioBoot({
+              projectId: p.project_id,
+              videoUrl: p.video_url,
+              duration: p.duration,
+              fps: p.fps,
+              label: p.project_id.slice(0, 8),
+            })
+            setView('studio')
+          }).catch(() => setView('studio'))
+        }}
+      />
+    )
+  }
 
   return (
     <div style={{ background: '#000', minHeight: '100vh', color: '#fff', textTransform: 'lowercase' }}>
@@ -664,13 +727,13 @@ export default function App() {
       </div>
 
       <ScrollFrames dimOpacity={0.4}>
-        <PillNav onStudio={() => setView('studio')} />
-        <Hero onStudio={() => setView('studio')} />
+        <PillNav onStudio={goStudio} />
+        <Hero onStudio={goStudio} />
         <Marquee />
         <Thesis />
         <Features />
         <TechStrip />
-        <CTA onStudio={() => setView('studio')} />
+        <CTA onStudio={goStudio} />
         <Footer />
       </ScrollFrames>
     </div>

@@ -11,6 +11,7 @@ from app.models.project import Project
 from app.models.segment import Segment
 from app.models.session import Session as SessionModel
 from app.schemas.project import EntitySummary, ProjectOut, SegmentOut
+from app.services import storage
 
 router = APIRouter(tags=["projects"])
 
@@ -57,10 +58,14 @@ async def list_projects(
             .limit(100)
         )
     ).scalars().all()
+    # re-sign each stored URL. what's in the DB is a presigned GET that
+    # expires after settings.presign_expiry, so old library items would
+    # otherwise 403 in the browser. normalize_url_like handles raw keys,
+    # s3 URLs, /media URLs, and stale presigned URLs.
     return [
         ProjectListItem(
             project_id=p.id,
-            video_url=p.video_url,
+            video_url=storage.normalize_url_like(p.video_url, fallback=p.video_url),
             duration=p.duration,
             fps=p.fps,
             width=p.width,

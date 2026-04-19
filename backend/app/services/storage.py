@@ -261,15 +261,23 @@ async def write_bytes(category: str, ext: str, data: bytes) -> tuple[Path, str]:
 
 
 def normalize_url_like(value: str, *, fallback: Optional[str] = None) -> str:
-    """Accept a URL, an S3 key, or a local path string — return a client URL.
+    """Accept a URL, an S3 key, or a local path string — return a *fresh*
+    client URL.
 
-    Useful for worker code that gets a free-form url-string back from an
-    AI stub or external provider and needs to turn it into something the
-    frontend can load.
+    Critically, this always re-derives the S3 key and mints a new
+    presigned URL when S3 is enabled, so previously-issued URLs that have
+    since expired get refreshed on read (e.g. the Projects list view).
     """
     if not value:
         return fallback or ""
+    # external URLs that clearly aren't ours: leave alone.
     if value.startswith(("http://", "https://")):
+        key = _key_from_url(value)
+        if key and settings.s3_enabled:
+            try:
+                return url_for_key(key)
+            except Exception:
+                return value
         return value
     if value.startswith("/media/") or value.startswith("s3://"):
         key = _key_from_url(value)
