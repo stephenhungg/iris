@@ -24,7 +24,9 @@ jobs:
       - run: |
           cd cli
           pip install -e ".[test]"
-          python -m pytest tests/ -v
+          NO_COLOR=1 python -m pytest tests/ -v
+        env:
+          NO_COLOR: "1"
 
   backend-syntax:
     runs-on: ubuntu-latest
