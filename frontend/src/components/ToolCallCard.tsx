@@ -1,5 +1,13 @@
 import { useState } from "react";
 
+function safeStringify(obj: unknown): string {
+  try {
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return String(obj);
+  }
+}
+
 // ─── types ────────────────────────────────────────────────────────────
 
 interface ToolCallCardProps {
@@ -211,7 +219,7 @@ export function ToolCallCard({ id, tool, args, status, result }: ToolCallCardPro
           <div className="tool-card__body">
             <p className="tool-card__section-label">arguments</p>
             <pre className="tool-card__json">
-              {JSON.stringify(args, null, 2)}
+              {safeStringify(args)}
             </pre>
 
             {result != null && (
@@ -221,7 +229,7 @@ export function ToolCallCard({ id, tool, args, status, result }: ToolCallCardPro
                   <p className="tool-card__summary">{resultSummary}</p>
                 ) : (
                   <pre className="tool-card__json">
-                    {JSON.stringify(result, null, 2)}
+                    {safeStringify(result)}
                   </pre>
                 )}
               </>

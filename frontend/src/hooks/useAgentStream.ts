@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import {
   createConversation,
+  deleteConversation,
   getConversationMessages,
   getSessionId,
   listConversations,
@@ -36,10 +37,18 @@ export function useAgentStream(projectId?: string | null) {
   const { state, dispatch } = useAgent();
   const abortRef = useRef<AbortController | null>(null);
   const loadedRef = useRef<string | null>(null);
+  const conversationIdRef = useRef(state.conversationId);
+  conversationIdRef.current = state.conversationId;
 
   // hydrate the most recent conversation for this project on mount
   useEffect(() => {
-    if (!projectId || loadedRef.current === projectId) return;
+    if (!projectId) return;
+    if (loadedRef.current === projectId) return;
+
+    // clear messages when switching projects
+    if (loadedRef.current !== null) {
+      dispatch({ type: "clear_messages" });
+    }
     loadedRef.current = projectId;
 
     (async () => {
@@ -116,7 +125,7 @@ export function useAgentStream(projectId?: string | null) {
           body: JSON.stringify({
             project_id: projectId,
             message,
-            conversation_id: state.conversationId,
+            conversation_id: conversationIdRef.current,
             history,
           }),
         });
@@ -183,11 +192,26 @@ export function useAgentStream(projectId?: string | null) {
     dispatch({ type: "end_stream" });
   }, [dispatch]);
 
-  const clearChat = useCallback(() => {
+  const clearChat = useCallback(async () => {
     abortRef.current?.abort();
+    const oldId = state.conversationId;
     dispatch({ type: "clear_messages" });
-    dispatch({ type: "set_conversation_id", id: crypto.randomUUID() });
-  }, [dispatch]);
+
+    // create a new conversation server-side, delete the old one
+    if (projectId) {
+      try {
+        const convo = await createConversation(projectId);
+        dispatch({ type: "set_conversation_id", id: convo.id });
+        // best-effort cleanup of old conversation
+        deleteConversation(oldId).catch(() => {});
+      } catch {
+        // fallback to local-only ID if backend is unreachable
+        dispatch({ type: "set_conversation_id", id: crypto.randomUUID() });
+      }
+    } else {
+      dispatch({ type: "set_conversation_id", id: crypto.randomUUID() });
+    }
+  }, [dispatch, state.conversationId, projectId]);
 
   return {
     messages: state.messages,

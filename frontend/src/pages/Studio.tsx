@@ -21,6 +21,7 @@ import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
 import { VideoScrubber } from "../components/VideoScrubber";
+import { AgentChat } from "../components/AgentChat";
 import { AgentProvider } from "../stores/agent";
 import {
   exportVideo,
@@ -39,6 +40,7 @@ import {
   type ContinuityDashboardController,
 } from "../features/continuity/useContinuityDashboard";
 import { EditorChecklist } from "../features/onboarding/EditorChecklist";
+import { useAgentEdlBridge } from "../hooks/useAgentEdlBridge";
 import "../styles/global.css";
 import "./studio.css";
 
@@ -554,6 +556,18 @@ function StudioInner({
     ?? state.sources[0]?.projectId
     ?? null;
   const continuity = useContinuityDashboard(continuityProjectId);
+
+  // bridge agent tool calls → EDL timeline refresh
+  useAgentEdlBridge(
+    continuityProjectId,
+    initialProject ? {
+      videoUrl: initialProject.videoUrl,
+      duration: initialProject.duration,
+      fps: initialProject.fps,
+      label: initialProject.label,
+    } : undefined,
+  );
+
   const projectLabel =
     initialProject?.label
     ?? initialProject?.projectId.slice(0, 8)
@@ -785,6 +799,7 @@ function StudioInner({
                   duration={initialProject?.duration ?? state.clips.reduce((sum, c) => sum + (c.sourceEnd - c.sourceStart), 0)}
                   playhead={state.playhead}
                   onSeek={(ts) => dispatch({ type: 'set_playhead', t: ts })}
+                  onScrubStart={() => dispatch({ type: 'set_playing', playing: false })}
                   segments={timelineSpans(state.clips).map(({ clip, start, end }) => ({
                     start_ts: start,
                     end_ts: end,
@@ -823,26 +838,30 @@ function StudioInner({
         />
 
         <aside className="studio__right">
-          <>
-            <div style={{ padding: "12px 12px 0" }}>
-              <EditorChecklist
+          {mode === 'vibe' ? (
+            <AgentChat projectId={continuityProjectId} />
+          ) : (
+            <>
+              <div style={{ padding: "12px 12px 0" }}>
+                <EditorChecklist
+                  projectId={continuityProjectId}
+                  hasSources={hasSources}
+                  hasSelection={Boolean(state.selectedId)}
+                  hasBbox={Boolean(state.bbox)}
+                  hasAcceptedEdit={hasAcceptedEdit}
+                  hasContinuityPack={continuity.hasPropagatableAppearances}
+                  continuityComplete={continuityComplete}
+                  onImport={() => fileInputRef.current?.click()}
+                />
+              </div>
+              <Inspector
+                mode={mode}
+                continuity={continuity}
                 projectId={continuityProjectId}
-                hasSources={hasSources}
-                hasSelection={Boolean(state.selectedId)}
-                hasBbox={Boolean(state.bbox)}
-                hasAcceptedEdit={hasAcceptedEdit}
-                hasContinuityPack={continuity.hasPropagatableAppearances}
-                continuityComplete={continuityComplete}
-                onImport={() => fileInputRef.current?.click()}
+                showAiTab={mode === 'pro'}
               />
-            </div>
-            <Inspector
-              mode={mode}
-              continuity={continuity}
-              projectId={continuityProjectId}
-              showAiTab={mode === 'pro'}
-            />
-          </>
+            </>
+          )}
         </aside>
       </section>
 

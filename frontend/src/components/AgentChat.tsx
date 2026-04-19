@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { useAgentStream } from "../hooks/useAgentStream";
-import type { AgentMessage, SuggestedEdit, VariantPreview } from "../stores/agent";
+import { useAgent, type AgentMessage, type SuggestedEdit, type VariantPreview } from "../stores/agent";
 import { AgentInput } from "./AgentInput";
 import { ToolCallCard } from "./ToolCallCard";
 
@@ -15,13 +15,18 @@ interface AgentChatProps {
 
 export function AgentChat({ projectId }: AgentChatProps) {
   const { messages, streaming, sendMessage, clearChat } = useAgentStream(projectId);
+  const { dispatch } = useAgent();
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // auto-scroll to bottom on new messages
+  // auto-scroll to bottom on new messages (debounced to avoid jank during streaming)
+  const scrollTimerRef = useRef<number>(0);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, messages[messages.length - 1]]);
+    clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = window.setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }, [messages.length, streaming]);
 
   const handleSend = useCallback(
     (text: string) => {
@@ -327,7 +332,22 @@ export function AgentChat({ projectId }: AgentChatProps) {
           )}
 
           {messages.map((msg, i) => (
-            <MessageRenderer key={`${msg.type}-${msg.ts}-${i}`} message={msg} />
+            <MessageRenderer
+              key={`${msg.type}-${msg.ts}-${i}`}
+              message={msg}
+              onAcceptSuggestion={(ts, suggestion, startTs, endTs) => {
+                dispatch({ type: "accept_suggestion", ts });
+                if (projectId) {
+                  void sendMessage({
+                    projectId,
+                    message: `Execute the suggested edit: ${suggestion} from ${startTs}s to ${endTs}s`,
+                  });
+                }
+              }}
+              onDismissSuggestion={(ts) => {
+                dispatch({ type: "dismiss_suggestion", ts });
+              }}
+            />
           ))}
 
           <div ref={bottomRef} />
@@ -346,7 +366,15 @@ export function AgentChat({ projectId }: AgentChatProps) {
 
 // ─── message renderer ─────────────────────────────────────────────────
 
-function MessageRenderer({ message }: { message: AgentMessage }) {
+function MessageRenderer({
+  message,
+  onAcceptSuggestion,
+  onDismissSuggestion,
+}: {
+  message: AgentMessage;
+  onAcceptSuggestion?: (ts: number, suggestion: string, startTs: number, endTs: number) => void;
+  onDismissSuggestion?: (ts: number) => void;
+}) {
   switch (message.type) {
     case "user":
       return (
@@ -384,7 +412,12 @@ function MessageRenderer({ message }: { message: AgentMessage }) {
     case "suggestion":
       return (
         <div className="msg msg--suggestion">
-          <SuggestionCard edit={message.edit} accepted={message.accepted} />
+          <SuggestionCard
+            edit={message.edit}
+            accepted={message.accepted}
+            onAccept={() => onAcceptSuggestion?.(message.ts, message.edit.suggestion, message.edit.start_ts, message.edit.end_ts)}
+            onDismiss={() => onDismissSuggestion?.(message.ts)}
+          />
         </div>
       );
 
@@ -406,9 +439,13 @@ function MessageRenderer({ message }: { message: AgentMessage }) {
 function SuggestionCard({
   edit,
   accepted,
+  onAccept,
+  onDismiss,
 }: {
   edit: SuggestedEdit;
   accepted?: boolean;
+  onAccept?: () => void;
+  onDismiss?: () => void;
 }) {
   const resolved = accepted != null;
 
@@ -435,10 +472,10 @@ function SuggestionCard({
         </span>
       ) : (
         <div className="suggestion-card__actions">
-          <button className="suggestion-card__btn suggestion-card__btn--accept">
+          <button className="suggestion-card__btn suggestion-card__btn--accept" onClick={onAccept}>
             accept
           </button>
-          <button className="suggestion-card__btn">dismiss</button>
+          <button className="suggestion-card__btn" onClick={onDismiss}>dismiss</button>
         </div>
       )}
     </div>

@@ -33,8 +33,13 @@ export function VideoScrubber({
   duration,
   playhead,
   onSeek,
+  onScrubStart,
+  onScrubEnd,
   segments = [],
-}: VideoScrubberProps) {
+}: VideoScrubberProps & {
+  onScrubStart?: () => void;
+  onScrubEnd?: () => void;
+}) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [hoverTs, setHoverTs] = useState<number | null>(null);
@@ -56,6 +61,7 @@ export function VideoScrubber({
     (e: MouseEvent) => {
       e.preventDefault();
       setDragging(true);
+      onScrubStart?.();
       onSeek(tsFromEvent(e));
 
       const handleMove = (me: globalThis.MouseEvent) => {
@@ -64,6 +70,7 @@ export function VideoScrubber({
 
       const handleUp = () => {
         setDragging(false);
+        onScrubEnd?.();
         window.removeEventListener("mousemove", handleMove);
         window.removeEventListener("mouseup", handleUp);
       };
