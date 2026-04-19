@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react'
+import gsap from 'gsap'
 import MetallicPaint from './components/MetallicPaint'
 import Noise from './components/Noise'
 import ScrollFrames from './components/ScrollFrames'
@@ -109,13 +110,14 @@ function Loader({ onComplete }: { onComplete: () => void }) {
 function PillNav({ onStudio }: { onStudio: () => void }) {
   const [show, setShow] = useState(false)
   useEffect(() => {
-    const fn = () => setShow(window.scrollY > window.innerHeight * 0.8)
+    setShow(true) // always visible
+    const fn = () => setShow(true)
     window.addEventListener('scroll', fn, { passive: true }); return () => window.removeEventListener('scroll', fn)
   }, [])
   return (
     <AnimatePresence>
       {show && (
-        <motion.nav initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={SPRING.bouncy}
+        <motion.nav data-intro="nav" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={SPRING.bouncy}
           style={{ position: 'fixed', bottom: '24px', left: 0, right: 0, marginLeft: 'auto', marginRight: 'auto', width: 'fit-content', zIndex: 50, display: 'flex', alignItems: 'center', gap: '24px', padding: '10px 12px 10px 24px', background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
           {['product', 'editor', 'about'].map(l => (
             <a key={l} href={`#${l}`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
@@ -196,21 +198,18 @@ function Hero({ onStudio }: { onStudio: () => void }) {
 
   return (
     <section ref={ref} style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 64px', overflow: 'hidden' }}>
-      {/* scattered preview images */}
-      <motion.img src="/frames/frame_045.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.4 }} viewport={{ once: true }}
-        transition={{ ...SPRING.badge, delay: 0.3 }}
-        style={{ position: 'absolute', top: '12%', right: '8%', width: '200px', height: '130px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
-      <motion.img src="/frames/frame_080.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.4 }} viewport={{ once: true }}
-        transition={{ ...SPRING.badge, delay: 0.5 }}
-        style={{ position: 'absolute', top: '58%', left: '3%', width: '160px', height: '100px', objectFit: 'cover', rotate: '-3deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
-      <motion.img src="/frames/frame_120.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.4 }} viewport={{ once: true }}
-        transition={{ ...SPRING.badge, delay: 0.7 }}
-        style={{ position: 'absolute', top: '40%', right: '4%', width: '180px', height: '120px', objectFit: 'cover', rotate: '1deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+      {/* scattered preview images — controlled by GSAP intro timeline */}
+      <img data-intro="hero-images" src="/frames/frame_045.jpg" alt=""
+        style={{ position: 'absolute', top: '12%', right: '8%', width: '200px', height: '130px', objectFit: 'cover', transform: 'rotate(2deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
+      <img data-intro="hero-images" src="/frames/frame_080.jpg" alt=""
+        style={{ position: 'absolute', top: '58%', left: '3%', width: '160px', height: '100px', objectFit: 'cover', transform: 'rotate(-3deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
+      <img data-intro="hero-images" src="/frames/frame_120.jpg" alt=""
+        style={{ position: 'absolute', top: '40%', right: '4%', width: '180px', height: '120px', objectFit: 'cover', transform: 'rotate(1deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
 
       <motion.div style={{ opacity, y }}>
-        {/* top bar */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={SPRING.badge}
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+        {/* top bar — chrome, hidden initially */}
+        <div data-intro="chrome"
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', opacity: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ width: '80px', height: '80px' }}>
               <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#ffffff" darkColor="#000000" tintColor="#c0c0c0" />
@@ -222,23 +221,32 @@ function Hero({ onStudio }: { onStudio: () => void }) {
               ))}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div data-intro="chrome" style={{ display: 'flex', alignItems: 'center', gap: '20px', opacity: 0 }}>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6 }}>
               ai-powered video editor<br />speak your edits into existence
             </div>
             <AuthChip />
           </div>
-        </motion.div>
+        </div>
 
-        {/* massive title */}
-        <motion.h1 initial={{ opacity: 0, y: -90 }} animate={{ opacity: 1, y: 0 }} transition={SPRING.bouncy}
-          style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(100px, 18vw, 240px)', lineHeight: 0.85, letterSpacing: '-0.04em', color: '#fff', marginBottom: '48px' }}>
-          <span style={{ background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite', filter: 'drop-shadow(0 0 80px rgba(255,255,255,0.08))' }}>iris</span>
-        </motion.h1>
+        {/* massive title — dual layer for wipe reveal */}
+        <div style={{ position: 'relative', marginBottom: '48px' }}>
+          {/* dark layer: emerges from black */}
+          <h1 data-intro="logo-dark"
+            style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(100px, 18vw, 240px)', lineHeight: 0.85, letterSpacing: '-0.04em', color: '#1a1a1a', opacity: 0 }}>
+            iris
+          </h1>
+          {/* white layer: clipped, wipes left-to-right */}
+          <h1 data-intro="logo-reveal"
+            style={{ position: 'absolute', top: 0, left: 0, fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(100px, 18vw, 240px)', lineHeight: 0.85, letterSpacing: '-0.04em', clipPath: 'inset(0 100% 0 0)',
+              background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite', filter: 'drop-shadow(0 0 80px rgba(255,255,255,0.08))' }}>
+            iris
+          </h1>
+        </div>
 
         {/* bottom row */}
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING.badge, delay: 0.2 }}
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '40px', alignItems: 'end' }}>
+        <div data-intro="chrome"
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '40px', alignItems: 'end', opacity: 0 }}>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', maxWidth: '320px' }}>
             point at a moment in your video, describe what should change, and watch reality rewrite itself.
           </p>
@@ -249,14 +257,13 @@ function Hero({ onStudio }: { onStudio: () => void }) {
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', lineHeight: 2, textAlign: 'right' }}>
             <div>prompt-driven editing</div><div>causal entity tracking</div><div>powered by gemini + veo</div>
           </div>
-        </motion.div>
+        </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5, duration: 0.6 }}
-        style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+      <div data-intro="chrome" style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', opacity: 0 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)', letterSpacing: '0.2em' }}>scroll</span>
         <motion.div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)' }} animate={{ scaleY: [1, 0.4, 1] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
-      </motion.div>
+      </div>
     </section>
   )
 }
@@ -475,31 +482,121 @@ function Footer() {
 
 // ── app ─────────────────────────────────────────────────────────────
 
+function useIntroTimeline() {
+  const hasRun = useRef(false)
+
+  const runIntro = useCallback(() => {
+    if (hasRun.current) return
+    hasRun.current = true
+
+    const tl = gsap.timeline({ defaults: { ease: 'power2.inOut' } })
+
+    // 0.0s: everything hidden behind blackout
+    gsap.set('[data-intro="blackout"]', { opacity: 1 })
+    gsap.set('[data-intro="logo-dark"]', { opacity: 0 })
+    gsap.set('[data-intro="logo-reveal"]', { clipPath: 'inset(0 100% 0 0)' })
+    gsap.set('[data-intro="chrome"]', { opacity: 0, y: 12 })
+    gsap.set('[data-intro="hero-images"]', { opacity: 0, scale: 0.95 })
+    gsap.set('[data-intro="nav"]', { opacity: 0, y: 20 })
+
+    // 0.0s–0.3s: brief black hold
+    tl.to({}, { duration: 0.3 })
+
+    // 0.3s–2.1s: dark logo emerges from black (opacity 0 → 0.12)
+    .to('[data-intro="logo-dark"]', {
+      opacity: 0.12,
+      duration: 1.8,
+      ease: 'power1.inOut',
+    })
+
+    // 2.1s–2.5s: left-to-right white wipe reveal
+    .to('[data-intro="logo-reveal"]', {
+      clipPath: 'inset(0 0% 0 0)',
+      duration: 0.45,
+      ease: 'power2.out',
+    })
+
+    // simultaneously fade out the dark version
+    .to('[data-intro="logo-dark"]', {
+      opacity: 0,
+      duration: 0.3,
+      ease: 'power1.out',
+    }, '<')
+
+    // 2.5s–2.8s: blackout fades away
+    .to('[data-intro="blackout"]', {
+      opacity: 0,
+      duration: 0.4,
+      ease: 'power1.out',
+      onComplete: () => {
+        const el = document.querySelector('[data-intro="blackout"]') as HTMLElement
+        if (el) el.style.pointerEvents = 'none'
+      },
+    }, '-=0.2')
+
+    // 2.8s–3.3s: hero images fade in with stagger
+    .to('[data-intro="hero-images"]', {
+      opacity: 0.4,
+      scale: 1,
+      duration: 0.5,
+      stagger: 0.12,
+      ease: 'power2.out',
+    }, '-=0.1')
+
+    // 3.0s–3.5s: chrome elements (top bar, description, button, metadata)
+    .to('[data-intro="chrome"]', {
+      opacity: 1,
+      y: 0,
+      duration: 0.45,
+      stagger: 0.06,
+      ease: 'power2.out',
+    }, '-=0.3')
+
+    // 3.3s–3.6s: pill nav slides up
+    .to('[data-intro="nav"]', {
+      opacity: 1,
+      y: 0,
+      duration: 0.4,
+      ease: 'power2.out',
+    }, '-=0.2')
+
+  }, [])
+
+  return runIntro
+}
+
 export default function App() {
-  const [loaded, setLoaded] = useState(false)
   const [view, setView] = useState<'landing' | 'studio'>('landing')
+  const runIntro = useIntroTimeline()
+
+  useEffect(() => {
+    // small delay to let DOM mount, then run the timeline
+    const t = setTimeout(runIntro, 100)
+    return () => clearTimeout(t)
+  }, [runIntro])
+
   if (view === 'studio') return <Studio onExit={() => setView('landing')} />
 
   return (
     <div style={{ background: '#000', minHeight: '100vh', color: '#fff', textTransform: 'lowercase' }}>
+      {/* blackout overlay */}
+      <div data-intro="blackout" style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000' }} />
+
+      {/* noise */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 90, pointerEvents: 'none', opacity: 0.035 }}>
         <Noise patternSize={256} patternScaleX={1} patternScaleY={1} patternRefreshInterval={2} patternAlpha={15} />
       </div>
-      <AnimatePresence mode="wait">
-        {!loaded && <Loader onComplete={() => setLoaded(true)} />}
-      </AnimatePresence>
-      {loaded && (
-        <ScrollFrames dimOpacity={0.4}>
-          <PillNav onStudio={() => setView('studio')} />
-          <Hero onStudio={() => setView('studio')} />
-          <Marquee />
-          <Thesis />
-          <Features />
-          <TechStrip />
-          <CTA onStudio={() => setView('studio')} />
-          <Footer />
-        </ScrollFrames>
-      )}
+
+      <ScrollFrames dimOpacity={0.4}>
+        <PillNav onStudio={() => setView('studio')} />
+        <Hero onStudio={() => setView('studio')} />
+        <Marquee />
+        <Thesis />
+        <Features />
+        <TechStrip />
+        <CTA onStudio={() => setView('studio')} />
+        <Footer />
+      </ScrollFrames>
     </div>
   )
 }
