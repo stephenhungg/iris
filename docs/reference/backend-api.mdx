@@ -23,73 +23,349 @@ Returns AI provider reachability and configuration status.
 
 ### `GET /api/ai/timeline`
 
-Returns a timeline of recent AI operations with timing information.
+Returns a timeline of recent AI operations.
 
-## Media Previews
+## Projects and media
 
-These endpoints provide various ways to preview media from a project, supporting timeline scrubbing, filmstrip generation, and range playback.
+### `GET /api/project`
 
-### `GET /api/preview/{id}/frame`
+Returns a list of all projects for the current user.
 
-Returns a single preview JPEG image for a specific timestamp within a project.
+### `POST /api/project`
 
-**Path Parameters:**
-- `id`: The ID of the project or media asset.
+Creates a new project.
 
-**Query Parameters:**
-- `ts` (float, required): The timeline-space timestamp in seconds for which to retrieve the frame. Must be non-negative.
+**Request Body:**
 
-**Response:**
 ```json
 {
-  "ts": 10.5,
-  "url": "https://example.com/path/to/frame_10_5.jpg"
+  "name": "string",
+  "description": "string",
+  "video_url": "string"
 }
 ```
 
-### `GET /api/preview/{id}/strip`
+### `GET /api/project/{project_id}`
 
-Returns an ordered filmstrip of preview frames covering a specified time range.
+Returns details for a specific project.
 
-**Path Parameters:**
-- `id`: The ID of the project or media asset.
+### `DELETE /api/project/{project_id}`
 
-**Query Parameters:**
-- `start` (float, required): The start timestamp (in seconds) of the range.
-- `end` (float, required): The end timestamp (in seconds) of the range.
-- `fps` (float, required): The desired frames per second for the strip.
+Deletes a project.
+
+### `POST /api/project/{project_id}/upload`
+
+Uploads a new video asset to the project.
+
+**Request Body:**
+
+```json
+{
+  "file_name": "string",
+  "content_type": "string"
+}
+```
 
 **Response:**
+
+```json
+{
+  "upload_url": "string",
+  "asset_id": "string"
+}
+```
+
+### `POST /api/project/{project_id}/preview/frame`
+
+Extracts and publishes a single preview frame from the project timeline at a specific timestamp.
+
+**Request Body:**
+
+```json
+{
+  "ts": 0.0
+}
+```
+
+**Response:**
+
+```json
+{
+  "frame_url": "string",
+  "timestamp": 0.0
+}
+```
+
+### `POST /api/project/{project_id}/preview/strip`
+
+Extracts a strip of preview frames across a specified range from the project timeline.
+
+**Request Body:**
+
+```json
+{
+  "start": 0.0,
+  "end": 0.0,
+  "fps": 1.0
+}
+```
+
+**Response:**
+
 ```json
 {
   "frames": [
     {
-      "ts": 0.0,
-      "url": "https://example.com/path/to/frame_0.jpg"
-    },
-    {
-      "ts": 1.0,
-      "url": "https://example.com/path/to/frame_1.jpg"
+      "frame_url": "string",
+      "timestamp": 0.0
     }
   ]
 }
 ```
 
-### `GET /api/preview/{id}/range`
+## Editing operations
 
-Returns a URL to a rendered low-resolution MP4 video covering a specified slice of the timeline.
+### `POST /api/segment/{segment_id}/split`
 
-**Path Parameters:**
-- `id`: The ID of the project or media asset.
+Splits an existing segment into two new segments at a specified timestamp. The original segment is deactivated.
 
-**Query Parameters:**
-- `start` (float, required): The start timestamp (in seconds) of the range.
-- `end` (float, required): The end timestamp (in seconds) of the range.
+**Request Body:**
 
-**Response:**
 ```json
 {
-  "preview_url": "https://example.com/path/to/preview_range.mp4",
-  "duration": 5.0
+  "split_ts": 0.0
+}
+```
+
+**Response:**
+
+```json
+{
+  "left": {
+    "id": "string",
+    "project_id": "string",
+    "start_ts": 0.0,
+    "end_ts": 0.0,
+    "source": "string",
+    "url": "string",
+    "variant_id": "string",
+    "order_index": 0,
+    "active": true
+  },
+  "right": {
+    "id": "string",
+    "project_id": "string",
+    "start_ts": 0.0,
+    "end_ts": 0.0,
+    "source": "string",
+    "url": "string",
+    "variant_id": "string",
+    "order_index": 0,
+    "active": true
+  }
+}
+```
+
+### `POST /api/segment/{segment_id}/trim`
+
+Trims an existing segment to new start and end timestamps within its original bounds.
+
+**Request Body:**
+
+```json
+{
+  "new_start_ts": 0.0,
+  "new_end_ts": 0.0
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": "string",
+  "project_id": "string",
+  "start_ts": 0.0,
+  "end_ts": 0.0,
+  "source": "string",
+  "url": "string",
+  "variant_id": "string",
+  "order_index": 0,
+  "active": true
+}
+```
+
+### `DELETE /api/segment/{segment_id}`
+
+Soft-deletes a segment by setting its `active` status to `false`.
+
+**Response:**
+
+```json
+{
+  "deleted": true
+}
+```
+
+### `POST /api/segment/{segment_id}/color-grade`
+
+Applies color grade adjustments to a segment and creates a new generated replacement segment.
+
+**Request Body:**
+
+```json
+{
+  "brightness": 0.0,
+  "contrast": 0.0,
+  "saturation": 0.0,
+  "temperature": 0.0,
+  "gamma": 0.0,
+  "hue_shift": 0.0
+}
+```
+
+**Response:**
+
+```json
+{
+  "segment_id": "string",
+  "graded_url": "string"
+}
+```
+
+### `POST /api/segment/{segment_id}/grade-preview`
+
+Renders a graded preview frame for a segment with specified color adjustments.
+
+**Request Body:**
+
+```json
+{
+  "brightness": 0.0,
+  "contrast": 0.0,
+  "saturation": 0.0,
+  "temperature": 0.0,
+  "gamma": 0.0,
+  "hue_shift": 0.0
+}
+```
+
+**Response:**
+
+```json
+{
+  "preview_frame_url": "string"
+}
+```
+
+## AI and generation
+
+### `POST /api/ai/generate`
+
+Initiates an AI-powered video generation job.
+
+**Request Body:**
+
+```json
+{
+  "project_id": "string",
+  "prompt": "string",
+  "start_ts": 0.0,
+  "end_ts": 0.0,
+  "bounding_box": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 0.0,
+    "height": 0.0
+  }
+}
+```
+
+### `GET /api/job/{job_id}`
+
+Check the status of a generation, entity, or other non-export job and get any variant results.
+
+**Response:**
+
+```json
+{
+  "id": "string",
+  "project_id": "string",
+  "status": "pending" | "running" | "completed" | "failed",
+  "error": "string",
+  "variants": [
+    {
+      "id": "string",
+      "url": "string",
+      "preview_url": "string"
+    }
+  ]
+}
+```
+
+### `POST /api/variant/{variant_id}/accept`
+
+Accepts a generated variant, applying it to the project timeline.
+
+### `GET /api/variant/{variant_id}/score`
+
+Retrieves detailed Gemini-based scoring for a variant, comparing it to the original prompt or the original video segment.
+
+**Query Parameters:**
+
+- `compare_to`: `prompt` (default) or `original`. Specifies what the variant should be compared against for scoring.
+
+**Response:**
+
+```json
+{
+  "variant_id": "string",
+  "score": {
+    "overall_rating": "string",
+    "details": "string",
+    "fidelity_to_prompt": "string",
+    "visual_quality": "string"
+  }
+}
+```
+
+## Exports
+
+### `POST /api/export`
+
+Initiates a video export job for a project.
+
+**Request Body:**
+
+```json
+{
+  "project_id": "string",
+  "format": "mp4"
+}
+```
+
+**Response:**
+
+```json
+{
+  "export_job_id": "string",
+  "status": "pending",
+  "message": "Export job created — check status with get_export_status"
+}
+```
+
+### `GET /api/export/{export_job_id}`
+
+Check the status of an export job and retrieve the output URLs when it is done.
+
+**Response:**
+
+```json
+{
+  "export_job_id": "string",
+  "status": "pending" | "running" | "completed" | "failed",
+  "export_url": "string",
+  "download_url": "string",
+  "error": "string"
 }
 ```

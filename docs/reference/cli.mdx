@@ -18,236 +18,185 @@ description: "The Iris command-line interface for scripting and agent-driven edi
   </div>
 </div>
 
-## CLI Commands
-
-This section details the available commands in the Iris CLI, providing examples and expected outputs for each.
-
-### 3.1 Analyze
+## Installation
 
 ```bash
-iris analyze proj_abc123 --json
+pip install iris-cli
 ```
-Expected output:
-```json
-{"scenes": [...], "entities": [...], "suggestions": [...]}
-```
-Analyzes the video content to extract scenes, entities, and edit suggestions.
 
-### 3.2 Identify
+## Configuration
 
-```bash
-iris identify proj_abc123 --prompt "red car" --start 0 --end 10 --json
-```
-Expected output:
-```json
-{"region": {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4}, "confidence": 0.9}
-```
-Identifies a specific region within a video segment based on a prompt.
+The CLI reads configuration from environment variables or a `.env` file in the current directory.
 
-### 3.3 Generate
+- `IRIS_API_URL`: The URL of the Iris backend API (e.g., `http://localhost:8000`)
+- `IRIS_AUTH_TOKEN`: Your authentication token for the Iris API
+
+## General Commands
+
+### `iris health`
+
+Checks the health and status of the Iris backend and AI services.
 
 ```bash
-iris generate proj_abc123 --start 2.0 --end 4.0 --bbox "0.1,0.2,0.3,0.4" --prompt "make it rain" --json
+iris health
 ```
-Expected output:
-```json
-{"job_id": "gen_abc", "status": "pending", "variants": ["var_0", "var_1"]}
-```
-Generates AI edit variants for a specified region and prompt.
 
-### 3.4 Accept
+### `iris me`
+
+Retrieves the profile of the currently authenticated user.
 
 ```bash
-iris accept gen_abc --variant var_0 --json
+iris me
 ```
-Expected output:
-```json
-{"segment_id": "seg_abc", "status": "accepted"}
-```
-Accepts a generated variant and applies it to the timeline.
 
-### 3.5 Narrate
+## Project Management
 
-```bash
-iris narrate proj_abc123 --text "This is a narration." --start 0 --end 5 --json
-```
-Expected output:
-```json
-{"narration_job_id": "nar_abc", "status": "completed", "audio_url": "https://..."}
-```
-Adds AI-generated narration to a video segment.
+### `iris project list`
 
-### 3.6 Export
+Lists all projects associated with your account.
 
 ```bash
-iris export proj_abc123 --json
-```
-Expected output:
-```json
-{"export_job_id": "exp_abc", "status": "completed", "download_url": "https://..."}
-```
-Exports the final video.
-
-### 3.7 Preview
-
-**Single frame:**
-```bash
-iris preview proj_abc123 --frame 3.5 --json
-```
-Expected output:
-```json
-{"ts": 3.5, "url": "https://..."}
+iris project list
 ```
 
-**Thumbnail strip (for scrubbing):**
-```bash
-iris preview proj_abc123 --strip 0 10 --fps 1 --json
-```
-Expected output:
-```json
-{"frames": [{"ts": 0.0, "url": "..."}, {"ts": 1.0, "url": "..."}, ...]}
-```
+### `iris project create --name <name> --description <description> --video-url <url>`
 
-**Low-res range preview:**
-```bash
-iris preview proj_abc123 --range 2 5 --json
-```
-Expected output:
-```json
-{"preview_url": "https://...", "duration": 3.0}
-```
-Use preview to verify the current state before committing edits. Much faster than full export.
-
-### 3.8 Timeline Surgery
-
-**Split a segment:**
-```bash
-iris split --project proj_abc123 --segment seg_1 --at 3.5
-```
-Splits the segment into two at timestamp 3.5s. Both halves inherit the original source.
-
-**Trim a segment:**
-```bash
-iris trim --project proj_abc123 --segment seg_1 --start 2.0 --end 4.0
-```
-Adjusts segment boundaries. New range must be within original bounds.
-
-**Delete a segment:**
-```bash
-iris delete --project proj_abc123 --segment seg_1
-```
-Soft-deletes (marks inactive). Can be restored via snapshot/revert.
-
-**Save a checkpoint:**
-```bash
-iris snapshot proj_abc123
-```
-Expected output:
-```json
-{"snapshot_id": "snap_abc", "created_at": "...", "segment_count": 5}
-```
-
-**Revert to checkpoint:**
-```bash
-iris revert proj_abc123 --snapshot snap_abc
-```
-Restores the entire timeline to the saved state.
-
-Always take a snapshot before making destructive changes (delete, reorder, bulk accept).
-
-### 3.9 Color Grading
-
-**Apply grading adjustments:**
-```bash
-iris grade --segment seg_1 --brightness 20 --saturation -10 --temperature 5500
-```
-Parameters (all optional, at least one required):
-- `--brightness`: -100 to 100
-- `--contrast`: -100 to 100
-- `--saturation`: -100 to 100
-- `--temperature`: 2000 to 10000 (Kelvin)
-- `--gamma`: 0.1 to 3.0
-- `--hue-shift`: -180 to 180
-
-Creates a new graded segment. The original is preserved.
-
-**Preview grade on a single frame (fast):**
-```bash
-iris grade-preview --segment seg_1 --brightness 20 --saturation -10
-```
-Returns a preview frame URL. Use this to check before applying to the full segment.
-
-### 3.10 Quality Scoring
-
-**Score a single variant:**
-```bash
-iris score --variant var_0 --json
-```
-Expected output:
-```json
-{
-  "visual_coherence": {"score": 8.2, "issues": ["slight_color_shift"]},
-  "prompt_adherence": {"score": 7.5, "misses": ["background_detail"]},
-  "temporal_consistency": {"score": 9.0, "flicker_detected": false},
-  "edge_quality": {"score": 6.8, "issues": ["halo_artifacts"]},
-  "overall": 7.9,
-  "recommendation": "accept"
-}
-```
-
-**Compare multiple variants:**
-```bash
-iris score --compare var_0 var_1 var_2 --json
-```
-Returns rankings with strengths/weaknesses for each. Use this to pick the best variant intelligently.
-
-**Check timeline continuity:**
-```bash
-iris score --continuity proj_abc123 --json
-```
-Analyzes segment boundaries for color jumps, flicker, and temporal inconsistency.
-Expected output:
-```json
-{"overall": 0.92, "issues": [{"at_ts": 5.0, "type": "color_jump", "severity": "medium"}]}
-```
-Run this after making multiple edits to catch consistency problems.
-
-### 3.11 Remix
+Creates a new project with an initial video asset.
 
 ```bash
-iris remix --variant var_0 --modifier "make the colors warmer, fix edge artifacts"
+iris project create --name "My Vacation Reel" --description "Highlights from the trip" --video-url "s3://my-bucket/vacation.mp4"
 ```
-Parameters:
-- `--variant` / `-v`: Source variant ID to refine.
-- `--modifier` / `-m`: How to adjust the variant.
-- `--preserve-composition`: Keep subject placement, only adjust style (default true).
 
-Creates a new generation job based on the existing variant. Much faster than starting over.
-Use remix when a variant is close but not right — "more vivid", "less saturated", "fix the edges".
+### `iris project get <project_id>`
 
-### 3.12 Batch Operations
+Retrieves details for a specific project.
 
-**Batch generate (up to 10 edits in parallel):**
 ```bash
-iris batch-generate --edits edits.json
+iris project get proj_abc123
 ```
-Where `edits.json` contains:
-```json
-[
-  {"project_id": "proj_abc", "start_ts": 2.0, "end_ts": 4.0, "bbox": {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4}, "prompt": "make it rain"},
-  {"project_id": "proj_abc", "start_ts": 6.0, "end_ts": 8.0, "bbox": {"x": 0.5, "y": 0.3, "w": 0.3, "h": 0.3}, "prompt": "add snow"}
-]
-```
-Returns: `{"job_ids": ["job_1", "job_2", ...]}`
 
-**Batch accept:**
+### `iris project delete <project_id>`
+
+Deletes a project.
+
 ```bash
-iris batch-accept --accepts accepts.json
+iris project delete proj_abc123
 ```
-Where `accepts.json` contains:
-```json
-[{"job_id": "job_1", "variant_index": 0}, {"job_id": "job_2", "variant_index": 0}]
-```
-Returns: `{"segment_ids": ["seg_1", "seg_2", ...]}`
 
-Use batch operations when editing multiple segments at once. Take a snapshot first.
+### `iris project upload <project_id> --file <path_to_video> --name <file_name>`
+
+Uploads a local video file to an existing project.
+
+```bash
+iris project upload proj_abc123 --file ./my_clip.mp4 --name "My Clip"
+```
+
+### `iris project preview-frame <project_id> --ts <timestamp>`
+
+Extracts and returns a URL to a single preview frame from the project timeline.
+
+```bash
+iris project preview-frame proj_abc123 --ts 15.5
+```
+
+### `iris project preview-strip <project_id> --start <start_ts> --end <end_ts> [--fps <fps>]`
+
+Extracts and returns URLs to a strip of preview frames across a specified range.
+
+```bash
+iris project preview-strip proj_abc123 --start 10.0 --end 20.0 --fps 2.0
+```
+
+## Editing Operations
+
+### `iris segment split <segment_id> --at <split_ts>`
+
+Splits an existing segment into two new segments at the specified timestamp.
+
+```bash
+iris segment split seg_xyz789 --at 12.3
+```
+
+### `iris segment trim <segment_id> --start <new_start_ts> --end <new_end_ts>`
+
+Trims a segment to new start and end timestamps. The new range must be within the original segment's bounds.
+
+```bash
+iris segment trim seg_xyz789 --start 5.0 --end 10.0
+```
+
+### `iris segment delete <segment_id>`
+
+Soft-deletes a segment from the timeline.
+
+```bash
+iris segment delete seg_xyz789
+```
+
+### `iris segment color-grade <segment_id> [--brightness <val>] [--contrast <val>] [--saturation <val>] [--temperature <val>] [--gamma <val>] [--hue-shift <val>]`
+
+Applies color grade adjustments to a segment, creating a new generated segment.
+
+```bash
+iris segment color-grade seg_xyz789 --brightness 0.1 --contrast 1.1
+```
+
+### `iris segment grade-preview <segment_id> [--brightness <val>] [--contrast <val>] [--saturation <val>] [--temperature <val>] [--gamma <val>] [--hue-shift <val>]`
+
+Renders a preview frame of a segment with specified color adjustments.
+
+```bash
+iris segment grade-preview seg_xyz789 --saturation 1.5
+```
+
+## AI and Generation
+
+### `iris ai generate <project_id> --prompt <prompt_text> --start <start_ts> --end <end_ts> [--bbox <x,y,w,h>]`
+
+Initiates an AI-powered video generation job.
+
+```bash
+iris ai generate proj_abc123 --prompt "make the sky blue" --start 5.0 --end 7.0 --bbox "0.1,0.1,0.8,0.4"
+```
+
+### `iris job get <job_id>`
+
+Checks the status of a generation, entity, or other non-export job and retrieves any variant results.
+
+```bash
+iris job get job_def456
+```
+
+### `iris variant accept <variant_id>`
+
+Accepts a generated variant, applying it to the project timeline.
+
+```bash
+iris variant accept var_ghi789
+```
+
+### `iris variant score <variant_id> [--compare-to <prompt|original>]`
+
+Retrieves detailed Gemini-based scoring for a variant.
+
+```bash
+iris variant score var_ghi789 --compare-to original
+```
+
+## Exports
+
+### `iris export create <project_id> [--format <format>]`
+
+Initiates a video export job for a project.
+
+```bash
+iris export create proj_abc123 --format mp4
+```
+
+### `iris export get-status <export_job_id>`
+
+Checks the status of an export job and retrieves the output URLs when it is done.
+
+```bash
+iris export get-status exp_jkl012
+```

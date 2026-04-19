@@ -15,57 +15,20 @@ In this project, continuity is about preserving a chosen visual interpretation a
 
 That usually means:
 
-- keeping the accepted subject treatment coherent
-- helping the result survive motion and framing changes
-- reducing the feeling that a single frame was changed in isolation
+-   keeping the visual style consistent
+-   maintaining object persistence and appearance
+-   ensuring smooth transitions between edited and unedited segments
 
-## How entity detection works
+## Continuity Propagation
 
-After a user accepts a variant, Iris triggers entity detection. Gemini analyzes the accepted edit and searches the rest of the project timeline for appearances of the same entity — a person, object, or visual element — in other frames.
+When an edit is accepted, Iris analyzes the surrounding frames and segments to intelligently apply or adapt the changes. This might involve:
 
-Each discovered appearance is tracked as an **EntityAppearance** with:
+-   **Interpolation:** Smoothly blending the new edit with adjacent footage.
+-   **Style Transfer:** Applying the visual style of the accepted edit to nearby frames.
+-   **Object Tracking:** Ensuring modified objects maintain their identity and appearance as they move through the scene.
 
-- the frame timestamp where the entity appears
-- a bounding box around the entity in that frame
-- a confidence score indicating how certain the match is
+The goal is to minimize jarring cuts and ensure the overall video flows naturally, even after significant localized changes.
 
-This gives Iris a map of everywhere the edited subject shows up across the clip.
+## Agent-Assisted Continuity
 
-## The propagation flow
-
-Once entity appearances are known, the user can propagate the accepted edit to all of them:
-
-1. **Fan out** — `POST /api/propagate` takes the source variant, entity id, and prompt, then creates a sub-job for each appearance.
-2. **Generate per appearance** — each sub-job runs a localized generation at that appearance's frame and bounding box, using the source variant as reference.
-3. **Review individually** — the user reviews each propagation result one at a time. Results are not auto-applied unless `auto_apply` was set.
-4. **Apply selectively** — `POST /api/propagate/{job_id}/apply/{result_id}` commits a single result to the timeline.
-
-This keeps the user in control. A propagation might produce great results for close-up frames but poor ones for distant shots, so per-result review matters.
-
-## The continuity dashboard
-
-In pro mode, the continuity dashboard shows:
-
-- **Discovery status** — whether entity detection has run, how many appearances were found, and their confidence distribution
-- **Propagation progress** — how many appearances have been generated, how many are pending, and overall completion percentage
-- **Per-appearance results** — individual review cards showing the original frame, the propagated variant, and accept/reject controls
-
-## Supporting product features
-
-- Accepted edit flow in the inspector
-- Continuity dashboard and status tracking
-- Multi-frame generation session helpers
-- Project-level entity awareness
-
-## Why it matters
-
-A single good frame is not enough for believable video editing.
-
-The accepted result needs to carry through enough of the surrounding sequence that the viewer reads it as an intentional editorial decision.
-
-## Related implementation areas
-
-- `frontend/src/features/continuity/`
-- `backend/app/api/routes/propagate.py`
-- `backend/app/workers/propagate_job.py`
-
+The Iris agent is equipped with tools to help manage and evaluate continuity. For instance, the `score_continuity` tool allows the agent to assess how well an edit maintains visual consistency with its surroundings, providing feedback that can guide further refinement. This helps users and agents make informed decisions to preserve the overall integrity of the video.
