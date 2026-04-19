@@ -133,6 +133,25 @@ for a concrete judge-facing setup:
 
 the local gpu profile assumes the sam checkpoint is present at `gpu-worker/checkpoints/sam2.1_hiera_small.pt`. if that file is missing, the worker can still boot and answer `/health`, but sam requests will fail when first used.
 
+## iris CLI + agent skill
+
+install the CLI:
+
+```bash
+pip install -e ./cli
+iris auth login --base-url http://localhost:8000
+```
+
+install the agent skill (one-liner for any claude code user):
+
+```bash
+mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md
+```
+
+for other agents (codex, openclaw, cursor), paste the contents of `cli/SKILL.md` as a system prompt.
+
+docs: [docs.useiris.tech](https://docs.useiris.tech)
+
 ## current rough edges
 
 - frontend build currently warns about a large bundle
