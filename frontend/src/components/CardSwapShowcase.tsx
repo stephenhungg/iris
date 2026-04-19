@@ -128,7 +128,7 @@ export default function CardSwapShowcase({ cards = DEFAULT_CARDS }: CardSwapShow
     }
 
     swap()
-    intervalRef.current = window.setInterval(swap, 4200)
+    intervalRef.current = window.setInterval(swap, 6000)
 
     return () => {
       tlRef.current?.kill()
