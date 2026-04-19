@@ -11,7 +11,6 @@ import CardSwapShowcase from './components/CardSwapShowcase'
 import FloatingToolbar from './components/FloatingToolbar'
 import SmokeOrbBackground from './components/SmokeOrbBackground'
 import { useAuth } from './lib/useAuth'
-import { listProjects, type ProjectListItem } from './api/client'
 
 const IRIS_SVG = '/iris-logo.svg'
 const IRIS_METAL_TINT = '#badcff'
@@ -764,7 +763,6 @@ export default function App() {
   const [loaderDone, setLoaderDone] = useState(false)
   const runIntro = useIntroTimeline()
   const navigate = useNavigate()
-  const { status } = useAuth()
 
   // weighted smooth scroll (framer-style inertia)
   useEffect(() => {
@@ -786,18 +784,9 @@ export default function App() {
     })
   }, [loaderDone, runIntro])
 
-  const goStudio = useCallback(async () => {
-    if (status === 'authed') {
-      try {
-        const items: ProjectListItem[] = await listProjects()
-        navigate(items.length > 0 ? '/start?hasProjects=1' : '/start')
-        return
-      } catch {
-        // fall through to the shared start flow
-      }
-    }
-    navigate('/start')
-  }, [status, navigate])
+  const goStudio = useCallback(() => {
+    navigate('/projects')
+  }, [navigate])
 
   return (
     <div style={{ background: '#000', minHeight: '100vh', color: '#fff', textTransform: 'lowercase' }}>
