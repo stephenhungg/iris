@@ -30,24 +30,50 @@ interface ScrollFramesProps {
   children?: React.ReactNode
   className?: string
   dimOpacity?: number
+  idleMotion?: boolean
+  idleMotionAmplitudeFrames?: number
+  idleMotionSpeed?: number
 }
 
 export default function ScrollFrames({
   children,
   className = '',
   dimOpacity = 0.3,
+  idleMotion = false,
+  idleMotionAmplitudeFrames = 1.25,
+  idleMotionSpeed = 0.00018,
 }: ScrollFramesProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const framesRef = useRef<HTMLImageElement[]>([])
   const currentFrameRef = useRef(START_FRAME - 1)
   const rafRef = useRef<number>(0)
+  const viewportRef = useRef({ width: 0, height: 0, dpr: 1 })
   const [loaded, setLoaded] = useState(false)
   const [scrollOpacity, setScrollOpacity] = useState(1)
+
+  function syncCanvasSize() {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+
+    const dpr = window.devicePixelRatio || 1
+    const width = window.innerWidth
+    const height = window.innerHeight
+
+    viewportRef.current = { width, height, dpr }
+
+    if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+      canvas.width = width * dpr
+      canvas.height = height * dpr
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    }
+  }
 
   useEffect(() => {
     preloadFrames().then(frames => {
       framesRef.current = frames
       setLoaded(true)
+      syncCanvasSize()
       drawFrame(START_FRAME - 1) // start on last frame
     })
   }, [])
@@ -58,27 +84,19 @@ export default function ScrollFrames({
     const frames = framesRef.current
     if (!canvas || !ctx || !frames.length) return
 
-    const clamped = Math.max(0, Math.min(index, frames.length - 1))
+    const clamped = Math.round(Math.max(0, Math.min(index, frames.length - 1)))
     const frame = frames[clamped]
-    if (!frame?.naturalWidth) return
+    const { width, height } = viewportRef.current
 
-    // match canvas to viewport for full-bleed background
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = window.innerWidth * dpr
-    canvas.height = window.innerHeight * dpr
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    if (!frame?.naturalWidth || !width || !height) return
 
-    // cover-fit the frame into the canvas
-    const scale = Math.max(
-      window.innerWidth / frame.naturalWidth,
-      window.innerHeight / frame.naturalHeight,
-    )
+    const scale = Math.max(width / frame.naturalWidth, height / frame.naturalHeight)
     const w = frame.naturalWidth * scale
     const h = frame.naturalHeight * scale
-    const x = (window.innerWidth - w) / 2
-    const y = (window.innerHeight - h) / 2
+    const x = (width - w) / 2
+    const y = (height - h) / 2
 
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
+    ctx.clearRect(0, 0, width, height)
     ctx.drawImage(frame, x, y, w, h)
   }
 
@@ -89,21 +107,21 @@ export default function ScrollFrames({
     let currentSmooth = START_FRAME - 1
     let running = true
 
-    // gentle ambient motion when not scrolling
     let lastScrollTime = Date.now()
-    let ambientOffset = 0
+
+    const updateTargetFrame = (scrollTop: number, offset = 0) => {
+      const scrollRange = (document.documentElement.scrollHeight - window.innerHeight) * 0.3
+      const progress = Math.max(0, Math.min(1, scrollTop / scrollRange))
+      const frameRange = START_FRAME - END_FRAME
+      targetFrame = START_FRAME - 1 - progress * frameRange + offset
+    }
 
     function onScroll() {
       lastScrollTime = Date.now()
 
       const scrollTop = window.scrollY
-      // compress: full frame sequence plays within first 30% of page scroll
-      const scrollRange = (document.documentElement.scrollHeight - window.innerHeight) * 0.3
-      const progress = Math.max(0, Math.min(1, scrollTop / scrollRange))
-
-      // reverse: start at last frame, go backwards to 1/3
-      const frameRange = START_FRAME - END_FRAME
-      targetFrame = START_FRAME - 1 - progress * frameRange + ambientOffset
+      // reverse: start at last frame, go backwards to ~1/3 based on scroll only.
+      updateTargetFrame(scrollTop)
 
       // nonlinear fade: sharp exponential dropoff once you start scrolling
       // hits near-zero by ~40% of first viewport scroll
@@ -116,22 +134,20 @@ export default function ScrollFrames({
     }
 
     function onResize() {
-      drawFrame(Math.round(currentSmooth))
+      syncCanvasSize()
+      drawFrame(currentSmooth)
     }
 
     // smooth animation loop — lerps between current and target frame
     function animate(time = performance.now()) {
       if (!running) return
 
-      // keep the background subtly alive when the user pauses.
-      const idleTime = Date.now() - lastScrollTime
-      if (idleTime > 250) {
-        ambientOffset = Math.sin(time * 0.00045) * 6
-        const scrollTop = window.scrollY
-        const scrollRange = (document.documentElement.scrollHeight - window.innerHeight) * 0.3
-        const progress = Math.max(0, Math.min(1, scrollTop / scrollRange))
-        const frameRange = START_FRAME - END_FRAME
-        targetFrame = START_FRAME - 1 - progress * frameRange + ambientOffset
+      if (idleMotion) {
+        const idleTime = Date.now() - lastScrollTime
+        if (idleTime > 250) {
+          const ambientOffset = Math.sin(time * idleMotionSpeed) * idleMotionAmplitudeFrames
+          updateTargetFrame(window.scrollY, ambientOffset)
+        }
       }
 
       // lerp toward target
@@ -157,7 +173,7 @@ export default function ScrollFrames({
       window.removeEventListener('resize', onResize)
       cancelAnimationFrame(rafRef.current)
     }
-  }, [loaded])
+  }, [idleMotion, idleMotionAmplitudeFrames, idleMotionSpeed, loaded])
 
   return (
     <div className={`relative ${className}`}>

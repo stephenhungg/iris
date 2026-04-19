@@ -94,21 +94,22 @@ export default function SmokeOrbBackground() {
     resize()
     window.addEventListener('resize', resize)
 
-    let raf = 0
-    const start = performance.now()
-
-    const render = (now: number) => {
+    const render = (scrollY: number) => {
       gl.useProgram(program)
-      gl.uniform1f(timeUniform, (now - start) / 1000)
+      gl.uniform1f(timeUniform, scrollY * 0.0018)
       gl.uniform2f(resolutionUniform, canvas.width, canvas.height)
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-      raf = requestAnimationFrame(render)
     }
 
-    raf = requestAnimationFrame(render)
+    const handleScroll = () => {
+      render(window.scrollY || 0)
+    }
+
+    render(window.scrollY || 0)
+    window.addEventListener('scroll', handleScroll, { passive: true })
 
     return () => {
-      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('resize', resize)
       gl.deleteProgram(program)
       if (buffer) gl.deleteBuffer(buffer)

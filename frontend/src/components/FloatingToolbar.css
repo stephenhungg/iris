@@ -2,8 +2,8 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 26px;
-  top: auto;
+  top: 26px;
+  bottom: auto;
   margin-inline: auto;
   z-index: 60;
   pointer-events: none;
@@ -83,15 +83,6 @@
   overflow: hidden;
 }
 
-.floating-toolbar[data-theme="light"] {
-  background: rgba(242, 239, 232, 0.78);
-  border-color: rgba(83, 53, 23, 0.12);
-  box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.12);
-}
-
 .floating-toolbar::before {
   content: "";
   position: absolute;
@@ -101,12 +92,6 @@
     radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 46%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
   pointer-events: none;
-}
-
-.floating-toolbar[data-theme="light"]::before {
-  background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.38), transparent 46%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08));
 }
 
 .floating-toolbar::after {
@@ -132,8 +117,8 @@
   z-index: 2;
 }
 
-.floating-toolbar[data-theme="light"] .floating-toolbar-divider {
-  background: linear-gradient(180deg, transparent, rgba(83, 53, 23, 0.18), transparent);
+.floating-toolbar-divider-cta {
+  margin-inline: 4px 2px;
 }
 
 .floating-toolbar-button {
@@ -152,16 +137,8 @@
   transition: color 0.28s ease, transform 0.28s ease;
 }
 
-.floating-toolbar[data-theme="light"] .floating-toolbar-button {
-  color: rgba(46, 33, 18, 0.62);
-}
-
 .floating-toolbar-button:hover {
   color: rgba(255, 255, 255, 0.95);
-}
-
-.floating-toolbar[data-theme="light"] .floating-toolbar-button:hover {
-  color: rgba(46, 33, 18, 0.95);
 }
 
 .floating-toolbar-button svg {
@@ -172,10 +149,6 @@
 
 .floating-toolbar-button[data-active="true"] {
   color: #fff7e0;
-}
-
-.floating-toolbar[data-theme="light"] .floating-toolbar-button[data-active="true"] {
-  color: #4a331b;
 }
 
 .floating-toolbar-indicator {
@@ -243,9 +216,66 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
-.floating-toolbar[data-theme="light"] .floating-toolbar-indicator-inner {
-  background: rgba(240, 236, 228, 0.92);
-  box-shadow: inset 0 0 0 1px rgba(83, 53, 23, 0.08);
+.floating-toolbar-cta {
+  position: relative;
+  z-index: 3;
+  min-width: 184px;
+  height: 58px;
+  padding: 0 22px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: none;
+  transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+}
+
+.floating-toolbar-cta[data-variant="auth"] {
+  background: linear-gradient(135deg, rgba(12, 14, 18, 0.96), rgba(5, 6, 10, 0.94), rgba(16, 18, 22, 0.96));
+  border-color: rgba(186, 220, 255, 0.16);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 18px 42px rgba(118, 150, 188, 0.12);
+}
+
+.floating-toolbar-cta[data-variant="studio"] {
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.98) 0%, rgba(226, 232, 240, 0.96) 52%, rgba(255, 255, 255, 0.98) 100%);
+  border-color: rgba(255, 255, 255, 0.58);
+  color: #04070b;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.24) inset,
+    0 18px 50px rgba(186, 220, 255, 0.18);
+}
+
+.floating-toolbar-cta:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.floating-toolbar-cta[data-variant="auth"]:hover:not(:disabled) {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 22px 48px rgba(190, 220, 255, 0.16);
+}
+
+.floating-toolbar-cta[data-variant="studio"]:hover:not(:disabled) {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset,
+    0 24px 56px rgba(190, 220, 255, 0.24);
+}
+
+.floating-toolbar-cta:disabled {
+  cursor: default;
+  opacity: 0.72;
 }
 
 @keyframes floating-toolbar-spin {
@@ -259,6 +289,10 @@
 }
 
 @media (max-width: 720px) {
+  .floating-toolbar-wrap {
+    width: calc(100% - 18px);
+  }
+
   .floating-toolbar {
     gap: 3px;
     padding: 6px;
@@ -272,5 +306,12 @@
   .floating-toolbar-indicator {
     top: 6px;
     height: 50px;
+  }
+
+  .floating-toolbar-cta {
+    min-width: 0;
+    padding: 0 16px;
+    height: 50px;
+    font-size: 12px;
   }
 }

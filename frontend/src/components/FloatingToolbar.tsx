@@ -1,6 +1,8 @@
 import { Fragment, type ReactNode } from 'react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
+import { useAuth } from '../lib/useAuth'
 import './FloatingToolbar.css'
 
 type NavItem = {
@@ -44,13 +46,24 @@ function FeaturesIcon() {
   )
 }
 
-function VideoIcon() {
+function TerminalIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="3.5" y="4.5" width="17" height="15" rx="3.2" stroke="currentColor" />
-      <path d="M7.2 4.8v14.4M16.8 4.8v14.4" stroke="currentColor" />
-      <path d="M4.8 8.15h2.4M4.8 12h2.4M4.8 15.85h2.4M16.8 8.15h2.4M16.8 12h2.4M16.8 15.85h2.4" stroke="currentColor" strokeLinecap="round" />
-      <path d="m10.1 9.1 4.35 2.9-4.35 2.9z" fill="currentColor" stroke="currentColor" strokeLinejoin="round" />
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2.8" stroke="currentColor" />
+      <path d="m7.4 10 2.35 2.15L7.4 14.3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M11.9 14.15h4.7" stroke="currentColor" strokeLinecap="round" />
+      <path d="M3.9 8.5h16.2" stroke="currentColor" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function GoogleGlyph({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden style={{ display: 'block' }}>
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.6 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35 26.7 36 24 36c-5.4 0-9.9-3.4-11.3-8.1l-6.5 5C9.6 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.2 5.2C41.8 35.8 44 30.3 44 24c0-1.2-.1-2.3-.4-3.5z" />
     </svg>
   )
 }
@@ -58,11 +71,13 @@ function VideoIcon() {
 const items: NavItem[] = [
   { id: 'top', label: 'Landing', icon: <IrisToolbarIcon /> },
   { id: 'about', label: 'About', icon: <AboutIcon /> },
-  { id: 'features', label: 'Features', icon: <FeaturesIcon /> },
-  { id: 'rewrite', label: 'Rewrite', icon: <VideoIcon /> },
+  { id: 'features', label: 'Workflow', icon: <FeaturesIcon /> },
+  { id: 'agents', label: 'Agents', icon: <TerminalIcon /> },
 ]
 
 export default function FloatingToolbar() {
+  const navigate = useNavigate()
+  const { status, signInWithGoogle } = useAuth()
   const [activeId, setActiveId] = useState('top')
   const [indicator, setIndicator] = useState({ left: 8, width: 58 })
   const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({})
@@ -75,24 +90,20 @@ export default function FloatingToolbar() {
         return
       }
 
-      const ids = ['about', 'features', 'rewrite']
-      const viewportAnchor = window.innerHeight * 0.42
-      let closest = ids[0]
-      let distance = Number.POSITIVE_INFINITY
+      const ids = ['about', 'features', 'agents']
+      const viewportAnchor = window.innerHeight * 0.3
+      let current = ids[0]
 
       ids.forEach((id) => {
         const el = document.getElementById(id)
         if (!el) return
         const rect = el.getBoundingClientRect()
-        const center = rect.top + rect.height * 0.35
-        const delta = Math.abs(center - viewportAnchor)
-        if (delta < distance) {
-          distance = delta
-          closest = id
+        if (rect.top <= viewportAnchor) {
+          current = id
         }
       })
 
-      setActiveId(closest)
+      setActiveId(current)
     }
 
     updateActive()
@@ -135,6 +146,24 @@ export default function FloatingToolbar() {
     return () => window.removeEventListener('resize', onResize)
   }, [activeId])
 
+  const cta = useMemo(() => {
+    if (status === 'authed') {
+      return {
+        label: 'studio',
+        onClick: () => navigate('/projects'),
+        variant: 'studio' as const,
+      }
+    }
+
+    return {
+      label: status === 'loading' ? 'loading' : 'continue with google',
+      onClick: () => {
+        if (status !== 'loading') void signInWithGoogle()
+      },
+      variant: 'auth' as const,
+    }
+  }, [navigate, signInWithGoogle, status])
+
   const scrollToSection = (id: string) => {
     if (id === 'top') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -142,7 +171,7 @@ export default function FloatingToolbar() {
     }
     const section = document.getElementById(id)
     if (!section) return
-    const absoluteTop = window.scrollY + section.getBoundingClientRect().top - 88
+    const absoluteTop = window.scrollY + section.getBoundingClientRect().top - 112
     window.scrollTo({ top: Math.max(0, absoluteTop), behavior: 'smooth' })
   }
 
@@ -150,9 +179,7 @@ export default function FloatingToolbar() {
     <motion.div
       data-intro="nav"
       className="floating-toolbar-wrap"
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+      initial={false}
     >
       <div className="floating-toolbar-ambient" />
 
@@ -185,6 +212,20 @@ export default function FloatingToolbar() {
             {index < items.length - 1 ? <div className="floating-toolbar-divider" /> : null}
           </Fragment>
         ))}
+
+        <div className="floating-toolbar-divider floating-toolbar-divider-cta" />
+
+        <button
+          type="button"
+          className="floating-toolbar-cta"
+          data-variant={cta.variant}
+          onClick={cta.onClick}
+          disabled={status === 'loading'}
+          aria-label={cta.variant === 'studio' ? 'Open studio' : 'Continue with Google'}
+        >
+          {cta.variant === 'auth' && status !== 'loading' ? <GoogleGlyph /> : null}
+          <span>{cta.label}</span>
+        </button>
       </div>
     </motion.div>
   )

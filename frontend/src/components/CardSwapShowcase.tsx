@@ -12,27 +12,27 @@ type ShowcaseCard = {
 const DEFAULT_CARDS: ShowcaseCard[] = [
   {
     image: '/frames/frame_120.jpg',
-    label: 'gemini / planning',
-    title: 'intent to structure',
-    description: 'Prompt-driven scene direction turns vague taste into concrete editing options with tone, framing, and timing.',
+    label: 'Planning / intent',
+    title: 'intent into structure',
+    description: 'Prompt-driven direction turns a rough idea into concrete editing options with timing, framing, and purpose.',
   },
   {
     image: '/frames/frame_100.jpg',
-    label: 'veo / generation',
-    title: 'new visuals on demand',
-    description: 'Generate alternate realities for the exact region you selected, then choose the interpretation that feels right.',
+    label: 'Generation / variants',
+    title: 'multiple takes, one decision',
+    description: 'Generate alternate outcomes for the exact region you selected, then compare the options before committing.',
   },
   {
     image: '/frames/frame_060.jpg',
-    label: 'sam2 / tracking',
-    title: 'continuity across frames',
-    description: 'Once an entity is identified, the system can follow it through the shot so the edit stays coherent.',
+    label: 'Tracking / continuity',
+    title: 'continuity through the cut',
+    description: 'Once a subject is identified, Iris can follow it through surrounding frames so the edit stays coherent.',
   },
   {
     image: '/frames/frame_030.jpg',
-    label: 'elevenlabs / voice',
-    title: 'narration and reveal',
-    description: 'Layer voiceover and presentation polish on top of the visual change so the transformation lands harder.',
+    label: 'Workflow / delivery',
+    title: 'from edit to export',
+    description: 'Keep narration, presentation, and export inside the same workflow instead of stitching together disconnected tools.',
   },
 ]
 
@@ -142,30 +142,30 @@ export default function CardSwapShowcase({ cards = DEFAULT_CARDS }: CardSwapShow
     <div className="card-swap-showcase">
       <div className="card-swap-copy">
         <p style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.22)', letterSpacing: '0.16em', margin: '0 0 24px' }}>
-          live system stack
+          product workflow
         </p>
         <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(40px, 5vw, 72px)', fontWeight: 500, lineHeight: 0.95, letterSpacing: '-0.05em', color: '#fff', margin: '0 0 28px', textTransform: 'lowercase' }}>
-          intelligence,
+          planning,
           <br />
           generation,
           <br />
-          direction.
+          continuity.
         </h3>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: '18px', lineHeight: 1.7, color: 'rgba(255,255,255,0.46)', margin: '0 0 28px', maxWidth: '34ch' }}>
-          The stack doesn&apos;t stop at one model. Iris layers planning, generation, tracking, and presentation into a single editing gesture.
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: '19px', lineHeight: 1.72, color: 'rgba(255,255,255,0.5)', margin: '0 0 28px', maxWidth: '34ch' }}>
+          Iris is not a one-shot generator. It layers planning, generation, tracking, and continuity into a single editing workflow.
         </p>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: '15px', lineHeight: 1.8, color: 'rgba(255,255,255,0.32)', margin: '0 0 40px', maxWidth: '38ch' }}>
-          Prompt the moment, preview multiple outcomes, and keep the strongest interpretation moving through the cut with enough continuity to feel authored.
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: '16px', lineHeight: 1.8, color: 'rgba(255,255,255,0.38)', margin: '0 0 40px', maxWidth: '38ch' }}>
+          Select a moment, preview multiple outcomes, and keep the strongest interpretation moving through the cut with enough continuity to feel authored.
         </p>
         <div style={{ display: 'grid', gap: '14px', maxWidth: '36ch' }}>
           {[
-            'prompt-first editing instead of panel-first workflows',
-            'stacked generation passes with human selection at the center',
-            'motion, continuity, and audio treated as one composed outcome',
+            'Prompt the moment instead of hunting through tool panels.',
+            'Review multiple variants before committing to the cut.',
+            'Keep motion, continuity, and delivery inside one workflow.',
           ].map((item) => (
             <div key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.18)', letterSpacing: '0.18em', marginTop: '6px' }}>+</span>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: 1.7, color: 'rgba(255,255,255,0.26)', margin: 0 }}>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.72, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
                 {item}
               </p>
             </div>

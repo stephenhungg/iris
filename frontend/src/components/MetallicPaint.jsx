@@ -296,6 +296,7 @@ export default function MetallicPaint({
   text = undefined,
   textOptions = {},
   seed = 42,
+  startTime = 0,
   scale = 4,
   refraction = 0.01,
   blur = 0.015,
@@ -573,6 +574,7 @@ export default function MetallicPaint({
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
+    animTimeRef.current = startTime;
 
     const render = time => {
       const delta = time - lastTimeRef.current;
@@ -598,7 +600,7 @@ export default function MetallicPaint({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       canvas.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [ready, textureReady]);
+  }, [ready, startTime, textureReady]);
 
   return <canvas ref={canvasRef} className="paint-container" />;
 }
