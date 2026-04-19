@@ -33,5 +33,6 @@ jobs:
               sleep 2
             done
 
-            # clean up old images
-            docker image prune -f
+            # aggressive cleanup — VPS only has 9GB disk
+            docker system prune -af --volumes 2>/dev/null || true
+            docker builder prune -af 2>/dev/null || true
