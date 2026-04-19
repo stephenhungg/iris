@@ -17,7 +17,7 @@ const DEFAULT_CARDS: ShowcaseCard[] = [
     description: 'Prompt-driven direction turns a rough idea into concrete editing options with timing, framing, and purpose.',
   },
   {
-    image: '/frames/card-docs.png',
+    image: '/frames/card-generation.gif',
     label: 'Generation / variants',
     title: 'multiple takes, one decision',
     description: 'Generate alternate outcomes for the exact region you selected, then compare the options before committing.',
