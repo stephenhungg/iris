@@ -2,10 +2,15 @@ import { useEffect, useState } from 'react';
 import { useEDL, clipAtTime, sourceTimeFor, type Clip } from '../stores/edl';
 import { useGenerationSession } from '../hooks/useGenerationSession';
 import { GenerationReveal } from '../features/reveal/GenerationReveal';
+import type { ContinuityDashboardController } from '../features/continuity/useContinuityDashboard';
 
 const HINT_DISMISS_KEY = 'iris.vibe.hintDismissed';
 
-export function VibePrompt() {
+export function VibePrompt({
+  continuity,
+}: {
+  continuity: ContinuityDashboardController;
+}) {
   const { state } = useEDL();
   const [lockedContext, setLockedContext] = useState<{
     clip: Clip;
@@ -41,6 +46,14 @@ export function VibePrompt() {
     clip: activeClip,
     bbox: state.bbox,
     previewFrameTs: activePreviewFrameTs,
+    onAccepted: async ({ acceptResponse, prompt, sourceVariantUrl }) => {
+      await continuity.beginAcceptedEdit({
+        prompt,
+        sourceVariantUrl,
+        segmentId: acceptResponse.segment_id,
+        entityJobId: acceptResponse.entity_job_id,
+      });
+    },
   });
   const activeSession =
     session.busy || session.variants.length > 0 || session.acceptingIdx != null;

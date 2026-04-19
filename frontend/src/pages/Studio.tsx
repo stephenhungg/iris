@@ -19,7 +19,7 @@ import { Inspector } from "../components/Inspector";
 import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
-import { AgentChat } from "../components/AgentChat";
+import { VibePrompt } from "../components/VibePrompt";
 import { VideoScrubber } from "../components/VideoScrubber";
 import { AgentProvider } from "../stores/agent";
 import {
@@ -792,6 +792,7 @@ function StudioInner({
                   }))}
                 />
               )}
+              {mode === 'vibe' && <VibePrompt continuity={continuity} />}
             </>
           ) : hydratingProject ? (
             <div
@@ -823,25 +824,26 @@ function StudioInner({
         />
 
         <aside className="studio__right">
-          {mode === 'vibe' ? (
-            <AgentChat projectId={continuityProjectId} />
-          ) : (
-            <>
-              <div style={{ padding: "12px 12px 0" }}>
-                <EditorChecklist
-                  projectId={continuityProjectId}
-                  hasSources={hasSources}
-                  hasSelection={Boolean(state.selectedId)}
-                  hasBbox={Boolean(state.bbox)}
-                  hasAcceptedEdit={hasAcceptedEdit}
-                  hasContinuityPack={continuity.hasPropagatableAppearances}
-                  continuityComplete={continuityComplete}
-                  onImport={() => fileInputRef.current?.click()}
-                />
-              </div>
-              <Inspector mode={mode} continuity={continuity} />
-            </>
-          )}
+          <>
+            <div style={{ padding: "12px 12px 0" }}>
+              <EditorChecklist
+                projectId={continuityProjectId}
+                hasSources={hasSources}
+                hasSelection={Boolean(state.selectedId)}
+                hasBbox={Boolean(state.bbox)}
+                hasAcceptedEdit={hasAcceptedEdit}
+                hasContinuityPack={continuity.hasPropagatableAppearances}
+                continuityComplete={continuityComplete}
+                onImport={() => fileInputRef.current?.click()}
+              />
+            </div>
+            <Inspector
+              mode={mode}
+              continuity={continuity}
+              projectId={continuityProjectId}
+              showAiTab={mode === 'pro'}
+            />
+          </>
         </aside>
       </section>
 

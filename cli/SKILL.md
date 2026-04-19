@@ -81,7 +81,7 @@ Follow these steps for any video editing task. Steps marked [ASK] require user c
 
 ## 3. Command Reference
 
-All commands output JSON by default. Append `--human` for pretty-printed output. For scripting, use `--json` explicitly.
+Commands default to human-readable output. Append `--json` for machine-readable output when scripting.
 
 ### 3.1 Auth
 

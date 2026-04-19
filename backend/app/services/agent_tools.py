@@ -739,5 +739,610 @@ async def _export_video(
     return {
         "export_job_id": job.id,
         "status": "pending",
-        "message": "Export job created — check status with get_job_status",
+        "message": "Export job created — check status with get_export_status",
+    }
+
+
+@_register("get_export_status")
+async def _get_export_status(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Fetch export job status + URLs — mirrors GET /api/export/{export_job_id}."""
+    export_job_id: str = args["export_job_id"]
+
+    job = await db.get(Job, export_job_id)
+    if job is None or job.kind != "export":
+        raise ValueError(f"export job not found: {export_job_id}")
+
+    proj = await db.get(Project, job.project_id)
+    if proj is None or proj.session_id != session_id:
+        raise ValueError(f"export job not found: {export_job_id}")
+
+    payload = job.payload or {}
+    export_url = payload.get("export_url")
+    download_url: str | None = None
+    if export_url:
+        export_url = storage.normalize_url_like(export_url, fallback=export_url)
+        key = storage.key_from_url(export_url)
+        if key:
+            download_url = storage.download_url_for_key(
+                key,
+                filename=f"iris-{job.project_id[:8]}.mp4",
+            )
+        else:
+            download_url = export_url
+
+    return {
+        "export_job_id": job.id,
+        "status": job.status,
+        "export_url": export_url,
+        "download_url": download_url,
+        "error": job.error,
+    }
+
+
+@_register("preview_frame")
+async def _preview_frame(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Extract and publish a single preview frame."""
+    project_id: str = args["project_id"]
+    ts: float = float(args["ts"])
+
+    proj = await _get_project_or_error(db, project_id, session_id)
+    _validate_preview_timestamp(ts, proj.duration)
+    items = await build_timeline(db, proj)
+    return await _extract_preview_frame_result(proj, items, ts)
+
+
+@_register("preview_strip")
+async def _preview_strip(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Extract a strip of preview frames across a range."""
+    project_id: str = args["project_id"]
+    start: float = float(args["start"])
+    end: float = float(args["end"])
+    fps_sampled: float = float(args.get("fps", 1.0))
+
+    if fps_sampled <= 0:
+        raise ValueError("fps must be > 0")
+
+    proj = await _get_project_or_error(db, project_id, session_id)
+    _validate_preview_bounds(start, end, proj.duration)
+    items = await build_timeline(db, proj)
+
+    step = 1.0 / fps_sampled
+    frame_timestamps: list[float] = []
+    ts = start
+    while ts < end - 1e-6:
+        frame_timestamps.append(round(ts, 6))
+        ts += step
+    if not frame_timestamps or frame_timestamps[-1] < end - 1e-6:
+        frame_timestamps.append(round(end, 6))
+
+    frames = [
+        await _extract_preview_frame_result(proj, items, frame_ts)
+        for frame_ts in frame_timestamps
+    ]
+    return {"frames": frames}
+
+
+@_register("split_segment")
+async def _split_segment(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Split a segment into left and right pieces."""
+    project_id: str = args["project_id"]
+    segment_id: str = args["segment_id"]
+    split_ts: float = float(args["split_ts"])
+
+    await _get_project_or_error(db, project_id, session_id)
+    segment = await _get_segment_or_error(db, project_id, segment_id)
+    if not (segment.start_ts < split_ts < segment.end_ts):
+        raise ValueError("split_ts must be within the segment bounds")
+
+    left = Segment(
+        project_id=segment.project_id,
+        start_ts=segment.start_ts,
+        end_ts=split_ts,
+        source=segment.source,
+        url=segment.url,
+        variant_id=segment.variant_id,
+        order_index=segment.order_index,
+        active=True,
+    )
+    right = Segment(
+        project_id=segment.project_id,
+        start_ts=split_ts,
+        end_ts=segment.end_ts,
+        source=segment.source,
+        url=segment.url,
+        variant_id=segment.variant_id,
+        order_index=segment.order_index + 1,
+        active=True,
+    )
+    segment.active = False
+
+    db.add_all([left, right])
+    await db.commit()
+    await db.refresh(left)
+    await db.refresh(right)
+
+    return {
+        "left": _segment_dict(left),
+        "right": _segment_dict(right),
+    }
+
+
+@_register("trim_segment")
+async def _trim_segment(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Trim a segment within its current bounds."""
+    project_id: str = args["project_id"]
+    segment_id: str = args["segment_id"]
+    new_start_ts: float = float(args["new_start_ts"])
+    new_end_ts: float = float(args["new_end_ts"])
+
+    await _get_project_or_error(db, project_id, session_id)
+    segment = await _get_segment_or_error(db, project_id, segment_id)
+
+    if new_start_ts >= new_end_ts:
+        raise ValueError("invalid segment range")
+    if new_start_ts < segment.start_ts or new_end_ts > segment.end_ts:
+        raise ValueError("trim range must stay within the original segment bounds")
+
+    segment.start_ts = new_start_ts
+    segment.end_ts = new_end_ts
+    await db.commit()
+    await db.refresh(segment)
+    return _segment_dict(segment)
+
+
+@_register("delete_segment")
+async def _delete_segment(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Soft-delete a segment."""
+    project_id: str = args["project_id"]
+    segment_id: str = args["segment_id"]
+
+    await _get_project_or_error(db, project_id, session_id)
+    segment = await _get_segment_or_error(db, project_id, segment_id)
+    segment.active = False
+    await db.commit()
+    return {"deleted": True}
+
+
+@_register("color_grade")
+async def _color_grade(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Apply grade adjustments to a segment and create a generated replacement."""
+    segment_id: str = args["segment_id"]
+    adjustments = {
+        key: args[key]
+        for key in (
+            "brightness",
+            "contrast",
+            "saturation",
+            "temperature",
+            "gamma",
+            "hue_shift",
+        )
+        if key in args and args[key] is not None
+    }
+
+    segment, _project = await _get_owned_segment_or_error(db, segment_id, session_id)
+    input_path = await storage.path_from_url(segment.url)
+    output_path, _ = storage.new_path("graded", "mp4")
+
+    await color_service.apply_grade(
+        input_path=input_path,
+        output_path=output_path,
+        adjustments=adjustments,
+    )
+    graded_url = await storage.publish(output_path)
+
+    await _deactivate_overlapping_generated_segments(db, segment)
+
+    graded_segment = Segment(
+        project_id=segment.project_id,
+        start_ts=segment.start_ts,
+        end_ts=segment.end_ts,
+        source="generated",
+        url=graded_url,
+        order_index=segment.order_index,
+        active=True,
+    )
+    db.add(graded_segment)
+    await db.commit()
+    await db.refresh(graded_segment)
+
+    return {
+        "segment_id": graded_segment.id,
+        "graded_url": graded_url,
+    }
+
+
+@_register("grade_preview")
+async def _grade_preview(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Render a graded preview frame for a segment."""
+    segment_id: str = args["segment_id"]
+    adjustments = {
+        key: args[key]
+        for key in (
+            "brightness",
+            "contrast",
+            "saturation",
+            "temperature",
+            "gamma",
+            "hue_shift",
+        )
+        if key in args and args[key] is not None
+    }
+
+    segment, _project = await _get_owned_segment_or_error(db, segment_id, session_id)
+    input_path = await storage.path_from_url(segment.url)
+    probe_data = await ffmpeg.probe(input_path)
+    frame_ts = max(float(probe_data.get("duration", 0.0)) / 2.0, 0.0)
+
+    frame_path, _ = storage.new_path("previews", "jpg")
+    preview_path, _ = storage.new_path("previews", "jpg")
+
+    await ffmpeg.extract_frame(input_path, frame_ts, frame_path)
+    await color_service.apply_grade_to_frame(
+        input_path=frame_path,
+        output_path=preview_path,
+        adjustments=adjustments,
+    )
+    preview_frame_url = await storage.publish(preview_path)
+    return {"preview_frame_url": preview_frame_url}
+
+
+@_register("score_variant")
+async def _score_variant(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Get detailed Gemini-based scoring for a variant."""
+    variant_id: str = args["variant_id"]
+    compare_to = str(args.get("compare_to", "prompt"))
+    if compare_to not in {"prompt", "original"}:
+        raise ValueError("compare_to must be 'prompt' or 'original'")
+
+    variant = await _get_variant_for_session_or_error(db, variant_id, session_id)
+    if not variant.url:
+        raise ValueError("variant has no video url")
+    if not variant.job.prompt:
+        raise ValueError("variant job has no prompt")
+
+    variant_video_path = await storage.path_from_url(variant.url)
+    if not variant_video_path.exists():
+        raise ValueError("variant video not found")
+
+    client = _get_gemini_client()
+    with tempfile.TemporaryDirectory(prefix="iris-agent-score-") as temp_root:
+        temp_dir = Path(temp_root)
+        frame_paths = await _sample_video_frames(
+            src=variant_video_path,
+            temp_dir=temp_dir,
+            prefix="variant",
+            num_frames=FRAME_COUNT,
+        )
+
+        prompt_text = _score_prompt(compare_to, variant.job.prompt)
+        if compare_to == "original":
+            if variant.job.start_ts is None or variant.job.end_ts is None:
+                raise ValueError("job has no segment range")
+            original_source = Path(variant.job.project.video_path)
+            if not original_source.exists():
+                original_source = await storage.path_from_url(variant.job.project.video_url)
+            if not original_source.exists():
+                raise ValueError("original project video not found")
+
+            original_paths = await _sample_video_frames(
+                src=original_source,
+                temp_dir=temp_dir,
+                prefix="original",
+                num_frames=FRAME_COUNT,
+                start_ts=variant.job.start_ts,
+                end_ts=variant.job.end_ts,
+            )
+            prompt_text = (
+                f"{prompt_text}\n"
+                "the first set of frames are from the original source segment. "
+                "the second set of frames are from the generated variant."
+            )
+            frame_paths = [*original_paths, *frame_paths]
+        else:
+            prompt_text = (
+                f"{prompt_text}\n"
+                "all attached frames are sampled from the generated variant."
+            )
+
+        return await _generate_json(
+            client=client,
+            prompt_text=prompt_text,
+            frame_paths=frame_paths,
+        )
+
+
+@_register("score_continuity")
+async def _score_continuity(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Check continuity across project timeline boundaries."""
+    project_id: str = args["project_id"]
+    proj = await _get_project_or_error(db, project_id, session_id)
+    timeline = await build_timeline(db, proj)
+    if len(timeline) < 2:
+        return {"overall": 10.0, "issues": []}
+
+    client = _get_gemini_client()
+    analyses: list[tuple[float, dict[str, Any]]] = []
+    with tempfile.TemporaryDirectory(prefix="iris-agent-continuity-") as temp_root:
+        temp_dir = Path(temp_root)
+        for index, (prev_item, next_item) in enumerate(zip(timeline, timeline[1:]), start=1):
+            boundary_ts = prev_item.end_ts
+            prev_frame = await _boundary_frame(
+                proj=proj,
+                item=prev_item,
+                is_end=True,
+                output_path=temp_dir / f"boundary_{index:02d}_prev.png",
+            )
+            next_frame = await _boundary_frame(
+                proj=proj,
+                item=next_item,
+                is_end=False,
+                output_path=temp_dir / f"boundary_{index:02d}_next.png",
+            )
+            payload = await _generate_json(
+                client=client,
+                prompt_text=_continuity_prompt(boundary_ts),
+                frame_paths=[prev_frame, next_frame],
+            )
+            analyses.append((boundary_ts, payload))
+
+    issues = [
+        {
+            "at_ts": boundary_ts,
+            "type": issue.get("type", "unknown"),
+            "severity": float(issue.get("severity", 0.0)),
+        }
+        for boundary_ts, analysis in analyses
+        for issue in analysis.get("issues", [])
+    ]
+    overall = sum(float(analysis.get("score", 0.0)) for _, analysis in analyses) / len(analyses)
+    return {"overall": overall, "issues": issues}
+
+
+@_register("remix_variant")
+async def _remix_variant(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Create a remix generation job for an existing variant."""
+    from app.workers import generate_job as generate_worker
+
+    variant_id: str = args["variant_id"]
+    modifier_prompt: str = args["modifier_prompt"]
+    preserve_composition: bool = bool(args.get("preserve_composition", True))
+
+    variant = await _get_variant_for_session_or_error(db, variant_id, session_id)
+    job = variant.job
+
+    remix_job = Job(
+        project_id=job.project_id,
+        kind="generate",
+        status="pending",
+        start_ts=job.start_ts,
+        end_ts=job.end_ts,
+        bbox_json=job.bbox_json,
+        prompt=f"{job.prompt or ''} | REFINEMENT: {modifier_prompt}",
+        reference_frame_ts=job.reference_frame_ts,
+        payload={
+            "remix_source_variant_id": variant.id,
+            "preserve_composition": preserve_composition,
+        },
+    )
+    db.add(remix_job)
+    await db.commit()
+    await db.refresh(remix_job)
+
+    if runner is not None:
+        runner.submit(remix_job.id, lambda: generate_worker.run(remix_job.id))
+    return {"job_id": remix_job.id}
+
+
+@_register("batch_generate")
+async def _batch_generate(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Submit multiple generate jobs in one request."""
+    from app.workers import generate_job as generate_worker
+
+    edits = args.get("edits") or []
+    if not edits:
+        raise ValueError("edits must not be empty")
+    if len(edits) > MAX_BATCH_EDITS:
+        raise ValueError(f"at most {MAX_BATCH_EDITS} edits are allowed per batch")
+
+    jobs: list[Job] = []
+    for edit in edits:
+        project_id = str(edit["project_id"])
+        start_ts = float(edit["start_ts"])
+        end_ts = float(edit["end_ts"])
+        bbox = dict(edit["bbox"])
+        prompt = str(edit["prompt"])
+        reference_frame_ts = edit.get("reference_frame_ts")
+
+        proj = await _get_project_or_error(db, project_id, session_id)
+        _validate_segment_length(start_ts, end_ts)
+        if end_ts > proj.duration + 1e-3:
+            raise ValueError("end_ts past project duration")
+        _validate_bbox_bounds(bbox)
+
+        job = Job(
+            project_id=proj.id,
+            kind="generate",
+            status="pending",
+            start_ts=start_ts,
+            end_ts=end_ts,
+            bbox_json=bbox,
+            prompt=prompt,
+            reference_frame_ts=float(reference_frame_ts) if reference_frame_ts is not None else None,
+        )
+        db.add(job)
+        jobs.append(job)
+
+    await db.commit()
+
+    job_ids: list[str] = []
+    for job in jobs:
+        await db.refresh(job)
+        if runner is not None:
+            runner.submit(job.id, lambda job_id=job.id: generate_worker.run(job_id))
+        job_ids.append(job.id)
+
+    return {"job_ids": job_ids}
+
+
+@_register("snapshot_timeline")
+async def _snapshot_timeline(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Save a timeline snapshot."""
+    project_id: str = args["project_id"]
+    await _get_project_or_error(db, project_id, session_id)
+
+    active_segments = (
+        await db.execute(
+            select(Segment)
+            .where(
+                Segment.project_id == project_id,
+                Segment.active == True,  # noqa: E712
+            )
+            .order_by(Segment.order_index, Segment.start_ts)
+        )
+    ).scalars().all()
+
+    snapshot = TimelineSnapshot(
+        project_id=project_id,
+        segments_json=[_snapshot_payload(segment) for segment in active_segments],
+    )
+    db.add(snapshot)
+    await db.commit()
+    await db.refresh(snapshot)
+
+    return {
+        "snapshot_id": snapshot.id,
+        "created_at": snapshot.created_at.isoformat() if snapshot.created_at else None,
+    }
+
+
+@_register("revert_timeline")
+async def _revert_timeline(
+    *,
+    args: dict[str, Any],
+    db: AsyncSession,
+    session_id: str,
+    runner: Any | None = None,
+) -> dict[str, Any]:
+    """Restore a project timeline from a snapshot."""
+    project_id: str = args["project_id"]
+    snapshot_id: str = args["snapshot_id"]
+
+    await _get_project_or_error(db, project_id, session_id)
+    snapshot = await db.get(TimelineSnapshot, snapshot_id)
+    if snapshot is None or snapshot.project_id != project_id:
+        raise ValueError(f"snapshot not found: {snapshot_id}")
+
+    active_segments = (
+        await db.execute(
+            select(Segment).where(
+                Segment.project_id == project_id,
+                Segment.active == True,  # noqa: E712
+            )
+        )
+    ).scalars().all()
+    for segment in active_segments:
+        segment.active = False
+
+    restored_segments = [
+        Segment(
+            project_id=project_id,
+            start_ts=float(segment_data["start_ts"]),
+            end_ts=float(segment_data["end_ts"]),
+            source=str(segment_data["source"]),
+            url=str(segment_data["url"]),
+            variant_id=(
+                str(segment_data["variant_id"])
+                if segment_data.get("variant_id") is not None
+                else None
+            ),
+            order_index=int(segment_data.get("order_index", 0)),
+            active=bool(segment_data.get("active", True)),
+        )
+        for segment_data in snapshot.segments_json
+    ]
+    db.add_all(restored_segments)
+    await db.commit()
+
+    return {
+        "reverted": True,
+        "segment_count": len(restored_segments),
     }

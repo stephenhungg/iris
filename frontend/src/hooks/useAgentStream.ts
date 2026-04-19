@@ -105,7 +105,7 @@ export function useAgentStream(projectId?: string | null) {
               m.type === "user" || (m.type === "agent" && !m.streaming),
           )
           .map((m) => ({
-            role: m.type === "user" ? ("user" as const) : ("assistant" as const),
+            role: m.type === "user" ? ("user" as const) : ("model" as const),
             text: (m as { text: string }).text,
           }));
 
@@ -305,4 +305,3 @@ function handleSSEEvent(
       break;
   }
 }
-

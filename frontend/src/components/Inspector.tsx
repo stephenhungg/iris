@@ -1,29 +1,33 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { clipAtTime, duration, sourceTimeFor, useEDL, type Clip } from "../stores/edl";
 import { Icon, type IconName } from "./Icon";
+import { AgentChat } from "./AgentChat";
 import { ContinuityPanel } from "../features/continuity/ContinuityPanel";
-import { useContinuityGenerationSession } from "../features/continuity/useContinuityGenerationSession";
 import type { ContinuityDashboardController } from "../features/continuity/useContinuityDashboard";
 import { GenerationReveal } from "../features/reveal/GenerationReveal";
+import { useGenerationSession } from "../hooks/useGenerationSession";
 import "./inspector.css";
 
-type Tab = "ai" | "basic" | "info";
+type Tab = "ai" | "continuity" | "basic" | "info" | "agent";
 
 export function Inspector({
   mode = "pro",
   continuity,
+  projectId,
+  showAiTab = mode === "pro",
 }: {
   mode?: "vibe" | "pro";
   continuity: ContinuityDashboardController;
+  projectId: string | null;
+  showAiTab?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("ai");
   const { state } = useEDL();
   const selected = state.clips.find((c) => c.id === state.selectedId) ?? null;
-  const showAiTab = mode === "pro";
 
   useEffect(() => {
     if (!showAiTab && tab === "ai") {
-      setTab("basic");
+      setTab("continuity");
     }
   }, [showAiTab, tab]);
 
@@ -33,14 +37,18 @@ export function Inspector({
         {showAiTab && (
           <InspTab active={tab === "ai"} onClick={() => setTab("ai")} icon="sparkles" label="AI" />
         )}
+        <InspTab active={tab === "continuity"} onClick={() => setTab("continuity")} icon="select" label="Flow" />
         <InspTab active={tab === "basic"} onClick={() => setTab("basic")} icon="sliders" label="Basic" />
         <InspTab active={tab === "info"} onClick={() => setTab("info")} icon="info" label="Info" />
+        <InspTab active={tab === "agent"} onClick={() => setTab("agent")} icon="keyboard" label="Agent" />
       </nav>
 
       <div className="insp__body">
         {showAiTab && tab === "ai" && <AiTab continuity={continuity} />}
+        {tab === "continuity" && <ContinuityTab continuity={continuity} />}
         {tab === "basic" && <BasicTab />}
         {tab === "info" && <InfoTab continuity={continuity} />}
+        {tab === "agent" && <AgentChat projectId={projectId} />}
       </div>
 
       {selected && (
@@ -116,7 +124,7 @@ function AiTab({
     run,
     acceptVariant,
     clearSession,
-  } = useContinuityGenerationSession({
+  } = useGenerationSession({
     clip: activeClip,
     bbox,
     previewFrameTs: activePreviewFrameTs,
@@ -145,8 +153,7 @@ function AiTab({
   }
 
   async function acceptReveal(idx: number) {
-    await acceptVariant(idx);
-    return false;
+    return acceptVariant(idx);
   }
 
   function clearReveal() {
@@ -193,6 +200,18 @@ function AiTab({
         />
       </div>
 
+      <ContinuityPanel continuity={continuity} />
+    </section>
+  );
+}
+
+function ContinuityTab({
+  continuity,
+}: {
+  continuity: ContinuityDashboardController;
+}) {
+  return (
+    <section className="pane">
       <ContinuityPanel continuity={continuity} />
     </section>
   );

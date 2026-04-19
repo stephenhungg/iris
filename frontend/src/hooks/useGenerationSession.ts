@@ -5,6 +5,7 @@ import {
   generate,
   pollJob,
   streamJobEvents,
+  type AcceptResp,
   type JobResp,
   type JobStreamEvent,
   type Variant,
@@ -21,14 +22,22 @@ type UseGenerationSessionArgs = {
   clip: Clip | null;
   bbox: BBox | null;
   previewFrameTs: number | null;
+  onAccepted?: (payload: AcceptedVariantPayload) => void | Promise<void>;
 };
 
 export type GenerationLogEntry = JobStreamEvent & { id: string };
+export type AcceptedVariantPayload = {
+  acceptResponse: AcceptResp;
+  prompt: string;
+  sourceVariantUrl: string;
+  projectId: string;
+};
 
 export function useGenerationSession({
   clip,
   bbox,
   previewFrameTs,
+  onAccepted,
 }: UseGenerationSessionArgs) {
   const { dispatch } = useEDL();
   const [prompt, setPrompt] = useState("");
@@ -146,9 +155,10 @@ export function useGenerationSession({
     if (!target || !target.projectId || !jobIdRef.current) return false;
     setAcceptingIdx(idx);
     try {
-      await accept(jobIdRef.current, idx);
       const variant = variants[idx];
       if (!variant?.url) throw new Error("variant has no url");
+      const accepted = await accept(jobIdRef.current, idx);
+      const trimmedPrompt = prompt.trim();
       const duration = target.sourceEnd - target.sourceStart;
       const replacement = newClip({
         url: variant.url,
@@ -156,7 +166,7 @@ export function useGenerationSession({
         sourceEnd: duration,
         mediaDuration: duration,
         kind: "generated",
-        label: prompt.trim().slice(0, 28) || "ai edit",
+        label: trimmedPrompt.slice(0, 28) || "ai edit",
         projectId: target.projectId,
         generatedFromClipId: target.id,
         volume: target.volume,
@@ -164,6 +174,16 @@ export function useGenerationSession({
       dispatch({ type: "replace", id: target.id, with: replacement });
       setPrompt("");
       clearSession({ keepPrompt: false });
+      if (onAccepted) {
+        void Promise.resolve(
+          onAccepted({
+            acceptResponse: accepted,
+            prompt: trimmedPrompt,
+            sourceVariantUrl: variant.url,
+            projectId: target.projectId,
+          }),
+        ).catch(() => {});
+      }
       return true;
     } catch (e) {
       setErr(String(e));

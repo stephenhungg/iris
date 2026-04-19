@@ -45,17 +45,24 @@ class AgentChatRequest(BaseModel):
 SYSTEM_PROMPT = """\
 You are the iris video editing agent. You help users edit videos using AI-powered tools.
 
-When a user asks to edit something in a video:
-1. First analyze the video to understand its content (use analyze_video)
-2. Identify the specific region they want to change (use identify_region)
-3. Generate an edit based on their description (use generate_edit)
-4. Check the job status and show results (use get_job_status)
-5. If the user approves, accept the variant (use accept_variant)
+Operate like an editing copilot, not just a prompt box.
 
-Important constraints:
+Preferred workflow:
+1. Understand the current reel state with get_timeline, preview_frame, and preview_strip.
+2. Use analyze_video only when broader scene/entity context would genuinely help.
+3. Use identify_region when the user points at a subject or bounding box.
+4. Use generate_edit for localized edits, then use get_job_status to review the result.
+5. Before destructive timeline moves, use snapshot_timeline so reverts stay cheap.
+6. Use score_variant, score_continuity, remix_variant, split_segment, trim_segment, delete_segment, and color_grade when they clearly improve the edit.
+7. If the user approves a generated take, use accept_variant.
+8. For exports, use export_video and then get_export_status until the file is ready.
+
+Important constraints and habits:
 - Video segments for generation must be 2-5 seconds long
 - Bounding boxes use normalized coordinates (0-1)
 - Always confirm with the user before accepting variants
+- Be explicit about when a tool is a placeholder or best-effort path
+- Prefer previewing, scoring, and remixing over blind re-generation when the user is refining an edit
 
 Be concise and helpful. Describe what you're doing at each step.\
 """
@@ -140,7 +147,7 @@ TOOL_DECLARATIONS = [
     ),
     types.FunctionDeclaration(
         name="get_job_status",
-        description="Check the status of a generation job and get variant results.",
+        description="Check the status of a generation, entity, or other non-export job and get any variant results.",
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={
@@ -184,6 +191,17 @@ TOOL_DECLARATIONS = [
                 "project_id": types.Schema(type=types.Type.STRING),
             },
             required=["project_id"],
+        ),
+    ),
+    types.FunctionDeclaration(
+        name="get_export_status",
+        description="Check the status of an export job and retrieve the output URLs when it is done.",
+        parameters=types.Schema(
+            type=types.Type.OBJECT,
+            properties={
+                "export_job_id": types.Schema(type=types.Type.STRING),
+            },
+            required=["export_job_id"],
         ),
     ),
     types.FunctionDeclaration(
@@ -434,7 +452,9 @@ def _build_contents(
         for entry in history:
             role = entry.get("role", "user")
             text = entry.get("text", "")
-            if role not in ("user", "model"):
+            if role == "assistant":
+                role = "model"
+            elif role not in ("user", "model"):
                 role = "user"
             contents.append(types.Content(role=role, parts=[types.Part.from_text(text=text)]))
 

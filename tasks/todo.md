@@ -20,6 +20,13 @@
 - [pending] split `frontend/src/pages/Studio.tsx` into dashboard shell pieces (`topbar`, workspace layout, keyboard shortcuts, upload/export controls)
 - [pending] pull ai edit flow ui into a shared editor module so `Inspector` and `VibePrompt` stop feeling like two separate dashboards
 - [pending] reduce inline styles in `VibePrompt` and move editor-specific styling next to the feature it belongs to
+- [completed] unify the duplicated generation session hooks into one canonical edit-session controller with optional continuity callbacks
+- [completed] wire continuity discovery into the vibe accept path so the fast flow and pro flow do not diverge after apply
+- [completed] stop making vibe mode's right rail a chat-only dead end; expose continuity + clip context there too
+- [completed] fold the agent surface into the same studio shell instead of treating it like a separate product mode
+- [completed] align the backend agent prompt and cli skill surface with the richer preview/score/remix/snapshot workflow that now exists
+- [pending] expose the most useful pro surfaces in frontend code structure first (`score`, `remix`, preview/scrub context), then decide what to ship visibly in the dashboard
+- [pending] repair the remaining docs/reference parity gaps for cli/backend surfaces (`docs/reference/*.mdx` still overclaim and drift from the real commands/routes)
 - [completed] fix the editor truth blockers: async export polling, project reopen hydration, and any frontend/backend contract mismatches
 - [completed] expose the causal editing flow in the dashboard: entity appearances, continuity pack, propagation actions, and clear status/progress
 - [completed] add the cinematic reveal layer: before/after compare, stronger variant presentation, and elevenlabs narration playback
@@ -70,3 +77,7 @@
 - onboarding implementation hardening: fixed a hook-order regression in `EditorRoute`, made onboarding/checklist local storage access fail-soft when the browser blocks storage, and fixed the checklist so continuity-heavy flows can actually reach completion.
 - onboarding verification: `bun run lint` passed, `bun run build` passed, and the only remaining warning is the pre-existing large frontend bundle (`~793 kB` built js), which is a code-splitting problem rather than a correctness blocker.
 - teammate frontend merge cleanup: kept the pushed landing/frontend visuals, preserved the intentional `ascii` cta hero, fixed the `MetallicPaint` prop typing so image-only usage type-checks, and kept the newer `/start` onboarding flow instead of regressing the landing buttons back to `/editor`.
+- vibe/pro convergence pass: `useGenerationSession` is now the one real generation controller, continuity callbacks hang off that shared hook, and vibe accepts now kick off the same entity-discovery flow the pro inspector uses.
+- studio shell cleanup: the right rail no longer collapses into a disconnected chat-only pane in vibe mode. checklist + inspector stay mounted, and the agent lives as a tab inside the same rail so clip context, continuity state, and chat stop competing as separate products.
+- agent surface cleanup: agent history now preserves prior assistant/model turns instead of downgrading them to user messages, export now has a dedicated `get_export_status` tool, and the agent system prompt reflects the actual preview/snapshot/score/remix workflow instead of pretending the product ends at generate-and-accept.
+- verification: `bun run lint` passed, `bun run build` passed twice after the refactor, and `python3 -m py_compile backend/app/api/routes/agent.py backend/app/services/agent_tools.py` passed.
