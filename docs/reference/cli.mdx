@@ -1,6 +1,6 @@
 ---
 title: "CLI Reference"
-description: "The Iris command-line interface for scripting and agent-driven editing."
+description: "CLI for the iris AI video editor — prompt-driven video editing from the terminal"
 ---
 
 # CLI Reference
@@ -15,81 +15,4 @@ description: "The Iris command-line interface for scripting and agent-driven edi
         and agent-driven editing. Any agent that can run bash can use it.
       </p>
     </div>
-  </div>
-</div>
-
-## Installation
-
-To get started with the Iris CLI, install it via pip:
-
-```bash
-$ pip install iris-cli
-```
-
-## Agent Integration (e.g., Claude)
-
-For integrating Iris with AI agents like Claude, you can set up a skill definition:
-
-```bash
-$ mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md
-```
-
-This command downloads the Iris CLI skill definition, allowing agents to understand and utilize Iris commands.
-
-## Core Commands
-
-### `iris analyze`
-
-Analyzes a project to extract metadata, such as scene changes, object tracking, or other temporal information.
-
-```bash
-$ iris analyze proj_iris --fps 2.0
-```
-
--   `proj_iris`: The ID or name of the project to analyze.
--   `--fps <float>`: (Optional) The frames per second to use for analysis.
-
-### `iris generate`
-
-Generates new video content based on a prompt and specified region within a project.
-
-```bash
-$ iris generate --project proj_iris --start 12.0 --end 14.0 --bbox "0.2,0.3,0.4,0.3" --prompt "replace the phone with a chrome orb"
-```
-
--   `--project <string>`: The ID or name of the project.
--   `--start <float>`: The start timestamp (in seconds) for the generation.
--   `--end <float>`: The end timestamp (in seconds) for the generation.
--   `--bbox "<x,y,width,height>"`: A bounding box defining the region of interest (normalized coordinates 0.0-1.0).
--   `--prompt <string>`: The text prompt describing the desired change.
-
-### `iris score`
-
-Compares and scores multiple generated variants, helping to determine the best option.
-
-```bash
-$ iris score --compare var_01 var_02 var_03
-```
-
--   `--compare <string> [<string>...]`: A space-separated list of variant IDs to compare.
-
-### `iris accept`
-
-Accepts a specific variant from a generation job, applying it to the project.
-
-```bash
-$ iris accept --job job_abc --variant 0
-```
-
--   `--job <string>`: The ID of the generation job.
--   `--variant <int>`: The index of the variant to accept (e.g., `0` for the first variant).
-
-### `iris export`
-
-Exports the final edited project or specific outputs.
-
-```bash
-$ iris export proj_iris
-```
-
--   `proj_iris`: The ID or name of the project to export.
+  </div...
