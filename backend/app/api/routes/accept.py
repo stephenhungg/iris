@@ -1,3 +1,11 @@
+"""Accept a generated variant.
+
+Lazy-render model: accepting a variant writes a Segment row + enqueues
+the entity-search background job. That's it. No ffmpeg, no stitching, no
+full-project re-encode, no proj.video_url mutation. The timeline is
+reconstructed on read by walking Segment rows, and the final MP4 is
+rendered exactly once when the user hits Export.
+"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +18,6 @@ from app.models.project import Project
 from app.models.segment import Segment
 from app.models.session import Session as SessionModel
 from app.schemas.accept import AcceptRequest, AcceptResponse
-from app.services import ffmpeg, storage
 from app.workers import entity_job
 
 router = APIRouter(tags=["accept"])
@@ -21,11 +28,13 @@ async def accept(
     body: AcceptRequest,
     session: SessionModel = Depends(get_session),
     db: AsyncSession = Depends(get_db),
-    runner = Depends(get_runner),
+    runner=Depends(get_runner),
 ):
     job = (
         await db.execute(
-            select(Job).where(Job.id == body.job_id).options(selectinload(Job.variants))
+            select(Job)
+            .where(Job.id == body.job_id)
+            .options(selectinload(Job.variants))
         )
     ).scalar_one_or_none()
     if job is None:
@@ -35,52 +44,18 @@ async def accept(
     if proj is None or proj.session_id != session.id:
         raise HTTPException(status_code=404, detail="job not found")
 
-    variant = next((v for v in job.variants if v.index == body.variant_index), None)
+    variant: Variant | None = next(
+        (v for v in job.variants if v.index == body.variant_index), None
+    )
     if variant is None or variant.status != "done" or not variant.url:
         raise HTTPException(status_code=422, detail="variant not ready")
 
     if job.start_ts is None or job.end_ts is None:
         raise HTTPException(status_code=422, detail="job has no segment range")
 
-    # normalize fps on the generated clip before stitching so xfade doesn't jitter
-    variant_path = await storage.path_from_url(variant.url)
-    normalized_path, _ = storage.new_path("variants", "mp4")
-    try:
-        await ffmpeg.normalize_fps(variant_path, proj.fps, normalized_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"fps normalize failed: {e}")
-    normalized_url = await storage.publish(normalized_path, content_type="video/mp4")
-
-    # crossfade-stitch into a brand-new project video
-    stitched_path, _ = storage.new_path("stitched", "mp4")
-    segment_duration = job.end_ts - job.start_ts
-    try:
-        await ffmpeg.stitch_crossfade(
-            base=proj.video_path,
-            replacement=normalized_path,
-            at_ts=job.start_ts,
-            duration=segment_duration,
-            out=stitched_path,
-        )
-    except Exception as e:
-        # fallback: hard cut
-        try:
-            await ffmpeg.simple_replace(
-                base=proj.video_path,
-                replacement=normalized_path,
-                at_ts=job.start_ts,
-                duration=segment_duration,
-                out=stitched_path,
-            )
-        except Exception as e2:
-            raise HTTPException(status_code=500, detail=f"stitch failed: {e2}")
-    stitched_url = await storage.publish(stitched_path, content_type="video/mp4")
-
-    # swap project video to the stitched output (append-only history via new paths)
-    proj.video_path = str(stitched_path)
-    proj.video_url = stitched_url
-
-    # deactivate any generated segments overlapping this range, then append ours
+    # deactivate any existing generated segments that overlap this range.
+    # the newest accept wins on overlap. we don't delete rows so we keep
+    # a history for potential future "revert" UX.
     overlapping = (
         await db.execute(
             select(Segment).where(
@@ -100,7 +75,7 @@ async def accept(
         start_ts=job.start_ts,
         end_ts=job.end_ts,
         source="generated",
-        url=normalized_url,
+        url=variant.url,
         variant_id=variant.id,
         order_index=int(job.start_ts * 1000),
         active=True,
@@ -109,27 +84,15 @@ async def accept(
     await db.commit()
     await db.refresh(seg)
 
-    # extract the bbox crop from the reference frame for entity identification
-    crop_path = None
-    if job.bbox_json and job.reference_frame_ts is not None:
-        frame_path, _ = storage.new_path("keyframes", "jpg")
-        try:
-            await ffmpeg.extract_frame(
-                proj.video_path, float(job.reference_frame_ts), frame_path
-            )
-            await storage.publish(frame_path, content_type="image/jpeg")
-            crop_path = str(frame_path)
-        except Exception:
-            pass
-
-    # enqueue entity search as its own Job row
+    # fire an entity-search job. frame extraction for the reference crop
+    # now happens inside the worker itself so the HTTP request stays fast.
     ent_job = Job(
         project_id=proj.id,
         kind="entity",
         status="pending",
         payload={
             "segment_id": seg.id,
-            "reference_crop_path": crop_path,
+            "reference_frame_ts": job.reference_frame_ts,
             "reference_variant_url": variant.url,
             "bbox": job.bbox_json,
         },

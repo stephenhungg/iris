@@ -31,7 +31,7 @@ async def run(job_id: str) -> None:
         payload = job.payload or {}
         project_id = job.project_id
         segment_id = payload.get("segment_id")
-        reference_crop_path = payload.get("reference_crop_path")
+        reference_frame_ts = payload.get("reference_frame_ts")
         reference_variant_url = payload.get("reference_variant_url")
 
         proj = await db.get(Project, project_id)
@@ -41,7 +41,24 @@ async def run(job_id: str) -> None:
             await db.commit()
             return
         job.status = "processing"
+        source_video_path = proj.video_path
+        source_video_url = proj.video_url
         await db.commit()
+
+    # pull the reference frame crop now (was previously done synchronously
+    # inside /api/accept; moved here so the HTTP response is instant).
+    reference_crop_path: str | None = None
+    if reference_frame_ts is not None:
+        try:
+            src = Path(source_video_path)
+            if not src.exists():
+                src = await storage.path_from_url(source_video_url)
+            frame_path, _ = storage.new_path("keyframes", "jpg")
+            await ffmpeg.extract_frame(src, float(reference_frame_ts), frame_path)
+            await storage.publish(frame_path, content_type="image/jpeg")
+            reference_crop_path = str(frame_path)
+        except Exception:
+            log.exception("reference frame extraction failed; continuing")
 
     try:
         identity = await ai.gemini.identify_entity(reference_crop_path or "")

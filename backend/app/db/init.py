@@ -15,6 +15,20 @@ _SCHEMA_UPGRADES_POSTGRES = [
     "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_id VARCHAR",
     "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS email VARCHAR",
     "CREATE INDEX IF NOT EXISTS ix_sessions_user_id ON sessions (user_id)",
+    # hot-path indexes for the queries we actually run today.
+    # `projects(session_id, created_at DESC)` backs the library list.
+    # `segments(project_id, active)` backs /api/timeline + accept's
+    # overlap check. `entity_appearances(entity_id, start_ts)` keeps the
+    # inspector snappy. `jobs(status)` lets the job runner scan pending
+    # work without a table scan.
+    "CREATE INDEX IF NOT EXISTS ix_projects_session_created "
+    "ON projects (session_id, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS ix_segments_project_active "
+    "ON segments (project_id, active)",
+    "CREATE INDEX IF NOT EXISTS ix_entity_appearances_entity_start "
+    "ON entity_appearances (entity_id, start_ts)",
+    "CREATE INDEX IF NOT EXISTS ix_jobs_status "
+    "ON jobs (status)",
 ]
 
 

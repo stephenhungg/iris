@@ -16,7 +16,6 @@ from app.schemas.propagate import (
     PropagationResultOut,
     PropagationStatus,
 )
-from app.services import ffmpeg, storage
 from app.workers import propagate_job
 
 router = APIRouter(tags=["propagate"])
@@ -142,33 +141,14 @@ async def apply_propagation_result(
     if appearance is None:
         raise HTTPException(status_code=404, detail="appearance missing")
 
-    variant_path = await storage.path_from_url(res.variant_url)
-    normalized, _ = storage.new_path("variants", "mp4")
-    await ffmpeg.normalize_fps(variant_path, proj.fps, normalized)
-    normalized_url = await storage.publish(normalized, content_type="video/mp4")
-
-    stitched_path, _ = storage.new_path("stitched", "mp4")
-    try:
-        await ffmpeg.stitch_crossfade(
-            base=proj.video_path,
-            replacement=normalized,
-            at_ts=appearance.start_ts,
-            duration=appearance.end_ts - appearance.start_ts,
-            out=stitched_path,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"stitch failed: {e}")
-    stitched_url = await storage.publish(stitched_path, content_type="video/mp4")
-
-    proj.video_path = str(stitched_path)
-    proj.video_url = stitched_url
-
+    # lazy-render: just record the decision. export will do the actual
+    # compositing from the segment rows when the user hits download.
     seg = Segment(
         project_id=proj.id,
         start_ts=appearance.start_ts,
         end_ts=appearance.end_ts,
         source="generated",
-        url=normalized_url,
+        url=res.variant_url,
         order_index=int(appearance.start_ts * 1000),
         active=True,
     )
