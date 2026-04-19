@@ -14,25 +14,25 @@ const DEFAULT_CARDS: ShowcaseCard[] = [
     image: '/frames/frame_120.jpg',
     label: 'gemini / planning',
     title: 'intent to structure',
-    description: 'Prompt-driven scene direction turns vague taste into concrete editing options with tone, framing, and timing.'
+    description: 'prompt-driven scene direction turns vague taste into concrete editing options with tone, framing, and timing.',
   },
   {
     image: '/frames/frame_100.jpg',
     label: 'veo / generation',
     title: 'new visuals on demand',
-    description: 'Generate alternate realities for the exact region you selected, then choose the interpretation that feels right.'
+    description: 'generate alternate realities for the exact region you selected, then choose the interpretation that feels right.',
   },
   {
     image: '/frames/frame_060.jpg',
     label: 'sam2 / tracking',
     title: 'continuity across frames',
-    description: 'Once an entity is identified, the system can follow it through the shot so the edit stays coherent.'
+    description: 'once an entity is identified, the system can follow it through the shot so the edit stays coherent.',
   },
   {
     image: '/frames/frame_030.jpg',
     label: 'elevenlabs / voice',
     title: 'narration and reveal',
-    description: 'Layer voiceover and presentation polish on top of the visual change so the transformation lands harder.'
+    description: 'layer voiceover and presentation polish on top of the visual change so the transformation lands harder.',
   },
 ]
 
@@ -152,10 +152,10 @@ export default function CardSwapShowcase({ cards = DEFAULT_CARDS }: CardSwapShow
           direction.
         </h3>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: '18px', lineHeight: 1.7, color: 'rgba(255,255,255,0.46)', margin: '0 0 28px', maxWidth: '34ch' }}>
-          The stack doesn&apos;t stop at one model. Iris layers planning, generation, tracking, and presentation into a single editing gesture.
+          the stack doesn&apos;t stop at one model. iris layers planning, generation, tracking, and presentation into a single editing gesture.
         </p>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: '15px', lineHeight: 1.8, color: 'rgba(255,255,255,0.32)', margin: '0 0 40px', maxWidth: '38ch' }}>
-          Prompt the moment, preview multiple outcomes, and keep the strongest interpretation moving through the cut with enough continuity to feel authored.
+          prompt the moment, preview multiple outcomes, and keep the strongest interpretation moving through the cut with enough continuity to feel authored.
         </p>
         <div style={{ display: 'grid', gap: '14px', maxWidth: '36ch' }}>
           {[

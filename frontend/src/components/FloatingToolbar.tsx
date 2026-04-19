@@ -44,17 +44,6 @@ function FeaturesIcon() {
   )
 }
 
-function RewriteIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M5.1 6.2h3.35l1.62 2.05h1.87l1.55-2.05h3.4l.95 3.35H4.15z" stroke="currentColor" strokeLinejoin="round" />
-      <path d="M4.95 9.55h14.1v8.25H4.95z" stroke="currentColor" strokeLinejoin="round" />
-      <path d="M8.1 12.45 10 14l3.1-3.2" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M15.3 12.35h1.7M15.3 14.65h1.7" stroke="currentColor" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 function VideoIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -67,10 +56,10 @@ function VideoIcon() {
 }
 
 const items: NavItem[] = [
-  { id: 'top', label: 'Landing', icon: <IrisToolbarIcon /> },
-  { id: 'about', label: 'About', icon: <AboutIcon /> },
-  { id: 'features', label: 'Features', icon: <FeaturesIcon /> },
-  { id: 'rewrite', label: 'Rewrite', icon: <VideoIcon /> },
+  { id: 'top', label: 'landing', icon: <IrisToolbarIcon /> },
+  { id: 'about', label: 'about', icon: <AboutIcon /> },
+  { id: 'features', label: 'features', icon: <FeaturesIcon /> },
+  { id: 'rewrite', label: 'rewrite', icon: <VideoIcon /> },
 ]
 
 export default function FloatingToolbar() {
@@ -167,7 +156,7 @@ export default function FloatingToolbar() {
     >
       <div className="floating-toolbar-ambient" />
 
-      <div ref={toolbarRef} className="floating-toolbar" data-theme="dark">
+      <div ref={toolbarRef} className="floating-toolbar">
         <motion.div
           className="floating-toolbar-indicator"
           animate={{ left: indicator.left, width: indicator.width }}
@@ -182,21 +171,20 @@ export default function FloatingToolbar() {
 
         {items.map((item, index) => (
           <Fragment key={item.id}>
-          <button
-            ref={(node) => { itemRefs.current[item.id] = node }}
-            className="floating-toolbar-button"
-            data-active={activeId === item.id}
-            type="button"
-            onClick={() => scrollToSection(item.id)}
-            aria-label={item.label}
-            title={item.label}
-          >
-            {item.icon}
-          </button>
-          {index < items.length - 1 ? <div className="floating-toolbar-divider" /> : null}
+            <button
+              ref={(node) => { itemRefs.current[item.id] = node }}
+              className="floating-toolbar-button"
+              data-active={activeId === item.id}
+              type="button"
+              onClick={() => scrollToSection(item.id)}
+              aria-label={item.label}
+              title={item.label}
+            >
+              {item.icon}
+            </button>
+            {index < items.length - 1 ? <div className="floating-toolbar-divider" /> : null}
           </Fragment>
         ))}
-
       </div>
     </motion.div>
   )

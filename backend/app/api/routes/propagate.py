@@ -21,6 +21,27 @@ from app.workers import propagate_job
 router = APIRouter(tags=["propagate"])
 
 
+async def _deactivate_overlapping_generated_segments(
+    db: AsyncSession,
+    project_id: str,
+    start_ts: float,
+    end_ts: float,
+) -> None:
+    overlapping = (
+        await db.execute(
+            select(Segment).where(
+                Segment.project_id == project_id,
+                Segment.active == True,  # noqa: E712
+                Segment.source == "generated",
+                Segment.start_ts < end_ts,
+                Segment.end_ts > start_ts,
+            )
+        )
+    ).scalars().all()
+    for seg in overlapping:
+        seg.active = False
+
+
 @router.post("/propagate", response_model=PropagateResponse)
 async def propagate(
     body: PropagateRequest,
@@ -143,6 +164,12 @@ async def apply_propagation_result(
 
     # lazy-render: just record the decision. export will do the actual
     # compositing from the segment rows when the user hits download.
+    await _deactivate_overlapping_generated_segments(
+        db,
+        proj.id,
+        appearance.start_ts,
+        appearance.end_ts,
+    )
     seg = Segment(
         project_id=proj.id,
         start_ts=appearance.start_ts,

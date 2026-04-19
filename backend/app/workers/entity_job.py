@@ -16,11 +16,16 @@ from app.db.session import AsyncSessionLocal
 from app.models.entity import Entity, EntityAppearance
 from app.models.job import Job
 from app.models.project import Project
+from app.models.segment import Segment
 from app.services import ffmpeg, storage
 
 log = logging.getLogger("iris.jobs.entity")
 
 KEYFRAMES_PER_SECOND = 1.0
+
+
+def _overlaps(a_start: float, a_end: float, b_start: float, b_end: float) -> bool:
+    return a_start < b_end and a_end > b_start
 
 
 async def run(job_id: str) -> None:
@@ -33,6 +38,7 @@ async def run(job_id: str) -> None:
         segment_id = payload.get("segment_id")
         reference_frame_ts = payload.get("reference_frame_ts")
         reference_variant_url = payload.get("reference_variant_url")
+        bbox = payload.get("bbox") or None
 
         proj = await db.get(Project, project_id)
         if proj is None:
@@ -40,9 +46,12 @@ async def run(job_id: str) -> None:
             job.error = "project missing"
             await db.commit()
             return
+        source_segment = await db.get(Segment, segment_id) if segment_id else None
         job.status = "processing"
         source_video_path = proj.video_path
         source_video_url = proj.video_url
+        source_segment_start = source_segment.start_ts if source_segment else None
+        source_segment_end = source_segment.end_ts if source_segment else None
         await db.commit()
 
     # pull the reference frame crop now (was previously done synchronously
@@ -56,7 +65,12 @@ async def run(job_id: str) -> None:
             frame_path, _ = storage.new_path("keyframes", "jpg")
             await ffmpeg.extract_frame(src, float(reference_frame_ts), frame_path)
             await storage.publish(frame_path, content_type="image/jpeg")
-            reference_crop_path = str(frame_path)
+            if bbox:
+                crop_path = await ffmpeg.crop_bbox_from_frame(frame_path, bbox)
+                await storage.publish(crop_path, content_type="image/png")
+                reference_crop_path = str(crop_path)
+            else:
+                reference_crop_path = str(frame_path)
         except Exception:
             log.exception("reference frame extraction failed; continuing")
 
@@ -132,6 +146,17 @@ async def run(job_id: str) -> None:
 
     async with AsyncSessionLocal() as db:
         for h in hits:
+            if (
+                source_segment_start is not None
+                and source_segment_end is not None
+                and _overlaps(
+                    float(h["start_ts"]),
+                    float(h["end_ts"]),
+                    source_segment_start,
+                    source_segment_end,
+                )
+            ):
+                continue
             app = EntityAppearance(
                 entity_id=entity_id,
                 segment_id=None,

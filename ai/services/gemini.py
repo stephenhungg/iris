@@ -27,6 +27,7 @@ def _load_prompt(name: str) -> str:
 
 def get_client() -> genai.Client:
     settings = get_settings()
+    settings.require_real_ai(provider="gemini")
     return genai.Client(api_key=settings.gemini_api_key)
 
 

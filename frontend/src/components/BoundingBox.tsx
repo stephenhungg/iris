@@ -7,7 +7,9 @@ interface BoundingBoxProps {
   onBoxDrawn: (bbox: { x: number; y: number; w: number; h: number }) => void;
   onClear: () => void;
   disabled?: boolean;
-  mask?: { points: [number, number][] } | null;
+  bbox?: { x: number; y: number; w: number; h: number } | null;
+  /** SAM-refined contour that snaps to the subject. Points are normalized 0-1. */
+  mask?: { contour: [number, number][] } | null;
 }
 
 interface Box {
@@ -24,6 +26,7 @@ function BoundingBox({
   onBoxDrawn,
   onClear,
   disabled = false,
+  bbox = null,
   mask = null,
 }: BoundingBoxProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,19 +35,38 @@ function BoundingBox({
   const [box, setBox] = useState<Box | null>(null);
   const [activeBox, setActiveBox] = useState<Box | null>(null);
 
-  /** Resize canvas to match the container dimensions. */
+  /** Resize canvas to match the actual displayed video rect inside the stage. */
   const syncSize = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
 
     const { width, height } = container.getBoundingClientRect();
+    if (width <= 0 || height <= 0) return;
+
+    const safeVideoWidth = videoWidth > 0 ? videoWidth : 1920;
+    const safeVideoHeight = videoHeight > 0 ? videoHeight : 1080;
+    const videoAspect = safeVideoWidth / safeVideoHeight;
+    const containerAspect = width / height;
+
+    let displayWidth = width;
+    let displayHeight = height;
+    if (videoAspect > containerAspect) {
+      displayHeight = width / videoAspect;
+    } else {
+      displayWidth = height * videoAspect;
+    }
+
+    const left = (width - displayWidth) / 2;
+    const top = (height - displayHeight) / 2;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-  }, [containerRef]);
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+    canvas.style.left = `${left}px`;
+    canvas.style.top = `${top}px`;
+  }, [containerRef, videoWidth, videoHeight]);
 
   /** Convert a mouse event to normalized 0-1 coords relative to video dimensions. */
   const toNormalized = useCallback(
@@ -76,43 +98,51 @@ function BoundingBox({
     const ch = canvas.height;
     ctx.clearRect(0, 0, cw, ch);
 
-    // Draw bounding box (finalized or in-progress)
+    // While the user is still dragging, show the raw rectangle. Once a SAM
+    // mask arrives, the rectangle fades back and the contour becomes primary.
     const renderBox = activeBox ?? box;
+    const hasMask = !!(mask && mask.contour.length > 2);
+    const isDragging = activeBox !== null;
+
     if (renderBox) {
       const bx = renderBox.x * cw;
       const by = renderBox.y * ch;
       const bw = renderBox.w * cw;
       const bh = renderBox.h * ch;
 
-      // Semi-transparent fill
-      ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
-      ctx.fillRect(bx, by, bw, bh);
+      if (!hasMask || isDragging) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+        ctx.fillRect(bx, by, bw, bh);
+      }
 
-      // Dashed white border
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = hasMask && !isDragging ? "rgba(255, 255, 255, 0.35)" : "#ffffff";
+      ctx.lineWidth = hasMask && !isDragging ? 1 : 2;
       ctx.setLineDash([6, 4]);
       ctx.strokeRect(bx, by, bw, bh);
       ctx.setLineDash([]);
     }
 
-    // Draw mask contour
-    if (mask && mask.points.length > 0) {
+    // SAM contour — solid glowing outline that snaps to the subject.
+    if (hasMask) {
       ctx.beginPath();
-      const [firstX, firstY] = mask.points[0];
+      const [firstX, firstY] = mask!.contour[0];
       ctx.moveTo(firstX * cw, firstY * ch);
-
-      for (let i = 1; i < mask.points.length; i++) {
-        const [mx, my] = mask.points[i];
+      for (let i = 1; i < mask!.contour.length; i++) {
+        const [mx, my] = mask!.contour[i];
         ctx.lineTo(mx * cw, my * ch);
       }
-
       ctx.closePath();
-      ctx.strokeStyle = "#ffffff";
+
+      ctx.fillStyle = "rgba(120, 200, 255, 0.18)";
+      ctx.fill();
+
+      ctx.save();
+      ctx.shadowColor = "rgba(120, 200, 255, 0.9)";
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = "#9ad7ff";
       ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
       ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.restore();
     }
   }, [box, activeBox, mask]);
 
@@ -136,8 +166,14 @@ function BoundingBox({
     paint();
   }, [paint]);
 
+  useEffect(() => {
+    setBox(bbox);
+    if (!bbox) setActiveBox(null);
+  }, [bbox]);
+
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      console.log('[BoundingBox] mousedown', { disabled, pos: toNormalized(e) });
       if (disabled) return;
 
       const pos = toNormalized(e);
@@ -172,8 +208,11 @@ function BoundingBox({
     drawingRef.current = false;
 
     if (activeBox && activeBox.w > 0.005 && activeBox.h > 0.005) {
+      console.log('[BoundingBox] box drawn', activeBox);
       setBox(activeBox);
       onBoxDrawn(activeBox);
+    } else {
+      console.log('[BoundingBox] box too small, ignored', activeBox);
     }
 
     setActiveBox(null);
@@ -214,9 +253,7 @@ function BoundingBox({
       onDoubleClick={handleDoubleClick}
       style={{
         position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
+        zIndex: 10,
         pointerEvents: disabled ? "none" : "auto",
         cursor: disabled ? "default" : "crosshair",
       }}

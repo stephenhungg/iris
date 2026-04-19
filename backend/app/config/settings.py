@@ -1,6 +1,7 @@
 from pathlib import Path
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +16,8 @@ class Settings(BaseSettings):
     storage_path: Path = Path("./storage")
 
     gemini_api_key: str = ""
+    # kept for older env shapes; the current real video provider path uses
+    # Gemini/Veo under the `runway.generate(...)` adapter surface.
     runway_api_key: str = ""
     elevenlabs_api_key: str = ""
 
@@ -50,6 +53,26 @@ class Settings(BaseSettings):
     presign_expiry: int = 7 * 24 * 3600  # 7 days, max for sigv4
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @field_validator("media_url_mode", mode="before")
+    @classmethod
+    def _normalize_media_url_mode(cls, value: object) -> str:
+        normalized = str(value or "presigned").strip().lower()
+        if normalized not in {"presigned", "public"}:
+            raise ValueError("MEDIA_URL_MODE must be 'presigned' or 'public'")
+        return normalized
+
+    @property
+    def ai_mode(self) -> str:
+        return "stub" if self.use_ai_stubs else "real"
+
+    @property
+    def real_ai_ready(self) -> bool:
+        return bool(self.gemini_api_key.strip())
+
+    @property
+    def narration_ai_ready(self) -> bool:
+        return self.real_ai_ready and bool(self.elevenlabs_api_key.strip())
 
     @property
     def s3_enabled(self) -> bool:

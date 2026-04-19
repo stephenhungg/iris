@@ -30,6 +30,10 @@ async def generate_narration(
         Path to the generated audio file (mp3)
     """
     settings = get_settings()
+    if not settings.elevenlabs_api_key.strip():
+        raise RuntimeError(
+            "elevenlabs narration requires ELEVENLABS_API_KEY."
+        )
 
     async with httpx.AsyncClient() as client:
         response = await client.post(

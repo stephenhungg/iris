@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Navigate, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Studio } from '../pages/Studio';
+import { getProject, listProjects, type ProjectDetail } from '../api/client';
+import { useAuth } from '../lib/useAuth';
 
 function EditorLoader({ onDone }: { onDone: () => void }) {
   const [progress, setProgress] = useState(0);
@@ -89,28 +91,119 @@ function EditorLoader({ onDone }: { onDone: () => void }) {
 }
 
 export function EditorRoute() {
+  const { status } = useAuth();
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
+  const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [projectErr, setProjectErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status !== 'authed') {
+      setProject(null);
+      setProjectErr(null);
+      return;
+    }
+
+    if (!projectId) {
+      setProject(null);
+      setProjectErr(null);
+      return;
+    }
+
+    let cancelled = false;
+    setProject(null);
+    setProjectErr(null);
+
+    Promise.all([
+      getProject(projectId),
+      listProjects().catch(() => null),
+    ])
+      .then(([detail, items]) => {
+        if (cancelled) return;
+        const listMatch = items?.find((item) => item.project_id === projectId);
+        setProject({
+          ...detail,
+          video_url: listMatch?.video_url ?? detail.video_url,
+          duration: listMatch?.duration ?? detail.duration,
+          fps: listMatch?.fps ?? detail.fps,
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) setProjectErr(String(err?.message || err));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, status]);
+
+  if (status === 'loading') return null;
+  if (status === 'anon') {
+    const query = projectId
+      ? `/start?intent=edit&auth=1&projectId=${encodeURIComponent(projectId)}`
+      : '/start?intent=new&auth=1';
+    return <Navigate to={query} replace />;
+  }
+
+  const loadingProject = !!projectId && !project && !projectErr;
 
   return (
     <>
       <AnimatePresence mode="wait">
-        {!ready && <EditorLoader onDone={() => setReady(true)} />}
+        {(!ready || loadingProject) && <EditorLoader onDone={() => setReady(true)} />}
       </AnimatePresence>
 
-      {ready && (
+      {ready && projectErr && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{
+            minHeight: '100vh',
+            background: '#000',
+            color: 'rgba(255,255,255,0.84)',
+            display: 'grid',
+            placeItems: 'center',
+            padding: '32px',
+          }}
+        >
+          <div style={{ maxWidth: 520, textAlign: 'center' }}>
+            <div style={{ fontSize: '28px', marginBottom: '12px' }}>couldn't reopen this reel</div>
+            <div style={{ color: 'rgba(255,255,255,0.48)', marginBottom: '20px' }}>{projectErr}</div>
+            <button
+              onClick={() => navigate('/projects')}
+              style={{
+                border: '1px solid rgba(255,255,255,0.14)',
+                background: 'rgba(255,255,255,0.06)',
+                color: '#fff',
+                padding: '10px 16px',
+                cursor: 'pointer',
+              }}
+            >
+              back to library
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {ready && !loadingProject && !projectErr && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
           <Studio
+            key={project?.project_id ?? 'new'}
             onExit={() => navigate('/')}
             onLibrary={() => navigate('/projects')}
             initialProject={
-              projectId
-                ? { projectId, videoUrl: '', duration: 0, fps: 24 }
+              project
+                ? {
+                    projectId: project.project_id,
+                    videoUrl: project.video_url,
+                    duration: project.duration,
+                    fps: project.fps,
+                  }
                 : undefined
             }
           />

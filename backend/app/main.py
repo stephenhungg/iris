@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from ai.services.health import router as ai_observability_router
 from app.config.settings import get_settings
 from app.db.init import create_all
 from app.workers.runner import JobRunner
@@ -80,3 +81,4 @@ app.include_router(timeline.router, prefix="/api")
 app.include_router(narrate.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(mask.router, prefix="/api")
+app.include_router(ai_observability_router, prefix="/api/ai")

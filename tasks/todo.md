@@ -1,0 +1,68 @@
+# todo
+
+- [completed] inspect sam bbox bugs across the preview overlay and identify/generate frame selection
+- [completed] patch the preview/bounding box overlay so normalized coords map to the actual visible video area
+- [completed] patch ai identify/generate to use the visible preview frame instead of the clip midpoint
+- [completed] harden repeated identify retries by aborting stale frontend requests and aligning vibe mode with the active preview frame
+- [completed] decouple `ai.services` stubs/tests from backend-only imports so the ai test suite can run in isolation
+- [completed] pin generate/accept flows to their original clip target and stop swallowing `/api/accept` failures in the frontend
+- [completed] run frontend verification and document the result
+- [completed] move the actual vite/react app from repo root into `frontend/`
+- [completed] keep root npm scripts working by turning root `package.json` into a thin wrapper around `frontend/`
+- [completed] update docs/config so local dev still reads env from repo root after the move
+- [completed] remove the sentient font import-order warning from the frontend build
+- [pending] pull and merge the incoming dashboard changes once the teammate push lands
+- [completed] make route ownership sane: landing -> start hub, auth gate library/editor, and preserve intent through sign-in
+- [completed] add a first-time onboarding flow for newly signed-in users before they hit the full editor
+- [completed] add an in-studio checklist / next-step guide so the dashboard teaches the core loop instead of dumping controls all at once
+- [completed] verify the revised onboarding flow against web interface / onboarding best practices and document the remaining gaps
+- [pending] reorg the editor frontend around feature folders instead of dumping everything into `frontend/src/components`
+- [pending] split `frontend/src/pages/Studio.tsx` into dashboard shell pieces (`topbar`, workspace layout, keyboard shortcuts, upload/export controls)
+- [pending] pull ai edit flow ui into a shared editor module so `Inspector` and `VibePrompt` stop feeling like two separate dashboards
+- [pending] reduce inline styles in `VibePrompt` and move editor-specific styling next to the feature it belongs to
+- [pending] fix the editor truth blockers: async export polling, project reopen hydration, and any frontend/backend contract mismatches
+- [pending] expose the causal editing flow in the dashboard: entity appearances, continuity pack, propagation actions, and clear status/progress
+- [pending] add the cinematic reveal layer: before/after compare, stronger variant presentation, and elevenlabs narration playback
+- [pending] mount and surface ai observability/admin plumbing so live demos show provider health, latency, and cost
+- [pending] make the live-ai story explicit: remove accidental stub ambiguity in demo-critical paths and document the real-provider path
+- [pending] align the repo/infra story with prizes: gpu worker wiring, vultr-backed storage/db story, and judge-facing product evidence
+- [completed] align the live-ai wiring slice so stub vs real mode resolve from one config story
+- [completed] make backend local startup/install less misleading for real ai usage
+- [completed] tighten safe config mismatches in backend/ai wiring without adding network assumptions
+- [completed] run targeted verification for provider mode imports and dev startup checks
+- [completed] mount `ai.services.health` into the backend under `/api/ai` so observability is reachable from the main app
+- [completed] wire an optional gpu worker path into local compose without breaking the default frontend/backend/db loop
+- [completed] tighten docs and env examples for the vultr storage/db + gpu worker + ai observability demo story
+- [completed] run targeted verification for backend route mounting, compose validity, and docs accuracy
+
+# review
+
+- root cause was the bbox canvas normalizing pointer coords against the whole preview stage while the video itself was letterboxed with `object-fit: contain`. that made sam receive shifted/scaled boxes on non-matching aspect ratios.
+- a second root cause was `identifyRegion()` and `generate()` using the clip midpoint as `frame_ts` / `reference_frame_ts` instead of the frame currently visible under the playhead. that meant the ai could inspect a completely different frame from the one the user boxed.
+- repeated retries could also stack stale `/api/identify` requests because the preview effect only ignored old responses; it did not abort the underlying fetch. that can snowball into unnecessary work and frontend instability when the user keeps redrawing.
+- `ai/services/__init__.py` was importing backend settings/storage at module import time, so basic ai tests failed during collection unless the backend package layout was present. the facade now uses `USE_AI_STUBS` directly and only imports backend storage in real mode.
+- `Inspector` and `VibePrompt` could both apply a finished job onto the wrong clip if selection/playhead moved before accept, and both paths silently ignored `/api/accept` failures while still replacing the local timeline.
+- fixed by sizing and positioning the overlay canvas to the real displayed video rect using the loaded video aspect ratio, and by syncing the overlay box with the store bbox so clears and updates stay honest.
+- fixed by deriving the active preview frame from `clipAtTime(state.clips, state.playhead)` and `sourceTimeFor(...)`, then feeding that source timestamp into both identify and generate.
+- fixed by wiring `AbortSignal` through the api client and aborting the previous identify request whenever the bbox/clip changes or the effect cleans up. `VibePrompt` now also uses the active preview frame instead of the midpoint.
+- fixed by capturing a generation target snapshot per job and requiring `/api/accept` to succeed before the timeline is locally replaced.
+- verification: `npm run lint` passed, `npm run build` passed with a css import-order warning and a large bundle warning, `pytest ai/tests -q` passed (`17 passed, 8 skipped`)
+- repo cleanup: moved the real frontend app into `frontend/`, narrowed `.gitignore` so the folder itself is tracked, and kept root workflows stable with wrapper scripts in the root `package.json`.
+- repo cleanup verification: `npm --prefix frontend run lint` passed, `npm --prefix frontend run build` passed, `npm run lint` passed, and `npm run build` passed after the move.
+- font cleanup: moved the sentient font load out of `frontend/src/index.css` and into `frontend/index.html`, which removes vite's css import-order warning without changing typography.
+- dashboard reorg prep: current hot path is `Studio` + `Preview` + `Timeline` + `Inspector` + `VibePrompt` + `useGenerationSession` + `edl` store. once the incoming branch is pulled, those are the main seams to reorganize without changing product behavior.
+- current product reality vs pitch: backend already has real routes for upload/generate/accept/entities/propagate/timeline/narrate/export, but the frontend mostly exposes upload + prompt + accept + local timeline + export button. continuity propagation, narrated reveal, and observability are either missing or underexposed in the dashboard.
+- immediate build order: first fix truth-breaking bugs (`export`, reopen hydration, route/api mismatches), then expose continuity + reveal in the dashboard, then do the shell/file reorg around those stabilized workflows instead of reorganizing broken flows.
+- live-ai wiring cleanup: `ai.services` now resolves stub vs real mode from shared settings instead of a one-off env parse, so backend config and the ai facade stop disagreeing about which provider path is active.
+- live-ai prereqs: real mode now fails fast with a clear `GEMINI_API_KEY` message, `elevenlabs` errors clearly when its key is missing, and the dev backend script prints whether it is booting stub or real mode before uvicorn starts.
+- local install path: `backend/requirements.txt` now includes `google-genai` and `python-dotenv`, which were already assumed by the real-provider code path and infra docker image but missing from the backend's local install story.
+- config tightening: `MEDIA_URL_MODE` now normalizes case and validates allowed values, backend settings expose `ai_mode` / readiness helpers, and `/api/health` now reports ai mode plus storage mode so the running app advertises what it's actually wired to.
+- verification: `bash -n scripts/dev_backend.sh` passed, `backend/.venv/bin/python -m py_compile ...` passed for the touched python files, stub-mode import plus `/api/health` check passed, explicit real-mode import without `GEMINI_API_KEY` now fails with the expected clear runtime error, and `PYTHONPATH=\"$PWD:$PWD/backend\" USE_AI_STUBS=true backend/.venv/bin/python -m pytest ai/tests/test_adapters.py -q` passed (`6 passed, 2 skipped`).
+- observability slice: `backend/app/main.py` now mounts `ai.services.health` at `/api/ai`, so the main backend serves `/api/ai/health`, `/api/ai/timeline`, and `/api/ai/stream` without a sidecar app.
+- local infra slice: `infra/docker-compose.yml` now defaults compose-backend traffic to local postgres and adds a profile-gated `gpu-worker` service. default `frontend + backend + db` still stays lightweight; gpu startup is opt-in.
+- docs slice: `README.md` and `.env.example` now spell out the judge/demo path clearly: `USE_AI_STUBS=false`, vultr postgres for state, vultr object storage for media, `GPU_WORKER_URL` for sam/clip, and observability endpoints to keep open during the demo.
+- verification: backend route smoke passed with `TestClient` for `/api/health`, `/api/ai/health`, and `/api/ai/timeline?last_n=2`. compose verification was limited to yaml parsing because `docker` is not installed in this sandbox, so i could not run `docker compose config` or boot the gpu profile here.
+- onboarding flow cleanup: landing now routes into a dedicated `/start` hub, `projects` and `editor` now hard-gate anonymous users back into sign-in, and first-time signed-in users get a short orientation screen before the full studio.
+- onboarding flow research: used current onboarding guidance emphasizing outcome-based onboarding over feature tours, progressive disclosure, and in-product contextual guidance. that directly drove the dedicated start hub plus the live checklist in the studio instead of a one-shot modal tour.
+- onboarding implementation hardening: fixed a hook-order regression in `EditorRoute`, made onboarding/checklist local storage access fail-soft when the browser blocks storage, and fixed the checklist so continuity-heavy flows can actually reach completion.
+- onboarding verification: `bun run lint` passed, `bun run build` passed, and the only remaining warning is the pre-existing large frontend bundle (`~793 kB` built js), which is a code-splitting problem rather than a correctness blocker.

@@ -1,5 +1,6 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { clipAtTime, duration, sourceTimeFor, totalDuration, useEDL } from "../stores/edl";
+import { identifyRegion } from "../api/client";
 import { Icon } from "./Icon";
 import BoundingBox from "./BoundingBox";
 import "./preview.css";
@@ -16,10 +17,53 @@ export function Preview() {
   const stageRef = useRef<HTMLDivElement>(null);
   const currentClipIdRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
+  const [videoSize, setVideoSize] = useState({ width: 1920, height: 1080 });
 
   const hit = clipAtTime(state.clips, state.playhead);
   const activeClip = hit?.clip ?? null;
   const total = totalDuration(state.clips);
+  const frameTs = hit ? sourceTimeFor(hit.clip, hit.offsetInClip) : null;
+
+  // Drawing a bounding box kicks off Gemini identification + SAM mask
+  // refinement. This has to live here (not inside the Inspector's AiTab)
+  // because the bbox overlay itself lives on the preview and the user
+  // might not be looking at the AI tab when they draw one. The effect
+  // keys off bbox + projectId so it fires once per region, not per frame.
+  const bbox = state.bbox;
+  const projectId = activeClip?.kind === "source" ? (activeClip.projectId ?? null) : null;
+  useEffect(() => {
+    if (!bbox || !projectId || frameTs == null || state.playing) return;
+    const controller = new AbortController();
+    let cancelled = false;
+    dispatch({ type: "set_identified", entity: null, loading: true });
+    identifyRegion(projectId, frameTs, bbox, controller.signal)
+      .then((resp) => {
+        if (cancelled) return;
+        dispatch({
+          type: "set_identified",
+          entity: {
+            description: resp.description,
+            category: resp.category,
+            attributes: resp.attributes,
+          },
+          loading: false,
+        });
+        dispatch({
+          type: "set_mask",
+          mask: resp.mask?.contour?.length ? { contour: resp.mask.contour } : null,
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        dispatch({ type: "set_identified", entity: null, loading: false });
+        dispatch({ type: "set_mask", mask: null });
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [bbox, projectId, activeClip?.id, frameTs, state.playing, dispatch]);
 
   // mirror active clip into <video>
   useEffect(() => {
@@ -36,10 +80,9 @@ export function Preview() {
       const onLoaded = () => {
         v.currentTime = want;
         if (state.playing) v.play().catch(() => {});
-        v.removeEventListener("loadedmetadata", onLoaded);
       };
       v.addEventListener("loadedmetadata", onLoaded);
-      return;
+      return () => v.removeEventListener("loadedmetadata", onLoaded);
     }
 
     v.volume = activeClip.volume;
@@ -47,6 +90,13 @@ export function Preview() {
       v.currentTime = want;
     }
   }, [activeClip?.id, activeClip?.url, activeClip?.volume, hit?.offsetInClip, state.playing, activeClip]);
+
+  useEffect(() => {
+    if (!activeClip) {
+      currentClipIdRef.current = null;
+      setVideoSize({ width: 1920, height: 1080 });
+    }
+  }, [activeClip?.id]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -92,15 +142,27 @@ export function Preview() {
       <div className="pv__stage" ref={stageRef} style={{ position: 'relative' }}>
         {activeClip ? (
           <>
-            <video ref={videoRef} className="pv__video" playsInline />
+            <video
+              ref={videoRef}
+              className="pv__video"
+              playsInline
+              onLoadedMetadata={(e) => {
+                const { videoWidth, videoHeight } = e.currentTarget;
+                setVideoSize({
+                  width: videoWidth || 1920,
+                  height: videoHeight || 1080,
+                });
+              }}
+            />
             <BoundingBox
-              videoWidth={videoRef.current?.videoWidth ?? 1920}
-              videoHeight={videoRef.current?.videoHeight ?? 1080}
+              videoWidth={videoSize.width}
+              videoHeight={videoSize.height}
               containerRef={stageRef}
               disabled={state.playing}
               onBoxDrawn={(bbox) => dispatch({ type: "set_bbox", bbox })}
               onClear={() => dispatch({ type: "set_bbox", bbox: null })}
-              mask={null}
+              bbox={state.bbox}
+              mask={state.mask}
             />
           </>
         ) : (

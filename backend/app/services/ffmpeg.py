@@ -252,6 +252,29 @@ async def extract_frame(src: str | Path, ts: float, out: str | Path) -> Path:
     return out
 
 
+async def crop_bbox_from_frame(
+    frame_path: str | Path,
+    bbox: dict[str, float],
+    out: str | Path | None = None,
+) -> Path:
+    """Crop a normalized bbox from a still frame image."""
+    frame_path = Path(frame_path)
+    out = Path(out) if out is not None else frame_path.with_suffix(".crop.png")
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(frame_path),
+        "-vf",
+        (
+            f"crop="
+            f"iw*{bbox['w']}:ih*{bbox['h']}:"
+            f"iw*{bbox['x']}:ih*{bbox['y']}"
+        ),
+        str(out),
+    ]
+    await _run(cmd)
+    return out
+
+
 async def extract_keyframes(
     src: str | Path,
     fps: float,

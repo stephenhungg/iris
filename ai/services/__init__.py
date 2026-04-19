@@ -13,7 +13,10 @@ imports. The backend expects:
 Two modes:
   - USE_AI_STUBS=true  (default) -> route to _stubs.py, no API keys needed
   - USE_AI_STUBS=false          -> adapt Stephen's real modules (Veo + Gemini
-                                   + ElevenLabs) to the surface above
+                                   + ElevenLabs) to the surface above. note that
+                                   `runway.generate` remains the stable adapter
+                                   name even though the live video provider is Veo
+                                   via `GEMINI_API_KEY`.
 
 Name mapping from real modules:
   gemini.create_edit_plan             -> gemini.plan_variants
@@ -28,14 +31,29 @@ from __future__ import annotations
 import types as _types
 from pathlib import Path
 
-from app.config.settings import get_settings
-from app.services import storage
 from ai.services import _stubs
+from ai.services.config import get_settings as _get_ai_settings
 
-_settings = get_settings()
+
+def _load_backend_stub_mode() -> bool | None:
+    try:
+        from app.config.settings import get_settings as _get_backend_settings
+    except ModuleNotFoundError:
+        return None
+    return _get_backend_settings().use_ai_stubs
 
 
-if _settings.use_ai_stubs:
+def _resolve_use_ai_stubs() -> bool:
+    backend_value = _load_backend_stub_mode()
+    if backend_value is not None:
+        return backend_value
+    return _get_ai_settings().use_ai_stubs
+
+
+_USE_AI_STUBS = _resolve_use_ai_stubs()
+
+
+if _USE_AI_STUBS:
     gemini = _stubs.gemini
     runway = _stubs.runway
     elevenlabs = _stubs.elevenlabs
@@ -43,6 +61,14 @@ if _settings.use_ai_stubs:
 
 else:
     # real impls live in sibling modules; importing them requires GEMINI_API_KEY
+    _real_settings = _get_ai_settings()
+    if not _real_settings.real_ai_ready:
+        raise RuntimeError(
+            "USE_AI_STUBS=false requires GEMINI_API_KEY for the live gemini/veo "
+            "provider path. leave USE_AI_STUBS=true for local stub mode."
+        )
+
+    from app.services import storage
     from ai.services import gemini as _gemini_real
     from ai.services import veo as _veo_real
     from ai.services import elevenlabs as _el_real
@@ -74,21 +100,23 @@ else:
 
     async def _find_entity_in_keyframes(entity: dict, keyframes: list[str]) -> list[dict]:
         description = entity.get("description", "")
-        hits = await _gemini_real.search_keyframes_for_entity(description, keyframes)
-        # Stephen returns [{keyframe_index, confidence, found}].
-        # Convert to the EntityHit shape the backend expects. Assume 1fps sampling
-        # (backend's entity_job sets KEYFRAMES_PER_SECOND=1.0).
         out: list[dict] = []
-        for h in hits:
-            if not h.get("found"):
-                continue
-            idx = int(h.get("keyframe_index", 0))
-            out.append({
-                "start_ts": float(idx),
-                "end_ts": float(idx) + 1.0,
-                "keyframe_url": keyframes[idx] if idx < len(keyframes) else "",
-                "confidence": float(h.get("confidence", 0.0)),
-            })
+        for batch_start in range(0, len(keyframes), 10):
+            batch = keyframes[batch_start : batch_start + 10]
+            hits = await _gemini_real.search_keyframes_for_entity(description, batch)
+            # Stephen returns [{keyframe_index, confidence, found}].
+            # Convert to the EntityHit shape the backend expects. Assume 1fps
+            # sampling (backend's entity_job sets KEYFRAMES_PER_SECOND=1.0).
+            for h in hits:
+                if not h.get("found"):
+                    continue
+                idx = batch_start + int(h.get("keyframe_index", 0))
+                out.append({
+                    "start_ts": float(idx),
+                    "end_ts": float(idx) + 1.0,
+                    "keyframe_url": keyframes[idx] if idx < len(keyframes) else "",
+                    "confidence": float(h.get("confidence", 0.0)),
+                })
         return out
 
     gemini = _types.SimpleNamespace(
@@ -116,8 +144,9 @@ else:
                 prompt_for_veo=prompt_text,
                 reference_frame_path=clip_path,  # passes first-frame crop for spatial conditioning
             )
+        published_url = await storage.publish(Path(out_path), content_type="video/mp4")
         return {
-            "url": storage.url_for_path(Path(out_path)),
+            "url": published_url,
             "description": plan.get("description", ""),
         }
 

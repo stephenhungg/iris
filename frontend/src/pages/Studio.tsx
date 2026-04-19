@@ -19,8 +19,14 @@ import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
 import { VibePrompt } from "../components/VibePrompt";
-import { exportVideo, getTimeline, upload } from "../api/client";
+import { exportVideo, getTimeline, pollExport, upload, type TimelineSegment } from "../api/client";
 import { Icon } from "../components/Icon";
+import { ContinuityStatusBadge } from "../features/continuity/ContinuityStatusBadge";
+import {
+  useContinuityDashboard,
+  type ContinuityDashboardController,
+} from "../features/continuity/useContinuityDashboard";
+import { EditorChecklist } from "../features/onboarding/EditorChecklist";
 import "../styles/global.css";
 import "./studio.css";
 
@@ -31,6 +37,72 @@ export type StudioInitialProject = {
   fps: number;
   label?: string;
 };
+
+function buildSourceAsset(
+  project: StudioInitialProject,
+  sourceUrl = project.videoUrl,
+): MediaAsset {
+  return newMediaAsset({
+    url: sourceUrl,
+    duration: project.duration,
+    fps: project.fps,
+    projectId: project.projectId,
+    label: project.label || project.projectId.slice(0, 8),
+    kind: "source",
+  });
+}
+
+function buildTimelineClip(
+  segment: TimelineSegment,
+  project: StudioInitialProject,
+  sourceAsset: MediaAsset,
+): Clip {
+  const span = Math.max(0.01, segment.end_ts - segment.start_ts);
+  if (segment.source === "generated") {
+    return {
+      id: crypto.randomUUID(),
+      kind: "generated",
+      url: segment.url,
+      sourceStart: 0,
+      sourceEnd: span,
+      mediaDuration: span,
+      volume: segment.audio ? 1 : 0,
+      projectId: project.projectId,
+      label: "ai edit",
+    };
+  }
+  return {
+    id: crypto.randomUUID(),
+    kind: "source",
+    url: segment.url,
+    sourceStart: segment.start_ts,
+    sourceEnd: segment.end_ts,
+    mediaDuration: project.duration,
+    volume: segment.audio ? 1 : 0,
+    projectId: project.projectId,
+    sourceAssetId: sourceAsset.id,
+    label: sourceAsset.label,
+  };
+}
+
+function buildGeneratedAssets(project: StudioInitialProject, segments: TimelineSegment[]) {
+  const assets: MediaAsset[] = [];
+  const seen = new Set<string>();
+  for (const segment of segments) {
+    if (segment.source !== "generated" || seen.has(segment.url)) continue;
+    seen.add(segment.url);
+    const span = Math.max(0.01, segment.end_ts - segment.start_ts);
+    assets.push(newMediaAsset({
+      url: segment.url,
+      duration: span,
+      fps: project.fps,
+      projectId: project.projectId,
+      label: `ai edit ${assets.length + 1}`,
+      kind: "generated",
+    }));
+  }
+  return assets;
+}
 
 export function Studio({
   onExit,
@@ -65,6 +137,7 @@ function StudioInner({
   const [uploading, setUploading] = useState(false);
   const [mode, setMode] = useState<'vibe' | 'pro'>('vibe');
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [hydratingProject, setHydratingProject] = useState(Boolean(initialProject));
   const rootRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,60 +157,44 @@ function StudioInner({
   // gives you back your splits and accepted AI variants exactly as you
   // left them. falls back to a single full-length clip if the timeline
   // fetch fails (e.g. offline, brand-new project with no segments yet).
-  const hydratedRef = useRef(false);
+  const hydratedProjectIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (hydratedRef.current) return;
     if (!initialProject) return;
-    hydratedRef.current = true;
-
-    const sourceAsset: MediaAsset = newMediaAsset({
-      url: initialProject.videoUrl,
-      duration: initialProject.duration,
-      fps: initialProject.fps,
-      projectId: initialProject.projectId,
-      label: initialProject.label || initialProject.projectId.slice(0, 8),
-      kind: "source",
-    });
+    if (hydratedProjectIdRef.current === initialProject.projectId) return;
+    hydratedProjectIdRef.current = initialProject.projectId;
+    setHydratingProject(true);
 
     let cancelled = false;
     (async () => {
       try {
         const tl = await getTimeline(initialProject.projectId);
         if (cancelled) return;
-        // segments are timestamps into either the original video (source=
-        // "original", sub-range is start_ts..end_ts inside the full file)
-        // or a standalone generated clip (source="generated", the variant
-        // file holds exactly that span, so its sub-range is 0..span).
-        const clips: Clip[] = tl.segments.map((seg) => {
-          const span = Math.max(0.01, seg.end_ts - seg.start_ts);
-          if (seg.source === "generated") {
-            return {
+        const sourceUrl =
+          tl.segments.find((seg) => seg.source === "original")?.url
+          ?? initialProject.videoUrl;
+        const sourceAsset = buildSourceAsset(initialProject, sourceUrl);
+        const clips: Clip[] = tl.segments.length > 0
+          ? tl.segments.map((seg) => buildTimelineClip(seg, initialProject, sourceAsset))
+          : [{
               id: crypto.randomUUID(),
-              kind: "generated" as const,
-              url: seg.url,
+              kind: "source",
+              url: sourceAsset.url,
               sourceStart: 0,
-              sourceEnd: span,
-              mediaDuration: span,
-              volume: seg.audio ? 1 : 0,
-              projectId: initialProject.projectId,
-            };
-          }
-          return {
-            id: crypto.randomUUID(),
-            kind: "source" as const,
-            url: seg.url,
-            sourceStart: seg.start_ts,
-            sourceEnd: seg.end_ts,
-            mediaDuration: initialProject.duration,
-            volume: seg.audio ? 1 : 0,
-            projectId: initialProject.projectId,
-            sourceAssetId: sourceAsset.id,
-            label: sourceAsset.label,
-          };
+              sourceEnd: sourceAsset.duration,
+              mediaDuration: sourceAsset.duration,
+              volume: 1,
+              projectId: sourceAsset.projectId,
+              sourceAssetId: sourceAsset.id,
+              label: sourceAsset.label,
+            }];
+        dispatch({
+          type: "hydrate",
+          sources: [sourceAsset, ...buildGeneratedAssets(initialProject, tl.segments)],
+          clips,
         });
-        dispatch({ type: "hydrate", sources: [sourceAsset], clips });
       } catch {
         if (cancelled) return;
+        const sourceAsset = buildSourceAsset(initialProject);
         // no timeline (new project, network hiccup) — fall back to one
         // full-length clip pointing at the source video.
         const fallback: Clip = {
@@ -153,6 +210,8 @@ function StudioInner({
           label: sourceAsset.label,
         };
         dispatch({ type: "hydrate", sources: [sourceAsset], clips: [fallback] });
+      } finally {
+        if (!cancelled) setHydratingProject(false);
       }
     })();
 
@@ -224,23 +283,61 @@ function StudioInner({
   }, [state.playing, state.selectedId, dispatch]);
 
   const [exporting, setExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState("");
 
   const handleExport = useCallback(async () => {
-    const projectId = state.sources[0]?.projectId;
+    const projectId =
+      initialProject?.projectId
+      ?? state.sources.find((asset) => asset.kind === "source")?.projectId
+      ?? state.sources[0]?.projectId;
     if (!projectId || state.clips.length === 0) return;
+    const popup = window.open("", "_blank");
+    if (popup) popup.opener = null;
     setExporting(true);
+    setExportStatus("queued");
     try {
-      const res = await exportVideo(projectId);
-      window.open(res.export_url, "_blank");
+      const { export_job_id } = await exportVideo(projectId);
+      const res = await pollExport(export_job_id, (job) => {
+        setExportStatus(job.status);
+      });
+      if (res.status !== "done" || !res.export_url) {
+        throw new Error(res.error || "export finished without a download url");
+      }
+      if (popup) {
+        popup.location.replace(res.export_url);
+      } else {
+        window.open(res.export_url, "_blank", "noopener,noreferrer");
+      }
     } catch (err) {
+      if (popup) popup.close();
       alert(`Export failed: ${err}`);
     } finally {
       setExporting(false);
+      setExportStatus("");
     }
-  }, [state.sources, state.clips.length]);
+  }, [initialProject?.projectId, state.sources, state.clips.length]);
 
   const hasSources = state.sources.length > 0;
-  const projectLabel = state.sources[0]?.projectId.slice(0, 8);
+  const continuityProjectId =
+    initialProject?.projectId
+    ?? state.sources.find((asset) => asset.kind === "source")?.projectId
+    ?? state.sources[0]?.projectId
+    ?? null;
+  const continuity = useContinuityDashboard(continuityProjectId);
+  const projectLabel =
+    initialProject?.label
+    ?? initialProject?.projectId.slice(0, 8)
+    ?? state.sources[0]?.projectId.slice(0, 8);
+  const hasAcceptedEdit = state.clips.some((clip) => clip.kind === "generated");
+  const continuityComplete =
+    continuity.propagationCounts.total > 0 &&
+    continuity.propagationCounts.applied === continuity.propagationCounts.total;
+  const exportLabel =
+    exporting
+      ? exportStatus === "processing"
+        ? "Rendering…"
+        : "Queueing…"
+      : "Export";
 
   return (
     <main className={`studio ${mode === 'vibe' ? 'studio--vibe' : ''}`} ref={rootRef}>
@@ -265,7 +362,9 @@ function StudioInner({
         onShowShortcuts={() => setShowShortcuts(true)}
         onExport={handleExport}
         exporting={exporting}
+        exportLabel={exportLabel}
         canExport={state.clips.length > 0}
+        continuity={continuity}
       />
 
       {showShortcuts && (
@@ -337,6 +436,21 @@ function StudioInner({
               <Preview />
               {mode === 'vibe' && <VibePrompt />}
             </>
+          ) : hydratingProject ? (
+            <div
+              style={{
+                display: 'grid',
+                placeItems: 'center',
+                height: '100%',
+                color: 'rgba(255,255,255,0.55)',
+                fontFamily: 'var(--font-mono, monospace)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                fontSize: 11,
+              }}
+            >
+              reopening reel…
+            </div>
           ) : (
             <UploadDrop onFile={handleFile} busy={uploading} />
           )}
@@ -352,7 +466,19 @@ function StudioInner({
         />
 
         <aside className="studio__right">
-          <Inspector />
+          <div style={{ padding: "12px 12px 0" }}>
+            <EditorChecklist
+              projectId={continuityProjectId}
+              hasSources={hasSources}
+              hasSelection={Boolean(state.selectedId)}
+              hasBbox={Boolean(state.bbox)}
+              hasAcceptedEdit={hasAcceptedEdit}
+              hasContinuityPack={continuity.hasPropagatableAppearances}
+              continuityComplete={continuityComplete}
+              onImport={() => fileInputRef.current?.click()}
+            />
+          </div>
+          <Inspector mode={mode} continuity={continuity} />
         </aside>
       </section>
 
@@ -455,7 +581,9 @@ function TopBar({
   onShowShortcuts,
   onExport,
   exporting,
+  exportLabel,
   canExport,
+  continuity,
 }: {
   onExit: () => void;
   onLibrary?: () => void;
@@ -466,7 +594,9 @@ function TopBar({
   onShowShortcuts?: () => void;
   onExport?: () => void;
   exporting?: boolean;
+  exportLabel?: string;
   canExport?: boolean;
+  continuity: ContinuityDashboardController;
 }) {
   return (
     <header className="topbar">
@@ -502,6 +632,7 @@ function TopBar({
       </div>
 
       <div className="topbar__right">
+        <ContinuityStatusBadge continuity={continuity} />
         <button
           onClick={onToggleMode}
           style={{
@@ -528,7 +659,7 @@ function TopBar({
           disabled={!canExport || exporting}
           onClick={onExport}
         >
-          {exporting ? "Exporting…" : "Export"}
+          {exportLabel || (exporting ? "Exporting…" : "Export")}
         </button>
       </div>
     </header>

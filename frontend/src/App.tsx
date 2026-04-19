@@ -6,24 +6,14 @@ import Lenis from 'lenis'
 import MetallicPaint from './components/MetallicPaint'
 import Noise from './components/Noise'
 import ScrollFrames from './components/ScrollFrames'
-import SmokeOrbBackground from './components/SmokeOrbBackground'
-import CardSwapShowcase from './components/CardSwapShowcase'
 import ASCIIText from './components/ASCIIText'
+import CardSwapShowcase from './components/CardSwapShowcase'
 import FloatingToolbar from './components/FloatingToolbar'
+import SmokeOrbBackground from './components/SmokeOrbBackground'
 import { useAuth } from './lib/useAuth'
 import { listProjects, type ProjectListItem } from './api/client'
 
 const IRIS_SVG = '/iris-logo.svg'
-const IRIS_METAL_TINT = '#badcff'
-const IRIS_WORDMARK_TEXT = 'iris.'
-const IRIS_WORDMARK_MASK = {
-  fontFamily: 'Sentient, Georgia, serif',
-  fontSize: 344,
-  fontWeight: 300,
-  letterSpacing: 26,
-  paddingX: 0,
-  paddingY: 56,
-}
 
 // motion design system (lottiefiles + framerlabs + palmer)
 //
@@ -205,15 +195,14 @@ function PillNav({ onStudio }: { onStudio: () => void }) {
       {show && (
         <motion.nav data-intro="nav" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={{ duration: DUR.slow, ease: EASE.premium }}
           style={{ position: 'fixed', bottom: '24px', left: 0, right: 0, marginLeft: 'auto', marginRight: 'auto', width: 'fit-content', zIndex: 50, display: 'flex', alignItems: 'center', gap: '24px', padding: '10px 12px 10px 24px', background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-            {[
-              { key: 'about-primary', label: 'About' },
-              { key: 'editor', label: 'Editor' },
-              { key: 'about-secondary', label: 'About' },
-            ].map(({ key, label }) => (
-            <a key={key} href={`#${label}`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>{label}</a>
+          {['product', 'editor', 'about'].map(l => (
+            <a key={l} href={`#${l}`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>{l}</a>
           ))}
           <AuthChip />
+          <Magnetic intensity={0.25}>
+            <button onClick={onStudio} style={{ padding: '8px 20px', background: '#fff', color: '#000', border: 'none', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '0.06em', cursor: 'pointer', transition: 'transform 0.2s' }}>start editing</button>
+          </Magnetic>
         </motion.nav>
       )}
     </AnimatePresence>
@@ -299,70 +288,63 @@ function Hero({ onStudio }: { onStudio: () => void }) {
         <div data-intro="chrome"
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', opacity: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em' }}>IRIS®</span>
-              <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
-                {['v0.1', '2026', 'Cal Hacks'].map((tag, i) => (
-                  <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)' }}>{tag}</span>
-                ))}
-              </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>iris®</span>
+            <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+              {['v0.1', '2026', 'cal hacks'].map((tag, i) => (
+                <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)' }}>{tag}</span>
+              ))}
             </div>
-            <div data-intro="chrome" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6, opacity: 0 }}>
-              AI-powered video editor<br />Speak your edits into existence.
-            </div>
+          </div>
+          <div data-intro="chrome" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6, opacity: 0 }}>
+            ai-powered video editor<br />speak your edits into existence
+          </div>
         </div>
 
         {/* title — centered on screen during intro, settles into layout after */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: '48px', paddingLeft: 'clamp(112px, 14vw, 280px)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: '48px' }}>
           {/* metallic paint logo — appears after title reveal */}
           <div data-intro="metallic"
-              style={{ width: 'clamp(80px, 12vw, 200px)', height: 'clamp(80px, 12vw, 200px)', flexShrink: 0, opacity: 0, marginRight: 'clamp(-18px, -1.4vw, -10px)', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden', zIndex: 2 }}>
-              <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#f4fbff" darkColor="#000000" tintColor={IRIS_METAL_TINT} />
-            </div>
+            style={{ width: 'clamp(80px, 12vw, 200px)', height: 'clamp(80px, 12vw, 200px)', flexShrink: 0, opacity: 0, marginRight: 'clamp(16px, 3vw, 40px)', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
+            <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#ffffff" darkColor="#000000" tintColor="#c0c0c0" />
+          </div>
 
-            <div data-intro="logo-dark"
-              style={{ opacity: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '18px', filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
-            <div style={{ position: 'relative', width: 'clamp(560px, 62vw, 1240px)', height: 'clamp(128px, 15vw, 252px)', marginLeft: 'clamp(-338px, -20vw, -220px)', marginTop: 'clamp(14px, 1.4vw, 24px)' }}>
-              <MetallicPaint text={IRIS_WORDMARK_TEXT} textOptions={IRIS_WORDMARK_MASK} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#f4fbff" darkColor="#000000" tintColor={IRIS_METAL_TINT} />
-              <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>
-                {IRIS_WORDMARK_TEXT}
-              </span>
-            </div>
-
-            <div style={{ marginLeft: 'clamp(36px, 4.2vw, 74px)', display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <Magnetic intensity={0.18}>
-                <button onClick={onStudio} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '15px 34px', border: 'none', width: '194px', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', color: '#000', fontWeight: 700, letterSpacing: '0.14em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s, transform 0.3s', textAlign: 'center', boxSizing: 'border-box' }}
-                  onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 48px rgba(190,220,255,0.22)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Open Studio</button>
-              </Magnetic>
-              <Magnetic intensity={0.18}>
-                <button style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '15px 34px', border: '1px solid rgba(255,255,255,0.14)', width: '194px', background: 'linear-gradient(135deg, rgba(10,10,12,0.96), rgba(0,0,0,0.92), rgba(18,22,28,0.96), rgba(0,0,0,0.92), rgba(10,10,12,0.96))', backgroundSize: '200% 100%', color: 'rgba(236,244,255,0.92)', fontWeight: 700, letterSpacing: '0.14em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s, transform 0.3s', textAlign: 'center', boxSizing: 'border-box' }}
-                  onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 48px rgba(190,220,255,0.16)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Demo Video</button>
-              </Magnetic>
-            </div>
+          {/* dual-layer text for wipe reveal */}
+          <div style={{ position: 'relative' }}>
+            <h1 data-intro="logo-dark"
+              style={{ fontFamily: 'var(--font-display)', fontWeight: 200, fontSize: 'clamp(80px, 12vw, 200px)', lineHeight: 0.85, letterSpacing: '0.25em', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite', filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
+              iris.
+            </h1>
           </div>
         </div>
 
         {/* bottom row */}
         <div data-intro="chrome"
-          style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '40px', alignItems: 'end', opacity: 0 }}>
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '40px', alignItems: 'end', opacity: 0 }}>
           <div style={{ maxWidth: '320px' }}>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
-                Point at a moment.
+              point at a moment.
             </p>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
-                Say what changes.
+              say what changes.
             </p>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0 }}>
-                Reality rewrites itself.
+              reality rewrites itself.
             </p>
           </div>
+          <div>
+            <Magnetic intensity={0.2}>
+              <button onClick={onStudio} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '16px 40px', border: 'none', width: 'fit-content', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s' }}
+                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 40px rgba(255,255,255,0.12)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>start editing</button>
+            </Magnetic>
+          </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', lineHeight: 2, textAlign: 'right' }}>
-              <div>Prompt-driven editing</div><div>Causal entity tracking</div><div>Powered by Gemini + Veo</div>
+            <div>prompt-driven editing</div><div>causal entity tracking</div><div>powered by gemini + veo</div>
           </div>
         </div>
       </motion.div>
 
       <div data-intro="chrome" style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', opacity: 0 }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)', letterSpacing: '0.16em' }}>Scroll</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)', letterSpacing: '0.2em' }}>scroll</span>
         <motion.div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)' }} animate={{ scaleY: [1, 0.4, 1] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
       </div>
     </section>
@@ -407,8 +389,8 @@ function Marquee() {
   return (
     <ScrollReveal y={0}
       style={{ overflow: 'hidden', whiteSpace: 'nowrap', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '24px 0' }}>
-        <motion.div animate={{ x: [0, -3000] }} transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-          style={{ display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: 'clamp(60px, 8vw, 100px)', fontWeight: 500, letterSpacing: '-0.05em', color: 'transparent', WebkitTextStroke: '1px rgba(255,255,255,0.1)', textTransform: 'lowercase' }}>{text}</motion.div>
+      <motion.div animate={{ x: [0, -3000] }} transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+        style={{ display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: 'clamp(60px, 8vw, 100px)', fontWeight: 300, letterSpacing: '-0.02em', color: 'transparent', WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>{text}</motion.div>
     </ScrollReveal>
   )
 }
@@ -435,12 +417,12 @@ function Thesis() {
         style={{ position: 'absolute', bottom: '12%', left: '2%', width: '200px', height: '140px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0.2 }} />
 
       <ScrollReveal y={0}
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.14em', marginBottom: '40px' }}>IRIS / 001 / About</ScrollReveal>
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>© iris — 001 / about</ScrollReveal>
 
-        <ScrollReveal as="h2" y={-40}
-          style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.92, letterSpacing: '-0.05em', color: '#fff', marginBottom: '0', textTransform: 'lowercase' }}>
-          generation<br /><span style={{ background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite' }}>is the edit.</span>
-        </ScrollReveal>
+      <ScrollReveal as="h2" y={-40}
+        style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '0' }}>
+        generation<br /><span style={{ fontStyle: 'italic', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite' }}>is the edit.</span>
+      </ScrollReveal>
 
       {/* divider line */}
       <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.06)', margin: '40px 0' }} />
@@ -461,8 +443,8 @@ function Thesis() {
               <div key={i} style={{ cursor: 'default', transition: 'transform 0.3s, text-shadow 0.3s' }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) { valEl.style.color = '#fff'; valEl.style.textShadow = '0 0 40px rgba(255,255,255,0.15)' } }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) { valEl.style.color = '#fff'; valEl.style.textShadow = 'none' } }}>
-                <div data-stat-val="" style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 500, color: '#fff', letterSpacing: '-0.04em', marginBottom: '4px', transition: 'color 0.3s, text-shadow 0.3s' }}>{s.val}</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.08em' }}>{s.label}</div>
+                <div data-stat-val="" style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '4px', transition: 'color 0.3s, text-shadow 0.3s' }}>{s.val}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>{s.label}</div>
               </div>
             ))}
           </ScrollReveal>
@@ -476,7 +458,7 @@ function Thesis() {
                 onMouseEnter={e => { const p = e.currentTarget.parentElement!; p.style.paddingLeft = '16px'; p.style.borderColor = 'rgba(255,255,255,0.15)'; const num = p.querySelector('[data-step-num]') as HTMLElement | null; if (num) num.style.color = 'rgba(255,255,255,0.5)' }}
                 onMouseLeave={e => { const p = e.currentTarget.parentElement!; p.style.paddingLeft = '0'; p.style.borderColor = 'rgba(255,255,255,0.06)'; const num = p.querySelector('[data-step-num]') as HTMLElement | null; if (num) num.style.color = 'rgba(255,255,255,0.15)' }}>
                 <span data-step-num="" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', minWidth: '20px', transition: 'color 0.3s' }}>{s.num}</span>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 500, color: '#fff', letterSpacing: '-0.04em', textTransform: 'lowercase' }}>{s.label}</span>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em' }}>{s.label}</span>
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.25)', lineHeight: 1.6, paddingLeft: '40px' }}>{s.desc}</div>
             </ScrollReveal>
@@ -493,11 +475,11 @@ function Features() {
   return (
     <section id="features" style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
       <ScrollReveal y={0}
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.14em', marginBottom: '40px' }}>IRIS / 002 / Capabilities</ScrollReveal>
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>© iris — 002 / capabilities</ScrollReveal>
 
-        <ScrollReveal as="h2" y={-40}
-        style={{ fontFamily: 'var(--font-display)', fontWeight: 500, fontSize: 'clamp(40px, 6vw, 96px)', lineHeight: 0.92, letterSpacing: '-0.05em', color: '#fff', marginBottom: '80px', textTransform: 'lowercase' }}>
-        blending <span style={{ color: 'rgba(255,255,255,0.4)' }}>intelligence</span><br />with intention.
+      <ScrollReveal as="h2" y={-40}
+        style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(40px, 6vw, 96px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '80px' }}>
+        blending <span style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.4)' }}>intelligence</span><br />with intention.
       </ScrollReveal>
 
       <ScrollReveal y={24}>
@@ -534,13 +516,13 @@ function SocialProof() {
   return (
     <section style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
       <ScrollReveal y={0}
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.14em', marginBottom: '64px' }}>IRIS / 003 / Signal</ScrollReveal>
+        style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '64px' }}>© iris — 003 / signal</ScrollReveal>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {TESTIMONIALS.map((t, i) => (
           <ScrollReveal key={i} delay={i * 0.1}
             style={{ padding: '48px 0', paddingRight: i < 2 ? '40px' : '0', paddingLeft: i > 0 ? '40px' : '0', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-            <p style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 500, lineHeight: 1.5, color: 'rgba(255,255,255,0.5)', marginBottom: '32px', letterSpacing: '-0.03em', textTransform: 'lowercase' }}>
+            <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '20px', lineHeight: 1.5, color: 'rgba(255,255,255,0.5)', marginBottom: '32px' }}>
               &ldquo;{t.quote}&rdquo;
             </p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -646,16 +628,16 @@ function CTA({ onStudio }: { onStudio: () => void }) {
       </ScrollReveal>
       <ScrollReveal as="p" y={0} delay={0.1}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', marginBottom: '48px' }}>
-        Start editing with prompts, not tools.
+        start editing with prompts, not tools.
       </ScrollReveal>
       <ScrollReveal delay={0.2}>
         <Magnetic intensity={0.2}>
           <button onClick={onStudio}
             style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', padding: '18px 56px', border: 'none', background: '#fff', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', transition: 'all 0.3s' }}
-            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Open Studio</button>
+            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>start editing</button>
         </Magnetic>
       </ScrollReveal>
-      <div style={{ display: 'none', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '20px' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '20px' }}>
         no account required · free during beta
       </div>
       </div>
@@ -667,19 +649,19 @@ function CTA({ onStudio }: { onStudio: () => void }) {
 
 function Footer() {
   const footerLinks: Record<string, string[]> = {
-    Product: ['Editor', 'Pricing', 'Changelog'],
-    Resources: ['Docs', 'API', 'GitHub'],
-    Company: ['About', 'Twitter', 'Contact'],
+    product: ['editor', 'pricing', 'changelog'],
+    resources: ['docs', 'api', 'github'],
+    company: ['about', 'twitter', 'contact'],
   }
 
   return (
     <footer style={{ position: 'relative', padding: '120px 64px 60px', borderTop: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
       {/* ghost watermark */}
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontFamily: 'var(--font-display)', fontSize: 'clamp(120px, 20vw, 300px)', fontWeight: 500, color: '#fff', opacity: 0.03, pointerEvents: 'none', userSelect: 'none', letterSpacing: '-0.05em', textTransform: 'lowercase' }}>iris</div>
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontFamily: 'var(--font-display)', fontSize: 'clamp(120px, 20vw, 300px)', fontWeight: 300, color: '#fff', opacity: 0.03, pointerEvents: 'none', userSelect: 'none', letterSpacing: '-0.03em' }}>iris</div>
 
       {/* closing philosophy */}
       <ScrollReveal as="p" y={0}
-        style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 3vw, 36px)', fontWeight: 500, color: 'rgba(255,255,255,0.12)', lineHeight: 1.1, marginBottom: '64px', letterSpacing: '-0.04em', textTransform: 'lowercase' }}>
+        style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 'clamp(20px, 3vw, 36px)', color: 'rgba(255,255,255,0.12)', lineHeight: 1.1, marginBottom: '64px' }}>
         the edit is the story.
       </ScrollReveal>
 
@@ -788,24 +770,20 @@ export default function App() {
   }, [loaderDone, runIntro])
 
   const goStudio = useCallback(async () => {
-    if (status !== 'authed') {
-      navigate('/editor')
-      return
-    }
-    try {
-      const items: ProjectListItem[] = await listProjects()
-      if (items.length === 0) {
-        navigate('/editor')
-      } else {
-        navigate('/projects')
+    if (status === 'authed') {
+      try {
+        const items: ProjectListItem[] = await listProjects()
+        navigate(items.length > 0 ? '/start?hasProjects=1' : '/start')
+        return
+      } catch {
+        // fall through to the shared start flow
       }
-    } catch {
-      navigate('/editor')
     }
+    navigate('/start')
   }, [status, navigate])
 
   return (
-      <div style={{ background: '#000', minHeight: '100vh', color: '#fff' }}>
+    <div style={{ background: '#000', minHeight: '100vh', color: '#fff', textTransform: 'lowercase' }}>
       {/* ascii flower loader */}
       <AnimatePresence mode="wait">
         {!loaderDone && <Loader onComplete={() => setLoaderDone(true)} />}

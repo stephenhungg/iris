@@ -25,6 +25,7 @@ GENERATION_TIMEOUT = 360  # 6 minutes max
 
 def get_client() -> genai.Client:
     settings = get_settings()
+    settings.require_real_ai(provider="veo")
     return genai.Client(api_key=settings.gemini_api_key)
 
 

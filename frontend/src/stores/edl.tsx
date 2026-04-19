@@ -66,6 +66,16 @@ export type Clip = {
 
 export type BBox = { x: number; y: number; w: number; h: number };
 
+/** SAM-refined outline of the subject inside the bbox. Points are normalized 0-1. */
+export type Mask = { contour: [number, number][] };
+
+/** Gemini's description of whatever's inside the current bbox. */
+export type IdentifiedEntity = {
+  description: string;
+  category: string;
+  attributes: string;
+};
+
 export type State = {
   /** library pool — imported + generated media, not on the timeline yet */
   sources: MediaAsset[];
@@ -77,6 +87,12 @@ export type State = {
   playing: boolean;
   /** bounding box selection for AI generation (normalized 0-1) */
   bbox: BBox | null;
+  /** SAM contour that snaps to the subject inside `bbox`. Cleared whenever bbox changes. */
+  mask: Mask | null;
+  /** what Gemini thinks the bbox contains. Cleared whenever bbox changes. */
+  identified: IdentifiedEntity | null;
+  /** true while the /api/identify request is in flight. */
+  identifying: boolean;
   /** past states for undo */
   _history: State[];
   /** future states for redo */
@@ -90,6 +106,9 @@ export const initialState: State = {
   playhead: 0,
   playing: false,
   bbox: null,
+  mask: null,
+  identified: null,
+  identifying: false,
   _history: [],
   _future: [],
 };
@@ -139,18 +158,37 @@ export type Action =
   | { type: "reorder"; from: number; to: number }
   | { type: "replace"; id: string; with: Clip }
   | { type: "set_bbox"; bbox: BBox | null }
+  | { type: "set_mask"; mask: Mask | null }
+  | { type: "set_identified"; entity: IdentifiedEntity | null; loading: boolean }
   | { type: "hydrate"; sources: MediaAsset[]; clips: Clip[] }
   | { type: "undo" }
   | { type: "redo" };
 
 /** Actions that don't mutate the timeline and shouldn't create undo entries */
-const SKIP_HISTORY = new Set<string>(["undo", "redo", "set_playhead", "set_playing"]);
+const SKIP_HISTORY = new Set<string>([
+  "undo",
+  "redo",
+  "set_playhead",
+  "set_playing",
+  "set_mask",
+  "set_identified",
+]);
 
 const MAX_HISTORY = 50;
 
 /** Strip history arrays from a snapshot so we don't nest them recursively */
 function snap(s: State): State {
   return { ...s, _history: [], _future: [] };
+}
+
+function clearEditState(state: State): State {
+  return {
+    ...state,
+    bbox: null,
+    mask: null,
+    identified: null,
+    identifying: false,
+  };
 }
 
 function undoableReducer(state: State, a: Action): State {
@@ -221,13 +259,19 @@ function coreReducer(state: State, a: Action): State {
     }
 
     case "select":
-      return { ...state, selectedId: a.id };
+      if (state.selectedId === a.id) return state;
+      return { ...clearEditState(state), selectedId: a.id };
 
     case "set_playhead":
-      return {
-        ...state,
-        playhead: Math.max(0, Math.min(totalDuration(state.clips), a.t)),
-      };
+      {
+        const playhead = Math.max(0, Math.min(totalDuration(state.clips), a.t));
+        const prevClipId = clipAtTime(state.clips, state.playhead)?.clip.id ?? null;
+        const nextClipId = clipAtTime(state.clips, playhead)?.clip.id ?? null;
+        if (prevClipId !== nextClipId) {
+          return { ...clearEditState(state), playhead };
+        }
+        return { ...state, playhead };
+      }
 
     case "set_playing":
       return { ...state, playing: a.playing };
@@ -306,10 +350,30 @@ function coreReducer(state: State, a: Action): State {
 
     case "replace": {
       const clips = state.clips.map((c) => (c.id === a.id ? a.with : c));
-      return { ...state, clips, selectedId: a.with.id, bbox: null };
+      return {
+        ...state,
+        clips,
+        selectedId: a.with.id,
+        bbox: null,
+        mask: null,
+        identified: null,
+        identifying: false,
+      };
     }
     case "set_bbox":
-      return { ...state, bbox: a.bbox };
+      // any bbox change invalidates the SAM mask + identified entity —
+      // fresh ones will be fetched by whichever effect owns that pipeline.
+      return {
+        ...state,
+        bbox: a.bbox,
+        mask: null,
+        identified: null,
+        identifying: false,
+      };
+    case "set_mask":
+      return { ...state, mask: a.mask };
+    case "set_identified":
+      return { ...state, identified: a.entity, identifying: a.loading };
   }
 }
 

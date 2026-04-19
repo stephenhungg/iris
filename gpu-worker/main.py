@@ -6,6 +6,7 @@ The main backend calls this service for GPU-accelerated tasks.
 
 import base64
 import io
+from pathlib import Path
 
 import torch
 import numpy as np
@@ -26,10 +27,13 @@ def get_sam():
     if _sam_model is None:
         from sam2.build_sam import build_sam2
         from sam2.sam2_image_predictor import SAM2ImagePredictor
+        import sam2
 
-        checkpoint = "./checkpoints/sam2.1_hiera_small.pt"
+        checkpoint = str(Path(__file__).parent / "checkpoints" / "sam2.1_hiera_small.pt")
+        # hydra resolves config by name from sam2 package's search path
         config = "configs/sam2.1/sam2.1_hiera_s.yaml"
-        _sam_model = SAM2ImagePredictor(build_sam2(config, checkpoint))
+        device = get_device()
+        _sam_model = SAM2ImagePredictor(build_sam2(config, checkpoint, device=device))
     return _sam_model
 
 

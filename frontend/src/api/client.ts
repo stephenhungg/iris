@@ -98,7 +98,40 @@ export type GenerateReq = {
   reference_frame_ts: number;
 };
 
-export type AcceptResp = { segment_id: string; entity_id: string | null };
+export type AcceptResp = {
+  segment_id: string;
+  entity_job_id: string | null;
+};
+
+export type ProjectEntitySummary = {
+  id: string;
+  description: string;
+  category: string | null;
+  appearance_count: number;
+};
+
+export type ProjectSegment = {
+  id: string;
+  start_ts: number;
+  end_ts: number;
+  source: "original" | "generated";
+  url: string;
+  variant_id: string | null;
+  order_index: number;
+};
+
+export type ProjectResp = {
+  project_id: string;
+  video_url: string;
+  duration: number;
+  fps: number;
+  width: number;
+  height: number;
+  segments: ProjectSegment[];
+  entities: ProjectEntitySummary[];
+};
+
+export type ProjectDetail = ProjectResp;
 
 export type TimelineSegment = {
   start_ts: number;
@@ -125,6 +158,50 @@ export type IdentifyResp = {
   mask?: { contour: [number, number][] };  // SAM mask if GPU available
 };
 
+export type AppearanceResp = {
+  id: string;
+  segment_id: string | null;
+  start_ts: number;
+  end_ts: number;
+  keyframe_url: string | null;
+  confidence: number;
+};
+
+export type EntityResp = {
+  entity_id: string;
+  description: string;
+  category: string | null;
+  reference_crop_url: string | null;
+  appearances: AppearanceResp[];
+};
+
+export type PropagateReq = {
+  entity_id: string;
+  source_variant_url: string;
+  prompt: string;
+  auto_apply?: boolean;
+};
+
+export type PropagateResp = {
+  propagation_job_id: string;
+};
+
+export type PropagationResultResp = {
+  id: string;
+  appearance_id: string;
+  segment_id: string | null;
+  variant_url: string | null;
+  status: JobStatus;
+  applied: boolean;
+};
+
+export type PropagationStatusResp = {
+  propagation_job_id: string;
+  status: JobStatus;
+  error: string | null;
+  results: PropagationResultResp[];
+};
+
 // ─── endpoints ────────────────────────────────────────────────────────
 
 export function me(): Promise<Me> {
@@ -133,6 +210,10 @@ export function me(): Promise<Me> {
 
 export function listProjects(): Promise<ProjectListItem[]> {
   return request<ProjectListItem[]>("/api/projects");
+}
+
+export function getProject(project_id: string): Promise<ProjectResp> {
+  return request<ProjectResp>(`/api/projects/${project_id}`);
 }
 
 export async function upload(file: File): Promise<UploadResp> {
@@ -156,6 +237,31 @@ export function accept(job_id: string, variant_index: number): Promise<AcceptRes
   });
 }
 
+export function getEntity(entity_id: string): Promise<EntityResp> {
+  return request<EntityResp>(`/api/entities/${entity_id}`);
+}
+
+export function propagate(req: PropagateReq): Promise<PropagateResp> {
+  return request<PropagateResp>("/api/propagate", {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+}
+
+export function getPropagation(propagation_job_id: string): Promise<PropagationStatusResp> {
+  return request<PropagationStatusResp>(`/api/propagate/${propagation_job_id}`);
+}
+
+export function applyPropagationResult(
+  propagation_job_id: string,
+  result_id: string,
+): Promise<PropagationResultResp> {
+  return request<PropagationResultResp>(
+    `/api/propagate/${propagation_job_id}/apply/${result_id}`,
+    { method: "POST" },
+  );
+}
+
 export function getTimeline(project_id: string): Promise<TimelineResp> {
   return request(`/api/timeline/${project_id}`);
 }
@@ -164,9 +270,11 @@ export function getMask(
   projectId: string,
   frameTs: number,
   bbox: BBox,
+  signal?: AbortSignal,
 ): Promise<MaskResp> {
   return request<MaskResp>("/api/mask", {
     method: "POST",
+    signal,
     body: JSON.stringify({ project_id: projectId, frame_ts: frameTs, bbox }),
   });
 }
@@ -176,15 +284,24 @@ export function identifyRegion(
   projectId: string,
   frameTs: number,
   bbox: BBox,
+  signal?: AbortSignal,
 ): Promise<IdentifyResp> {
   return request<IdentifyResp>("/api/identify", {
     method: "POST",
+    signal,
     body: JSON.stringify({ project_id: projectId, frame_ts: frameTs, bbox }),
   });
 }
 
 export type ExportResp = {
-  export_url: string;
+  export_job_id: string;
+};
+
+export type ExportStatusResp = {
+  export_job_id: string;
+  status: JobStatus;
+  export_url: string | null;
+  error: string | null;
 };
 
 export function exportVideo(project_id: string): Promise<ExportResp> {
@@ -192,6 +309,10 @@ export function exportVideo(project_id: string): Promise<ExportResp> {
     method: "POST",
     body: JSON.stringify({ project_id }),
   });
+}
+
+export function getExportStatus(export_job_id: string): Promise<ExportStatusResp> {
+  return request<ExportStatusResp>(`/api/export/${export_job_id}`);
 }
 
 /** poll a job until it reaches done|error, emitting intermediate states. */
@@ -204,6 +325,20 @@ export async function pollJob(
     const j = await getJob(id);
     onUpdate(j);
     if (j.status === "done" || j.status === "error") return j;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
+/** poll an export job until it reaches done|error, emitting intermediate states. */
+export async function pollExport(
+  exportJobId: string,
+  onUpdate: (job: ExportStatusResp) => void,
+  intervalMs = 1200,
+): Promise<ExportStatusResp> {
+  while (true) {
+    const job = await getExportStatus(exportJobId);
+    onUpdate(job);
+    if (job.status === "done" || job.status === "error") return job;
     await new Promise((r) => setTimeout(r, intervalMs));
   }
 }

@@ -101,6 +101,19 @@ async def _run_one(
 
             async with AsyncSessionLocal() as db:
                 live_proj = await db.get(Project, project_id)
+                overlapping = (
+                    await db.execute(
+                        select(Segment).where(
+                            Segment.project_id == project_id,
+                            Segment.active == True,  # noqa: E712
+                            Segment.source == "generated",
+                            Segment.start_ts < end_ts,
+                            Segment.end_ts > start_ts,
+                        )
+                    )
+                ).scalars().all()
+                for seg in overlapping:
+                    seg.active = False
                 stitched_path, _ = storage.new_path("stitched", "mp4")
                 await ffmpeg.stitch_crossfade(
                     base=live_proj.video_path,

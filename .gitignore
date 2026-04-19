@@ -2,6 +2,7 @@ node_modules/
 build/
 dist/
 coverage/
+.vite/
 .DS_Store
 *.log
 .env*
@@ -20,10 +21,13 @@ venv/
 *.db
 *.db-journal
 storage/
+gpu-worker/checkpoints/
 
 # typescript
 *.tsbuildinfo
 
 # personal notes (not tracked)
 iris.md
-frontend/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
