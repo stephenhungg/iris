@@ -4,6 +4,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Studio } from '../pages/Studio';
 import { getProject, listProjects, type ProjectDetail } from '../api/client';
 import { useAuth } from '../lib/useAuth';
+import {
+  hasCompletedOnboarding,
+  markOnboardingComplete,
+} from '../features/onboarding/storage';
+import {
+  AuthGateView,
+  FirstRunOnboardingView,
+} from '../features/onboarding/EntryGate';
 
 function EditorLoader({ onDone }: { onDone: () => void }) {
   const [progress, setProgress] = useState(0);
@@ -91,12 +99,17 @@ function EditorLoader({ onDone }: { onDone: () => void }) {
 }
 
 export function EditorRoute() {
-  const { status } = useAuth();
+  const { status, user, signInWithGoogle } = useAuth();
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [projectErr, setProjectErr] = useState<string | null>(null);
+  const [onboardingDone, setOnboardingDone] = useState(() => hasCompletedOnboarding(user?.id));
+
+  useEffect(() => {
+    setOnboardingDone(hasCompletedOnboarding(user?.id));
+  }, [user?.id]);
 
   useEffect(() => {
     if (status !== 'authed') {
@@ -140,10 +153,38 @@ export function EditorRoute() {
 
   if (status === 'loading') return null;
   if (status === 'anon') {
-    const query = projectId
-      ? `/start?intent=edit&auth=1&projectId=${encodeURIComponent(projectId)}`
-      : '/start?intent=new&auth=1';
-    return <Navigate to={query} replace />;
+    return (
+      <AuthGateView
+        scope="editor"
+        onBack={() => navigate('/')}
+        onContinue={() => signInWithGoogle()}
+      />
+    );
+  }
+
+  if (!onboardingDone) {
+    const targetPath = projectId ? `/editor/${projectId}` : '/editor';
+    const displayName = user?.user_metadata?.full_name
+      || user?.user_metadata?.name
+      || user?.email?.split('@')[0]
+      || 'editor';
+
+    return (
+      <FirstRunOnboardingView
+        displayName={String(displayName)}
+        scope="editor"
+        onEnterStudio={() => {
+          markOnboardingComplete(user?.id);
+          setOnboardingDone(true);
+          navigate(targetPath, { replace: true });
+        }}
+        onOpenLibrary={() => {
+          markOnboardingComplete(user?.id);
+          setOnboardingDone(true);
+          navigate('/projects', { replace: true });
+        }}
+      />
+    );
   }
 
   const loadingProject = !!projectId && !project && !projectErr;

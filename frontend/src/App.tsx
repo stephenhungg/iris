@@ -11,7 +11,6 @@ import CardSwapShowcase from './components/CardSwapShowcase'
 import FloatingToolbar from './components/FloatingToolbar'
 import SmokeOrbBackground from './components/SmokeOrbBackground'
 import { useAuth } from './lib/useAuth'
-import { listProjects, type ProjectListItem } from './api/client'
 
 const IRIS_SVG = '/iris-logo.svg'
 const IRIS_METAL_TINT = '#badcff'
@@ -311,23 +310,25 @@ function Hero({ onStudio }: { onStudio: () => void }) {
         </div>
 
         {/* title — centered on screen during intro, settles into layout after */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: '48px', paddingLeft: 'clamp(112px, 14vw, 280px)' }}>
+        <div className="iris-hero-lockup">
           {/* metallic paint logo — appears after title reveal */}
           <div data-intro="metallic"
-            style={{ width: 'clamp(80px, 12vw, 200px)', height: 'clamp(80px, 12vw, 200px)', flexShrink: 0, opacity: 0, marginRight: 'clamp(-18px, -1.4vw, -10px)', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden', zIndex: 2 }}>
+            className="iris-hero-mark"
+            style={{ opacity: 0, willChange: 'transform', backfaceVisibility: 'hidden', zIndex: 2 }}>
             <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#f4fbff" darkColor="#000000" tintColor={IRIS_METAL_TINT} />
           </div>
 
           <div data-intro="logo-dark"
-            style={{ opacity: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '18px', filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
-            <div style={{ position: 'relative', width: 'clamp(560px, 62vw, 1240px)', height: 'clamp(128px, 15vw, 252px)', marginLeft: 'clamp(-338px, -20vw, -220px)', marginTop: 'clamp(14px, 1.4vw, 24px)' }}>
+            className="iris-hero-wordmark-block"
+            style={{ opacity: 0, filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
+            <div className="iris-hero-wordmark">
               <MetallicPaint text={IRIS_WORDMARK_TEXT} textOptions={IRIS_WORDMARK_MASK} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#f4fbff" darkColor="#000000" tintColor={IRIS_METAL_TINT} />
               <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>
                 {IRIS_WORDMARK_TEXT}
               </span>
             </div>
 
-            <div style={{ marginLeft: 'clamp(36px, 4.2vw, 74px)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div className="iris-hero-actions">
               <Magnetic intensity={0.18}>
                 <button onClick={onStudio} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '15px 34px', border: 'none', width: '194px', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', color: '#000', fontWeight: 700, letterSpacing: '0.14em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s, transform 0.3s', textAlign: 'center', boxSizing: 'border-box' }}
                   onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 48px rgba(190,220,255,0.22)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Open Studio</button>
@@ -764,7 +765,6 @@ export default function App() {
   const [loaderDone, setLoaderDone] = useState(false)
   const runIntro = useIntroTimeline()
   const navigate = useNavigate()
-  const { status } = useAuth()
 
   // weighted smooth scroll (framer-style inertia)
   useEffect(() => {
@@ -786,18 +786,9 @@ export default function App() {
     })
   }, [loaderDone, runIntro])
 
-  const goStudio = useCallback(async () => {
-    if (status === 'authed') {
-      try {
-        const items: ProjectListItem[] = await listProjects()
-        navigate(items.length > 0 ? '/start?hasProjects=1' : '/start')
-        return
-      } catch {
-        // fall through to the shared start flow
-      }
-    }
-    navigate('/start')
-  }, [status, navigate])
+  const goStudio = useCallback(() => {
+    navigate('/projects')
+  }, [navigate])
 
   return (
     <div style={{ background: '#000', minHeight: '100vh', color: '#fff', textTransform: 'lowercase' }}>

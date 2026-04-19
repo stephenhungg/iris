@@ -309,6 +309,8 @@ function StudioInner({
 
   const [exporting, setExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState("");
+  const [exportUrl, setExportUrl] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const handleExport = useCallback(async () => {
     const projectId =
@@ -316,10 +318,10 @@ function StudioInner({
       ?? state.sources.find((asset) => asset.kind === "source")?.projectId
       ?? state.sources[0]?.projectId;
     if (!projectId || state.clips.length === 0) return;
-    const popup = window.open("", "_blank");
-    if (popup) popup.opener = null;
     setExporting(true);
     setExportStatus("queued");
+    setExportUrl(null);
+    setExportError(null);
     try {
       const { export_job_id } = await exportVideo(projectId);
       const res = await pollExport(export_job_id, (job) => {
@@ -328,19 +330,21 @@ function StudioInner({
       if (res.status !== "done" || !res.export_url) {
         throw new Error(res.error || "export finished without a download url");
       }
-      if (popup) {
-        popup.location.replace(res.export_url);
-      } else {
-        window.open(res.export_url, "_blank", "noopener,noreferrer");
-      }
+      setExportUrl(res.export_url);
+      setExportStatus("done");
     } catch (err) {
-      if (popup) popup.close();
-      alert(`Export failed: ${err}`);
+      setExportError(String(err));
+      setExportStatus("error");
     } finally {
       setExporting(false);
-      setExportStatus("");
     }
   }, [initialProject?.projectId, state.sources, state.clips.length]);
+
+  const dismissExport = useCallback(() => {
+    setExportUrl(null);
+    setExportError(null);
+    setExportStatus("");
+  }, []);
 
   const hasSources = state.sources.length > 0;
   const continuityProjectId =
@@ -437,6 +441,147 @@ function StudioInner({
             <p style={{ marginTop: 16, fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
               Press Escape or click outside to close
             </p>
+          </div>
+        </div>
+      )}
+
+      {(exportStatus === "done" || exportStatus === "error" || (exporting && exportStatus)) && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9998,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={!exporting ? dismissExport : undefined}
+        >
+          <div
+            style={{
+              background: '#1a1a1a',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 12,
+              padding: '28px 36px',
+              minWidth: 340,
+              maxWidth: 440,
+              color: 'rgba(255,255,255,0.85)',
+              fontFamily: 'var(--font-mono, monospace)',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {exporting && (
+              <>
+                <div style={{ fontSize: 11, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.4)', marginBottom: 12, textTransform: 'uppercase' }}>
+                  exporting
+                </div>
+                <div style={{ fontSize: 15, marginBottom: 16 }}>
+                  {exportStatus === "queued" ? "queueing render job..." : "rendering your reel..."}
+                </div>
+                <div style={{
+                  height: 3,
+                  borderRadius: 2,
+                  background: 'rgba(255,255,255,0.08)',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    height: '100%',
+                    borderRadius: 2,
+                    background: 'rgba(255,255,255,0.4)',
+                    width: exportStatus === "processing" ? '65%' : '20%',
+                    transition: 'width 1.5s ease',
+                  }} />
+                </div>
+              </>
+            )}
+
+            {exportUrl && (
+              <>
+                <div style={{ fontSize: 11, letterSpacing: '0.14em', color: 'rgba(126,231,135,0.8)', marginBottom: 12, textTransform: 'uppercase' }}>
+                  export complete
+                </div>
+                <div style={{ fontSize: 15, marginBottom: 20 }}>
+                  your reel is ready for download.
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                  <a
+                    href={exportUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 20px',
+                      borderRadius: 999,
+                      background: 'rgba(255,255,255,0.12)',
+                      color: '#fff',
+                      fontSize: 12,
+                      letterSpacing: '0.08em',
+                      textDecoration: 'none',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                    }}
+                  >
+                    download .mp4
+                  </a>
+                  <button
+                    onClick={dismissExport}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 999,
+                      background: 'transparent',
+                      color: 'rgba(255,255,255,0.5)',
+                      fontSize: 12,
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    dismiss
+                  </button>
+                </div>
+              </>
+            )}
+
+            {exportError && (
+              <>
+                <div style={{ fontSize: 11, letterSpacing: '0.14em', color: 'rgba(255,107,107,0.8)', marginBottom: 12, textTransform: 'uppercase' }}>
+                  export failed
+                </div>
+                <div style={{ fontSize: 13, marginBottom: 16, color: 'rgba(255,255,255,0.6)' }}>
+                  {exportError}
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                  <button
+                    onClick={() => { dismissExport(); void handleExport(); }}
+                    style={{
+                      padding: '8px 20px',
+                      borderRadius: 999,
+                      background: 'rgba(255,255,255,0.12)',
+                      color: '#fff',
+                      fontSize: 12,
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    retry
+                  </button>
+                  <button
+                    onClick={dismissExport}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 999,
+                      background: 'transparent',
+                      color: 'rgba(255,255,255,0.5)',
+                      fontSize: 12,
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    dismiss
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

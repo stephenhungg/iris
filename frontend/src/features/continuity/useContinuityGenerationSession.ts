@@ -110,7 +110,7 @@ export function useContinuityGenerationSession({
     if (!target || !target.projectId || !jobIdRef.current) return;
 
     const variant = variants[idx];
-    if (!variant) return;
+    if (!variant?.url) return;
 
     setAcceptingIdx(idx);
     try {
@@ -137,7 +137,7 @@ export function useContinuityGenerationSession({
           onAccepted({
             acceptResponse: accepted,
             prompt: trimmedPrompt,
-            sourceVariantUrl: variant.url,
+            sourceVariantUrl: variant.url!,
             projectId: target.projectId,
           }),
         ).catch(() => {});

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { narrate, type Variant } from "../../api/client";
 import {
   duration,
   type BBox,
@@ -25,12 +26,7 @@ export type RevealSession = {
   setPrompt: (value: string) => void;
   busy: boolean;
   status: string;
-  variants: Array<{
-    url: string;
-    description: string;
-    visual_coherence: number | null;
-    prompt_adherence: number | null;
-  }>;
+  variants: Variant[];
   err: string | null;
   setErr: (value: string | null) => void;
   acceptingIdx: number | null;
@@ -85,9 +81,47 @@ export function GenerationReveal({
       ? "building variants"
       : "describe the transformation";
 
+  // ─── narration ──────────────────────────────────────────────────────
+  const [narrationUrl, setNarrationUrl] = useState<string | null>(null);
+  const [narrationLoading, setNarrationLoading] = useState(false);
+  const [narrationMuted, setNarrationMuted] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // request narration when a variant is selected
+  useEffect(() => {
+    if (!activeVariant?.id || !activeVariant.description) {
+      setNarrationUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setNarrationLoading(true);
+    narrate(activeVariant.id, activeVariant.description)
+      .then((res) => {
+        if (!cancelled) setNarrationUrl(res.audio_url);
+      })
+      .catch(() => {
+        // narration is non-critical — silently skip
+      })
+      .finally(() => {
+        if (!cancelled) setNarrationLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [activeVariant?.id, activeVariant?.description]);
+
+  // play/pause narration audio
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !narrationUrl) return;
+    audio.src = narrationUrl;
+    if (!narrationMuted) {
+      void audio.play().catch(() => {});
+    }
+  }, [narrationUrl, narrationMuted]);
+
   useEffect(() => {
     if (!hasVariants) {
       setActiveVariantIdx(null);
+      setNarrationUrl(null);
       return;
     }
     setActiveVariantIdx((current) =>
@@ -104,16 +138,21 @@ export function GenerationReveal({
     const accepted = await acceptVariant(idx);
     if (accepted) {
       setActiveVariantIdx(null);
+      setNarrationUrl(null);
     }
   }
 
   function handleReset() {
     setActiveVariantIdx(null);
+    setNarrationUrl(null);
     clearSession();
   }
 
   return (
     <div className={`reveal reveal--${layout}`}>
+      {/* hidden audio element for narration */}
+      <audio ref={audioRef} style={{ display: "none" }} />
+
       <div className="reveal__composer">
         <div className="reveal__heading">
           <div>
@@ -197,18 +236,15 @@ export function GenerationReveal({
             </p>
           </div>
           <div className="reveal__loading-steps">
-            <div className="reveal__loading-step">
-              <span className="reveal__loading-dot" />
+            <LoadingStep active={status === "queued" || status === "pending"}>
               sampling candidate looks
-            </div>
-            <div className="reveal__loading-step">
-              <span className="reveal__loading-dot" />
-              keeping the timing pinned to the source cut
-            </div>
-            <div className="reveal__loading-step">
-              <span className="reveal__loading-dot" />
-              getting the review stage ready
-            </div>
+            </LoadingStep>
+            <LoadingStep active={status === "processing"}>
+              rendering through the generation pipeline
+            </LoadingStep>
+            <LoadingStep active={false}>
+              scoring variants for coherence and adherence
+            </LoadingStep>
           </div>
         </div>
       )}
@@ -222,9 +258,48 @@ export function GenerationReveal({
                 {`variant ${variantLetter(activeVariantIdx ?? 0)}`}
               </h4>
             </div>
-            <div className="reveal__scores mono">
-              <ScoreBadge label="visual" value={activeVariant.visual_coherence} />
-              <ScoreBadge label="prompt" value={activeVariant.prompt_adherence} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* narration controls */}
+              {(narrationUrl || narrationLoading) && (
+                <button
+                  className="reveal__narration-toggle mono"
+                  onClick={() => {
+                    const audio = audioRef.current;
+                    if (narrationMuted) {
+                      setNarrationMuted(false);
+                      if (audio && narrationUrl) {
+                        audio.currentTime = 0;
+                        void audio.play().catch(() => {});
+                      }
+                    } else {
+                      setNarrationMuted(true);
+                      if (audio) audio.pause();
+                    }
+                  }}
+                  title={narrationMuted ? "play narration" : "mute narration"}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: narrationUrl && !narrationMuted
+                      ? "rgba(126, 231, 135, 0.1)"
+                      : "rgba(255,255,255,0.05)",
+                    color: narrationUrl && !narrationMuted
+                      ? "rgba(126, 231, 135, 0.85)"
+                      : "rgba(255,255,255,0.5)",
+                    fontSize: 10,
+                    letterSpacing: "0.1em",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {narrationLoading ? "loading voice..." : narrationMuted ? "play voice" : "narrating"}
+                </button>
+              )}
+              <div className="reveal__scores mono">
+                <ScoreBadge label="visual" value={activeVariant.visual_coherence} />
+                <ScoreBadge label="prompt" value={activeVariant.prompt_adherence} />
+              </div>
             </div>
           </div>
 
@@ -249,12 +324,26 @@ export function GenerationReveal({
               eyebrow="after"
               description={activeVariant.description || "generated option"}
             >
-              <SegmentVideo
-                src={activeVariant.url}
-                start={0}
-                end={duration(clip)}
-                shouldPlay
-              />
+              {activeVariant.url ? (
+                <SegmentVideo
+                  src={activeVariant.url}
+                  start={0}
+                  end={duration(clip)}
+                  shouldPlay
+                />
+              ) : (
+                <div style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "rgba(255,255,255,0.3)",
+                  fontSize: 12,
+                  fontFamily: "var(--font-mono)",
+                }}>
+                  variant loading...
+                </div>
+              )}
             </CompareCard>
           </div>
 
@@ -266,7 +355,7 @@ export function GenerationReveal({
             <button
               className="reveal__primary"
               onClick={() => void handleAccept(activeVariantIdx ?? 0)}
-              disabled={acceptingIdx != null}
+              disabled={acceptingIdx != null || !activeVariant.url}
             >
               {acceptingIdx != null
                 ? "applying variant..."
@@ -281,9 +370,10 @@ export function GenerationReveal({
             {variants.map((variant, index) => {
               const selected = index === activeVariantIdx;
               const disabled = acceptingIdx != null && acceptingIdx !== index;
+              const bestScore = getBestVariantIndex(variants);
               return (
                 <button
-                  key={`${variant.url}-${index}`}
+                  key={`${variant.url ?? variant.id}-${index}`}
                   className={`reveal__variant-card ${selected ? "reveal__variant-card--active" : ""}`}
                   onClick={() => setActiveVariantIdx(index)}
                   disabled={acceptingIdx != null}
@@ -293,7 +383,7 @@ export function GenerationReveal({
                   <div className="reveal__variant-media">
                     <video
                       className="reveal__variant-video"
-                      src={variant.url}
+                      src={variant.url ?? undefined}
                       muted
                       loop
                       playsInline
@@ -308,6 +398,26 @@ export function GenerationReveal({
                         video.currentTime = 0;
                       }}
                     />
+                    {index === bestScore && (
+                      <div
+                        className="mono"
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          padding: "3px 7px",
+                          borderRadius: 999,
+                          background: "rgba(126, 231, 135, 0.2)",
+                          border: "1px solid rgba(126, 231, 135, 0.3)",
+                          color: "rgba(126, 231, 135, 0.9)",
+                          fontSize: 9,
+                          letterSpacing: "0.1em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        best
+                      </div>
+                    )}
                   </div>
 
                   <div className="reveal__variant-meta">
@@ -348,10 +458,23 @@ function ScoreBadge({
   value: number | null;
 }) {
   if (value == null) return null;
+  const tone = value >= 7
+    ? "rgba(126, 231, 135, 0.15)"
+    : value >= 4
+      ? "rgba(255, 196, 87, 0.15)"
+      : "rgba(255, 107, 107, 0.15)";
+  const color = value >= 7
+    ? "rgba(126, 231, 135, 0.9)"
+    : value >= 4
+      ? "rgba(255, 196, 87, 0.9)"
+      : "rgba(255, 107, 107, 0.9)";
   return (
-    <span className="reveal__score-badge">
+    <span
+      className="reveal__score-badge"
+      style={{ background: tone }}
+    >
       <span>{label}</span>
-      <strong>{value}/10</strong>
+      <strong style={{ color }}>{value}/10</strong>
     </span>
   );
 }
@@ -380,6 +503,27 @@ function CompareCard({
         <p>{description}</p>
       </div>
     </article>
+  );
+}
+
+function LoadingStep({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="reveal__loading-step" style={{ opacity: active ? 1 : 0.4 }}>
+      <span
+        className="reveal__loading-dot"
+        style={{
+          background: active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.25)",
+          animation: active ? "pulse 1.5s ease-in-out infinite" : "none",
+        }}
+      />
+      {children}
+    </div>
   );
 }
 
@@ -462,10 +606,7 @@ function variantLetter(index: number) {
   return String.fromCharCode(65 + index);
 }
 
-function scoreSummary(variant: {
-  visual_coherence: number | null;
-  prompt_adherence: number | null;
-}) {
+function scoreSummary(variant: Pick<Variant, "visual_coherence" | "prompt_adherence">) {
   const visual = variant.visual_coherence != null ? `v ${variant.visual_coherence}` : null;
   const prompt = variant.prompt_adherence != null ? `p ${variant.prompt_adherence}` : null;
   return [visual, prompt].filter(Boolean).join(" · ") || "no scores";
@@ -484,4 +625,19 @@ function describeRegion(bbox: BBox | null) {
       ? "center"
       : `${vertical} ${horizontal}`.trim();
   return `${anchor} · ${wPct}×${hPct}%`;
+}
+
+/** find the variant with the highest combined score */
+function getBestVariantIndex(variants: Variant[]): number {
+  let bestIdx = 0;
+  let bestScore = -1;
+  for (let i = 0; i < variants.length; i++) {
+    const v = variants[i];
+    const score = (v.visual_coherence ?? 0) + (v.prompt_adherence ?? 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+  return bestScore > 0 ? bestIdx : -1;
 }

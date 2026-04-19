@@ -76,10 +76,14 @@ export type ProjectListItem = {
 export type JobStatus = "pending" | "processing" | "done" | "error";
 
 export type Variant = {
-  url: string;
-  description: string;
+  id: string;
+  index: number;
+  status: JobStatus;
+  url: string | null;
+  description: string | null;
   visual_coherence: number | null;
   prompt_adherence: number | null;
+  error: string | null;
 };
 
 export type JobResp = {
@@ -154,7 +158,7 @@ export type MaskResp = {
 export type IdentifyResp = {
   description: string;    // "silver sedan car"
   category: string;       // "vehicle"
-  attributes: string;     // "silver paint, 4-door"
+  attributes: Record<string, string>;  // { color: "silver", type: "sedan" }
   mask?: { contour: [number, number][] };  // SAM mask if GPU available
 };
 
@@ -290,6 +294,20 @@ export function identifyRegion(
     method: "POST",
     signal,
     body: JSON.stringify({ project_id: projectId, frame_ts: frameTs, bbox }),
+  });
+}
+
+export type NarrateResp = {
+  audio_url: string;
+};
+
+export function narrate(variantId: string, description?: string): Promise<NarrateResp> {
+  return request<NarrateResp>("/api/narrate", {
+    method: "POST",
+    body: JSON.stringify({
+      variant_id: variantId,
+      ...(description != null ? { description } : {}),
+    }),
   });
 }
 
