@@ -76,6 +76,21 @@ async def list_projects(
     ]
 
 
+@router.delete("/projects/{project_id}")
+async def delete_project(
+    project_id: str,
+    session: SessionModel = Depends(get_session),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a project and all its segments, jobs, entities, conversations."""
+    proj = await db.get(Project, project_id)
+    if proj is None or proj.session_id != session.id:
+        raise HTTPException(status_code=404, detail="project not found")
+    await db.delete(proj)
+    await db.commit()
+    return {"status": "deleted", "project_id": project_id}
+
+
 async def _load_owned_project(
     project_id: str,
     session: SessionModel,

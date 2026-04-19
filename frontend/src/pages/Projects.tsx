@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { listProjects, type ProjectListItem } from '../api/client'
+import { deleteProject, listProjects, type ProjectListItem } from '../api/client'
 import OrganicDarkBackground from '../components/OrganicDarkBackground'
 import TiltedCard from '../components/TiltedCard'
 import { useAuth } from '../lib/useAuth'
@@ -50,31 +50,18 @@ export function Projects({
             <span className="projects-brand__mark" aria-hidden />
             <span className="projects-brand__word">iris</span>
           </button>
-          <div className="projects-crumbs" aria-hidden>
-            <span>home</span>
-            <span className="projects-crumbs__divider">/</span>
-            <span className="projects-crumbs__current">library</span>
-          </div>
-        </div>
-
-        <div className="projects-topbar__center">
-          <span className="projects-topbar__eyebrow">media archive</span>
-          <span className="projects-topbar__title">my videos</span>
+          <span style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.08)', margin: '0 10px' }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.14em' }}>library</span>
         </div>
 
         <div className="projects-topbar__right">
-          <button className="projects-back" onClick={onExit}>
-            <span className="arrow">←</span>
-            <span>landing</span>
-          </button>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em' }}>
+            {String(display).toLowerCase()}
+          </span>
           <button className="projects-create" onClick={onNew}>
             <span className="projects-create__icon">+</span>
             <span>new reel</span>
           </button>
-          <div className="projects-user">
-            <span className="projects-user__label">signed in</span>
-            <strong>{String(display).toLowerCase()}</strong>
-          </div>
         </div>
       </header>
 
@@ -175,6 +162,11 @@ export function Projects({
                 project={p}
                 index={i}
                 onOpen={() => onOpen(p.project_id)}
+                onDelete={() => {
+                  deleteProject(p.project_id)
+                    .then(() => setItems(prev => prev?.filter(x => x.project_id !== p.project_id) ?? null))
+                    .catch(e => console.error('delete failed:', e))
+                }}
               />
             ))}
           </motion.section>
@@ -188,10 +180,12 @@ function ProjectCard({
   project,
   index,
   onOpen,
+  onDelete,
 }: {
   project: ProjectListItem
   index: number
   onOpen: () => void
+  onDelete: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [ready, setReady] = useState(false)
@@ -268,6 +262,14 @@ function ProjectCard({
             <div className="proj-card__corner">
               reel · {String(index + 1).padStart(3, '0')}
             </div>
+
+            <button
+              className="proj-card__delete"
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              title="delete project"
+            >
+              ×
+            </button>
 
             <div className="proj-card__meta">
               <div>

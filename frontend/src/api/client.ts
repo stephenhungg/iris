@@ -262,6 +262,10 @@ export function getProject(project_id: string): Promise<ProjectResp> {
   return request<ProjectResp>(`/api/projects/${project_id}`);
 }
 
+export function deleteProject(project_id: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/api/projects/${project_id}`, { method: "DELETE" });
+}
+
 export async function upload(file: File): Promise<UploadResp> {
   const fd = new FormData();
   fd.append("file", file);
