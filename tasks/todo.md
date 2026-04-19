@@ -11,7 +11,7 @@
 - [completed] keep root npm scripts working by turning root `package.json` into a thin wrapper around `frontend/`
 - [completed] update docs/config so local dev still reads env from repo root after the move
 - [completed] remove the sentient font import-order warning from the frontend build
-- [pending] pull and merge the incoming dashboard changes once the teammate push lands
+- [completed] pull and merge the incoming dashboard changes once the teammate push lands
 - [completed] make route ownership sane: landing -> start hub, auth gate library/editor, and preserve intent through sign-in
 - [completed] add a first-time onboarding flow for newly signed-in users before they hit the full editor
 - [completed] add an in-studio checklist / next-step guide so the dashboard teaches the core loop instead of dumping controls all at once
@@ -66,3 +66,4 @@
 - onboarding flow research: used current onboarding guidance emphasizing outcome-based onboarding over feature tours, progressive disclosure, and in-product contextual guidance. that directly drove the dedicated start hub plus the live checklist in the studio instead of a one-shot modal tour.
 - onboarding implementation hardening: fixed a hook-order regression in `EditorRoute`, made onboarding/checklist local storage access fail-soft when the browser blocks storage, and fixed the checklist so continuity-heavy flows can actually reach completion.
 - onboarding verification: `bun run lint` passed, `bun run build` passed, and the only remaining warning is the pre-existing large frontend bundle (`~793 kB` built js), which is a code-splitting problem rather than a correctness blocker.
+- teammate frontend merge cleanup: kept the pushed landing/frontend visuals, preserved the intentional `ascii` cta hero, fixed the `MetallicPaint` prop typing so image-only usage type-checks, and kept the newer `/start` onboarding flow instead of regressing the landing buttons back to `/editor`.

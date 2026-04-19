@@ -56,10 +56,10 @@ function VideoIcon() {
 }
 
 const items: NavItem[] = [
-  { id: 'top', label: 'landing', icon: <IrisToolbarIcon /> },
-  { id: 'about', label: 'about', icon: <AboutIcon /> },
-  { id: 'features', label: 'features', icon: <FeaturesIcon /> },
-  { id: 'rewrite', label: 'rewrite', icon: <VideoIcon /> },
+  { id: 'top', label: 'Landing', icon: <IrisToolbarIcon /> },
+  { id: 'about', label: 'About', icon: <AboutIcon /> },
+  { id: 'features', label: 'Features', icon: <FeaturesIcon /> },
+  { id: 'rewrite', label: 'Rewrite', icon: <VideoIcon /> },
 ]
 
 export default function FloatingToolbar() {
@@ -156,7 +156,7 @@ export default function FloatingToolbar() {
     >
       <div className="floating-toolbar-ambient" />
 
-      <div ref={toolbarRef} className="floating-toolbar">
+      <div ref={toolbarRef} className="floating-toolbar" data-theme="dark">
         <motion.div
           className="floating-toolbar-indicator"
           animate={{ left: indicator.left, width: indicator.width }}

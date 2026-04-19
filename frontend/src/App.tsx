@@ -14,6 +14,16 @@ import { useAuth } from './lib/useAuth'
 import { listProjects, type ProjectListItem } from './api/client'
 
 const IRIS_SVG = '/iris-logo.svg'
+const IRIS_METAL_TINT = '#badcff'
+const IRIS_WORDMARK_TEXT = 'iris.'
+const IRIS_WORDMARK_MASK = {
+  fontFamily: 'Sentient, Georgia, serif',
+  fontSize: 344,
+  fontWeight: 300,
+  letterSpacing: 26,
+  paddingX: 0,
+  paddingY: 56,
+}
 
 // motion design system (lottiefiles + framerlabs + palmer)
 //
@@ -288,63 +298,70 @@ function Hero({ onStudio }: { onStudio: () => void }) {
         <div data-intro="chrome"
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', opacity: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>iris®</span>
-            <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
-              {['v0.1', '2026', 'cal hacks'].map((tag, i) => (
-                <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)' }}>{tag}</span>
-              ))}
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em' }}>IRIS®</span>
+              <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+                {['v0.1', '2026', 'Cal Hacks'].map((tag, i) => (
+                  <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)' }}>{tag}</span>
+                ))}
+              </div>
             </div>
-          </div>
-          <div data-intro="chrome" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6, opacity: 0 }}>
-            ai-powered video editor<br />speak your edits into existence
-          </div>
+            <div data-intro="chrome" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6, opacity: 0 }}>
+              AI-powered video editor<br />Speak your edits into existence.
+            </div>
         </div>
 
         {/* title — centered on screen during intro, settles into layout after */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: '48px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', marginBottom: '48px', paddingLeft: 'clamp(112px, 14vw, 280px)' }}>
           {/* metallic paint logo — appears after title reveal */}
           <div data-intro="metallic"
-            style={{ width: 'clamp(80px, 12vw, 200px)', height: 'clamp(80px, 12vw, 200px)', flexShrink: 0, opacity: 0, marginRight: 'clamp(16px, 3vw, 40px)', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
-            <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#ffffff" darkColor="#000000" tintColor="#c0c0c0" />
+            style={{ width: 'clamp(80px, 12vw, 200px)', height: 'clamp(80px, 12vw, 200px)', flexShrink: 0, opacity: 0, marginRight: 'clamp(-18px, -1.4vw, -10px)', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden', zIndex: 2 }}>
+            <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#f4fbff" darkColor="#000000" tintColor={IRIS_METAL_TINT} />
           </div>
 
-          {/* dual-layer text for wipe reveal */}
-          <div style={{ position: 'relative' }}>
-            <h1 data-intro="logo-dark"
-              style={{ fontFamily: 'var(--font-display)', fontWeight: 200, fontSize: 'clamp(80px, 12vw, 200px)', lineHeight: 0.85, letterSpacing: '0.25em', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite', filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
-              iris.
-            </h1>
+          <div data-intro="logo-dark"
+            style={{ opacity: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '18px', filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
+            <div style={{ position: 'relative', width: 'clamp(560px, 62vw, 1240px)', height: 'clamp(128px, 15vw, 252px)', marginLeft: 'clamp(-338px, -20vw, -220px)', marginTop: 'clamp(14px, 1.4vw, 24px)' }}>
+              <MetallicPaint text={IRIS_WORDMARK_TEXT} textOptions={IRIS_WORDMARK_MASK} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#f4fbff" darkColor="#000000" tintColor={IRIS_METAL_TINT} />
+              <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>
+                {IRIS_WORDMARK_TEXT}
+              </span>
+            </div>
+
+            <div style={{ marginLeft: 'clamp(36px, 4.2vw, 74px)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <Magnetic intensity={0.18}>
+                <button onClick={onStudio} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '15px 34px', border: 'none', width: '194px', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', color: '#000', fontWeight: 700, letterSpacing: '0.14em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s, transform 0.3s', textAlign: 'center', boxSizing: 'border-box' }}
+                  onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 48px rgba(190,220,255,0.22)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Open Studio</button>
+              </Magnetic>
+              <Magnetic intensity={0.18}>
+                <button style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '15px 34px', border: '1px solid rgba(255,255,255,0.14)', width: '194px', background: 'linear-gradient(135deg, rgba(10,10,12,0.96), rgba(0,0,0,0.92), rgba(18,22,28,0.96), rgba(0,0,0,0.92), rgba(10,10,12,0.96))', backgroundSize: '200% 100%', color: 'rgba(236,244,255,0.92)', fontWeight: 700, letterSpacing: '0.14em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s, transform 0.3s', textAlign: 'center', boxSizing: 'border-box' }}
+                  onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 48px rgba(190,220,255,0.16)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Demo Video</button>
+              </Magnetic>
+            </div>
           </div>
         </div>
 
         {/* bottom row */}
         <div data-intro="chrome"
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '40px', alignItems: 'end', opacity: 0 }}>
+          style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '40px', alignItems: 'end', opacity: 0 }}>
           <div style={{ maxWidth: '320px' }}>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
-              point at a moment.
+              Point at a moment.
             </p>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
-              say what changes.
+              Say what changes.
             </p>
             <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0 }}>
-              reality rewrites itself.
+              Reality rewrites itself.
             </p>
           </div>
-          <div>
-            <Magnetic intensity={0.2}>
-              <button onClick={onStudio} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '16px 40px', border: 'none', width: 'fit-content', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s' }}
-                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 40px rgba(255,255,255,0.12)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>start editing</button>
-            </Magnetic>
-          </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', lineHeight: 2, textAlign: 'right' }}>
-            <div>prompt-driven editing</div><div>causal entity tracking</div><div>powered by gemini + veo</div>
+            <div>Prompt-driven editing</div><div>Causal entity tracking</div><div>Powered by Gemini + Veo</div>
           </div>
         </div>
       </motion.div>
 
       <div data-intro="chrome" style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', opacity: 0 }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)', letterSpacing: '0.2em' }}>scroll</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)', letterSpacing: '0.16em' }}>Scroll</span>
         <motion.div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)' }} animate={{ scaleY: [1, 0.4, 1] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
       </div>
     </section>
@@ -628,16 +645,16 @@ function CTA({ onStudio }: { onStudio: () => void }) {
       </ScrollReveal>
       <ScrollReveal as="p" y={0} delay={0.1}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', marginBottom: '48px' }}>
-        start editing with prompts, not tools.
+        Start editing with prompts, not tools.
       </ScrollReveal>
       <ScrollReveal delay={0.2}>
         <Magnetic intensity={0.2}>
           <button onClick={onStudio}
             style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', padding: '18px 56px', border: 'none', background: '#fff', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', transition: 'all 0.3s' }}
-            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>start editing</button>
+            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>Open Studio</button>
         </Magnetic>
       </ScrollReveal>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '20px' }}>
+      <div style={{ display: 'none', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '20px' }}>
         no account required · free during beta
       </div>
       </div>
@@ -649,9 +666,9 @@ function CTA({ onStudio }: { onStudio: () => void }) {
 
 function Footer() {
   const footerLinks: Record<string, string[]> = {
-    product: ['editor', 'pricing', 'changelog'],
-    resources: ['docs', 'api', 'github'],
-    company: ['about', 'twitter', 'contact'],
+    Product: ['Editor', 'Pricing', 'Changelog'],
+    Resources: ['Docs', 'API', 'GitHub'],
+    Company: ['About', 'Twitter', 'Contact'],
   }
 
   return (

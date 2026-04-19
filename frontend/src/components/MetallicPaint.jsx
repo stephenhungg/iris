@@ -292,8 +292,8 @@ function hexToRgb(hex) {
 }
 
 export default function MetallicPaint({
-  imageSrc,
-  text,
+  imageSrc = undefined,
+  text = undefined,
   textOptions = {},
   seed = 42,
   scale = 4,
