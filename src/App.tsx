@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react'
 import gsap from 'gsap'
 import Lenis from 'lenis'
 import MetallicPaint from './components/MetallicPaint'
 import Noise from './components/Noise'
 import ScrollFrames from './components/ScrollFrames'
-import { Studio, type StudioInitialProject } from './pages/Studio'
-import { Projects } from './pages/Projects'
 import { useAuth } from './lib/useAuth'
 import { listProjects, type ProjectListItem } from './api/client'
 
@@ -716,18 +715,17 @@ function useIntroTimeline() {
 }
 
 export default function App() {
-  const [view, setView] = useState<'landing' | 'projects' | 'studio'>('landing')
   const [loaderDone, setLoaderDone] = useState(false)
-  const [studioBoot, setStudioBoot] = useState<StudioInitialProject | undefined>(undefined)
   const runIntro = useIntroTimeline()
+  const navigate = useNavigate()
   const { status } = useAuth()
 
   // weighted smooth scroll (framer-style inertia)
   useEffect(() => {
     const lenis = new Lenis({
-      duration: 1.4,           // scroll deceleration duration — higher = heavier feel
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // exponential decay
-      touchMultiplier: 1.5,    // mobile feel
+      duration: 1.4,
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      touchMultiplier: 1.5,
       infinite: false,
     })
     function raf(time: number) { lenis.raf(time); requestAnimationFrame(raf) }
@@ -737,72 +735,27 @@ export default function App() {
 
   useEffect(() => {
     if (!loaderDone) return
-    // loader finished, now run the hero reveal
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { runIntro() })
     })
   }, [loaderDone, runIntro])
 
-  // decide where "open studio" should drop the user. signed-in folks with a
-  // library land on the projects page; everyone else goes straight to a fresh
-  // studio with the upload dropzone.
   const goStudio = useCallback(async () => {
     if (status !== 'authed') {
-      setStudioBoot(undefined)
-      setView('studio')
+      navigate('/editor')
       return
     }
     try {
       const items: ProjectListItem[] = await listProjects()
       if (items.length === 0) {
-        setStudioBoot(undefined)
-        setView('studio')
+        navigate('/editor')
       } else {
-        setView('projects')
+        navigate('/projects')
       }
     } catch {
-      setStudioBoot(undefined)
-      setView('studio')
+      navigate('/editor')
     }
-  }, [status])
-
-  if (view === 'studio') {
-    return (
-      <Studio
-        key={studioBoot?.projectId ?? 'fresh'}
-        onExit={() => { setStudioBoot(undefined); setView('landing') }}
-        onLibrary={status === 'authed'
-          ? () => { setStudioBoot(undefined); setView('projects') }
-          : undefined}
-        initialProject={studioBoot}
-      />
-    )
-  }
-
-  if (view === 'projects') {
-    return (
-      <Projects
-        onExit={() => setView('landing')}
-        onNew={() => { setStudioBoot(undefined); setView('studio') }}
-        onOpen={(projectId) => {
-          // grab meta from the list and hydrate the studio. Projects page
-          // already holds these values but we re-fetch to keep this wire thin.
-          listProjects().then((rows) => {
-            const p = rows.find((x) => x.project_id === projectId)
-            if (!p) { setView('studio'); return }
-            setStudioBoot({
-              projectId: p.project_id,
-              videoUrl: p.video_url,
-              duration: p.duration,
-              fps: p.fps,
-              label: p.project_id.slice(0, 8),
-            })
-            setView('studio')
-          }).catch(() => setView('studio'))
-        }}
-      />
-    )
-  }
+  }, [status, navigate])
 
   return (
     <div style={{ background: '#000', minHeight: '100vh', color: '#fff', textTransform: 'lowercase' }}>
