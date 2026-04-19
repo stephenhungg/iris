@@ -20,8 +20,8 @@ jobs:
             git reset --hard origin/main
 
             cd infra
-            docker compose build --parallel
-            docker compose up -d --remove-orphans
+            docker compose --env-file ../.env build --parallel
+            docker compose --env-file ../.env up -d --remove-orphans
 
             # wait for backend to be healthy
             echo "waiting for backend..."
