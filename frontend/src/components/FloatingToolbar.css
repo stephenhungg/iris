@@ -69,9 +69,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px;
-  border-radius: 24px;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 18px;
   background: rgba(8, 8, 10, 0.66);
   border: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(22px) saturate(140%);
@@ -123,10 +123,10 @@
 
 .floating-toolbar-button {
   position: relative;
-  width: 58px;
-  height: 58px;
+  width: 40px;
+  height: 40px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 12px;
   background: transparent;
   display: inline-flex;
   align-items: center;
@@ -142,8 +142,8 @@
 }
 
 .floating-toolbar-button svg {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   stroke-width: 1.6;
 }
 
@@ -153,10 +153,10 @@
 
 .floating-toolbar-indicator {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  height: 58px;
-  border-radius: 18px;
+  top: 5px;
+  left: 5px;
+  height: 40px;
+  border-radius: 12px;
   pointer-events: none;
   z-index: 1;
 }
@@ -174,7 +174,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: 12px;
 }
 
 .floating-toolbar-indicator-ring {
@@ -211,7 +211,7 @@
 .floating-toolbar-indicator-inner {
   position: absolute;
   inset: 2px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: rgba(8, 8, 10, 0.9);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
@@ -219,10 +219,10 @@
 .floating-toolbar-cta {
   position: relative;
   z-index: 3;
-  min-width: 184px;
-  height: 58px;
-  padding: 0 22px;
-  border-radius: 18px;
+  min-width: 140px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -299,19 +299,19 @@
   }
 
   .floating-toolbar-button {
-    width: 50px;
-    height: 50px;
+    width: 36px;
+    height: 36px;
   }
 
   .floating-toolbar-indicator {
-    top: 6px;
-    height: 50px;
+    top: 5px;
+    height: 36px;
   }
 
   .floating-toolbar-cta {
     min-width: 0;
-    padding: 0 16px;
-    height: 50px;
-    font-size: 12px;
+    padding: 0 14px;
+    height: 36px;
+    font-size: 11px;
   }
 }
