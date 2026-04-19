@@ -36,7 +36,7 @@ async def run(job_id: str) -> None:
         src_path = proj.video_path
         fps = proj.fps
 
-    out_path, out_url = storage.new_path("exports", "mp4")
+    out_path, _ = storage.new_path("exports", "mp4")
     try:
         # re-encode through normalize_fps so output is always clean H.264/AAC
         await ffmpeg.normalize_fps(src_path, fps, out_path)
@@ -49,6 +49,7 @@ async def run(job_id: str) -> None:
                 j.error = f"export failed: {e}"
                 await db.commit()
         return
+    out_url = await storage.publish(out_path, content_type="video/mp4")
 
     async with AsyncSessionLocal() as db:
         j = await db.get(Job, job_id)

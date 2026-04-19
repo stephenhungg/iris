@@ -55,12 +55,15 @@ async def echo_session_id(request: Request, call_next):
     return response
 
 
-# serve uploaded/generated media straight off disk for hackathon scope
-app.mount(
-    "/media",
-    StaticFiles(directory=str(settings.storage_path)),
-    name="media",
-)
+# legacy /media mount. kept for offline dev where vultr creds aren't set
+# — when S3 is configured all media URLs come from vultr and the frontend
+# never hits this endpoint.
+if not settings.s3_enabled:
+    app.mount(
+        "/media",
+        StaticFiles(directory=str(settings.storage_path)),
+        name="media",
+    )
 
 app.include_router(health.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")

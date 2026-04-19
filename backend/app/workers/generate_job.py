@@ -52,6 +52,7 @@ async def _update_variant(db: AsyncSession, variant_id: str, **fields) -> None:
 async def _run_variant(
     variant_id: str,
     clip_path: Path,
+    clip_url: str,
     plan: dict,
 ) -> None:
     async with AsyncSessionLocal() as db:
@@ -64,12 +65,21 @@ async def _run_variant(
             await _update_variant(db, variant_id, status="error", error=str(e)[:500])
         return
 
+    # stubs (and some real providers) may echo the input clip path back as
+    # the "url". normalise anything filesystem-y into an external URL the
+    # frontend can actually load.
+    raw = result.get("url") or ""
+    if raw in (str(clip_path), Path(clip_path).as_posix()):
+        variant_url = clip_url
+    else:
+        variant_url = storage.normalize_url_like(raw, fallback=clip_url)
+
     async with AsyncSessionLocal() as db:
         await _update_variant(
             db,
             variant_id,
             status="done",
-            url=result["url"],
+            url=variant_url,
             description=result.get("description") or plan.get("description"),
         )
 
@@ -110,11 +120,13 @@ async def run(job_id: str) -> None:
         async with AsyncSessionLocal() as db:
             await _update_job(db, job_id, status="error", error=f"clip extraction failed: {e}")
         return
+    clip_url = await storage.publish(clip_path, content_type="video/mp4")
 
     # grab a reference frame for Gemini (used by plan + future scoring)
     frame_path, _ = storage.new_path("keyframes", "jpg")
     try:
         await ffmpeg.extract_frame(proj.video_path, reference_frame_ts, frame_path)
+        await storage.publish(frame_path, content_type="image/jpeg")
     except Exception:
         log.exception("frame extract failed (continuing without frame)")
 
@@ -141,7 +153,7 @@ async def run(job_id: str) -> None:
         variant_id = v.id
         await db.commit()
 
-    await _run_variant(variant_id, clip_path, plan)
+    await _run_variant(variant_id, clip_path, clip_url, plan)
 
     # collect outcome
     async with AsyncSessionLocal() as db:

@@ -142,11 +142,12 @@ async def apply_propagation_result(
     if appearance is None:
         raise HTTPException(status_code=404, detail="appearance missing")
 
-    variant_path = storage.path_from_url(res.variant_url)
+    variant_path = await storage.path_from_url(res.variant_url)
     normalized, _ = storage.new_path("variants", "mp4")
     await ffmpeg.normalize_fps(variant_path, proj.fps, normalized)
+    normalized_url = await storage.publish(normalized, content_type="video/mp4")
 
-    stitched_path, stitched_url = storage.new_path("stitched", "mp4")
+    stitched_path, _ = storage.new_path("stitched", "mp4")
     try:
         await ffmpeg.stitch_crossfade(
             base=proj.video_path,
@@ -157,6 +158,7 @@ async def apply_propagation_result(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"stitch failed: {e}")
+    stitched_url = await storage.publish(stitched_path, content_type="video/mp4")
 
     proj.video_path = str(stitched_path)
     proj.video_url = stitched_url
@@ -166,7 +168,7 @@ async def apply_propagation_result(
         start_ts=appearance.start_ts,
         end_ts=appearance.end_ts,
         source="generated",
-        url=storage.url_for_path(normalized),
+        url=normalized_url,
         order_index=int(appearance.start_ts * 1000),
         active=True,
     )

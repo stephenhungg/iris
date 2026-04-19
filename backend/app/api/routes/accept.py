@@ -43,15 +43,16 @@ async def accept(
         raise HTTPException(status_code=422, detail="job has no segment range")
 
     # normalize fps on the generated clip before stitching so xfade doesn't jitter
-    variant_path = storage.path_from_url(variant.url)
+    variant_path = await storage.path_from_url(variant.url)
     normalized_path, _ = storage.new_path("variants", "mp4")
     try:
         await ffmpeg.normalize_fps(variant_path, proj.fps, normalized_path)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"fps normalize failed: {e}")
+    normalized_url = await storage.publish(normalized_path, content_type="video/mp4")
 
     # crossfade-stitch into a brand-new project video
-    stitched_path, stitched_url = storage.new_path("stitched", "mp4")
+    stitched_path, _ = storage.new_path("stitched", "mp4")
     segment_duration = job.end_ts - job.start_ts
     try:
         await ffmpeg.stitch_crossfade(
@@ -73,6 +74,7 @@ async def accept(
             )
         except Exception as e2:
             raise HTTPException(status_code=500, detail=f"stitch failed: {e2}")
+    stitched_url = await storage.publish(stitched_path, content_type="video/mp4")
 
     # swap project video to the stitched output (append-only history via new paths)
     proj.video_path = str(stitched_path)
@@ -98,7 +100,7 @@ async def accept(
         start_ts=job.start_ts,
         end_ts=job.end_ts,
         source="generated",
-        url=storage.url_for_path(normalized_path),
+        url=normalized_url,
         variant_id=variant.id,
         order_index=int(job.start_ts * 1000),
         active=True,
@@ -115,6 +117,7 @@ async def accept(
             await ffmpeg.extract_frame(
                 proj.video_path, float(job.reference_frame_ts), frame_path
             )
+            await storage.publish(frame_path, content_type="image/jpeg")
             crop_path = str(frame_path)
         except Exception:
             pass

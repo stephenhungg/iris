@@ -88,7 +88,9 @@ async def run(job_id: str) -> None:
         keyframes = await ffmpeg.extract_keyframes(
             proj.video_path, KEYFRAMES_PER_SECOND, pattern
         )
-        keyframe_urls = [storage.url_for_path(p) for p in keyframes]
+        keyframe_urls = []
+        for p in keyframes:
+            keyframe_urls.append(await storage.publish(p, content_type="image/jpeg"))
     except Exception as e:
         log.exception("keyframe extraction failed")
         async with AsyncSessionLocal() as db:

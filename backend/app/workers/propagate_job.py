@@ -61,6 +61,7 @@ async def _run_one(
                 res.error = f"extract failed: {e}"
                 await db.commit()
         return
+    clip_url = await storage.publish(clip_path, content_type="video/mp4")
 
     plan = {
         "description": f"propagate: {prompt}",
@@ -84,18 +85,23 @@ async def _run_one(
                 await db.commit()
         return
 
-    variant_url = variant["url"]
+    raw_url = variant.get("url") or ""
+    if raw_url in (str(clip_path), Path(clip_path).as_posix()):
+        variant_url = clip_url
+    else:
+        variant_url = storage.normalize_url_like(raw_url, fallback=clip_url)
     segment_id: str | None = None
 
     if auto_apply:
         try:
-            variant_path = storage.path_from_url(variant_url)
+            variant_path = await storage.path_from_url(variant_url)
             normalized, _ = storage.new_path("variants", "mp4")
             await ffmpeg.normalize_fps(variant_path, proj.fps, normalized)
+            normalized_url = await storage.publish(normalized, content_type="video/mp4")
 
             async with AsyncSessionLocal() as db:
                 live_proj = await db.get(Project, project_id)
-                stitched_path, stitched_url = storage.new_path("stitched", "mp4")
+                stitched_path, _ = storage.new_path("stitched", "mp4")
                 await ffmpeg.stitch_crossfade(
                     base=live_proj.video_path,
                     replacement=normalized,
@@ -103,6 +109,7 @@ async def _run_one(
                     duration=end_ts - start_ts,
                     out=stitched_path,
                 )
+                stitched_url = await storage.publish(stitched_path, content_type="video/mp4")
                 live_proj.video_path = str(stitched_path)
                 live_proj.video_url = stitched_url
 
@@ -111,7 +118,7 @@ async def _run_one(
                     start_ts=start_ts,
                     end_ts=end_ts,
                     source="generated",
-                    url=storage.url_for_path(normalized),
+                    url=normalized_url,
                     order_index=int(start_ts * 1000),
                     active=True,
                 )
