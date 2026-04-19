@@ -324,15 +324,14 @@ async def run(job_id: str) -> None:
     # and let Veo regenerate the scene from prose. For gentler transforms
     # we keep the frame so composition/subject stay anchored.
     intent = str(plan.get("intent") or "").lower()
-    strategy = str(plan.get("conditioning_strategy") or "").lower()
-    if strategy not in ("first_frame", "text_only"):
-        strategy = "text_only" if intent in ("remove", "replace", "restyle") else "first_frame"
+    # ALWAYS send the reference frame to Veo. Without it, Veo regenerates
+    # the entire scene from text and produces output that doesn't match the
+    # original footage at all. The frame anchors composition, lighting, and
+    # subject placement regardless of whether the intent is remove, replace,
+    # restyle, or transform.
+    strategy = "first_frame"
 
-    conditioning_frame_effective: str | None
-    if strategy == "text_only":
-        conditioning_frame_effective = None
-    else:
-        conditioning_frame_effective = conditioning_frame
+    conditioning_frame_effective: str | None = conditioning_frame
 
     # redact huge fields before shipping over SSE.
     safe_plan = {

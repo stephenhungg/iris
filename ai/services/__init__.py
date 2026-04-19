@@ -92,15 +92,22 @@ else:
             strategy = str(v.get("conditioning_strategy", "")).lower()
             if strategy not in ("first_frame", "text_only"):
                 intent = str(v.get("intent", "")).lower()
-                v["conditioning_strategy"] = (
-                    "text_only"
-                    if intent in ("remove", "replace", "restyle")
-                    else "first_frame"
-                )
+                # always use first_frame — text_only produces garbage output
+                # because veo has no visual context for the scene
+                v["conditioning_strategy"] = "first_frame"
         return variants
 
-    async def _score_variant(frames: list[str], prompt: str) -> dict:
-        return await _gemini_real.score_variant(prompt, frames)
+    async def _score_variant(
+        frames: list[str] | None = None,
+        prompt: str = "",
+        *,
+        original_prompt: str | None = None,
+        variant_frame_paths: list[str] | None = None,
+    ) -> dict:
+        # accept both positional (frames, prompt) and keyword (original_prompt, variant_frame_paths) calling conventions
+        p = original_prompt or prompt
+        f = variant_frame_paths or frames or []
+        return await _gemini_real.score_variant(original_prompt=p, variant_frame_paths=f)
 
     async def _identify_entity(crop_path: str) -> dict:
         result = await _gemini_real.identify_entity(crop_path)
