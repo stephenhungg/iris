@@ -18,6 +18,7 @@ import { Inspector } from "../components/Inspector";
 import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
+import { VibePrompt } from "../components/VibePrompt";
 import { getTimeline, upload } from "../api/client";
 import { Icon } from "../components/Icon";
 import "../styles/global.css";
@@ -62,6 +63,7 @@ function StudioInner({
 }) {
   const { state, dispatch } = useEDL();
   const [uploading, setUploading] = useState(false);
+  const [mode, setMode] = useState<'vibe' | 'pro'>('vibe');
   const rootRef = useRef<HTMLDivElement>(null);
 
   // hydrate an existing project once, if one was passed in. we fetch the
@@ -192,8 +194,8 @@ function StudioInner({
   const projectLabel = state.sources[0]?.projectId.slice(0, 8);
 
   return (
-    <main className="studio" ref={rootRef}>
-      <TopBar onExit={onExit} onLibrary={onLibrary} projectLabel={projectLabel} />
+    <main className={`studio ${mode === 'vibe' ? 'studio--vibe' : ''}`} ref={rootRef}>
+      <TopBar onExit={onExit} onLibrary={onLibrary} projectLabel={projectLabel} mode={mode} onToggleMode={() => setMode(m => m === 'vibe' ? 'pro' : 'vibe')} />
 
       <section className="studio__body">
         <aside className="studio__left">
@@ -211,7 +213,10 @@ function StudioInner({
 
         <section className="studio__center">
           {hasSources ? (
-            <Preview />
+            <>
+              <Preview />
+              {mode === 'vibe' && <VibePrompt />}
+            </>
           ) : (
             <UploadDrop onFile={handleFile} busy={uploading} />
           )}
@@ -324,10 +329,14 @@ function TopBar({
   onExit,
   onLibrary,
   projectLabel,
+  mode,
+  onToggleMode,
 }: {
   onExit: () => void;
   onLibrary?: () => void;
   projectLabel?: string;
+  mode: 'vibe' | 'pro';
+  onToggleMode: () => void;
 }) {
   return (
     <header className="topbar">
@@ -363,6 +372,23 @@ function TopBar({
       </div>
 
       <div className="topbar__right">
+        <button
+          onClick={onToggleMode}
+          style={{
+            padding: '4px 12px',
+            borderRadius: '9999px',
+            border: '1px solid rgba(255,255,255,0.15)',
+            background: mode === 'vibe' ? 'rgba(255,255,255,0.1)' : 'transparent',
+            color: 'rgba(255,255,255,0.6)',
+            fontFamily: 'var(--font-mono, monospace)',
+            fontSize: '10px',
+            letterSpacing: '0.1em',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          {mode}
+        </button>
         <button className="topbar__ghost" title="keyboard shortcuts">
           <Icon name="keyboard" size={14} />
           <span>Shortcuts</span>

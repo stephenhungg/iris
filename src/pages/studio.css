@@ -207,3 +207,47 @@
   width: 100%;
   height: 100%;
 }
+
+/* ── vibe mode ── */
+/* hides sidebars and timeline, makes preview fullscreen */
+
+.studio--vibe .studio__left,
+.studio--vibe .studio__right,
+.studio--vibe .studio__bottom {
+  display: none !important;
+}
+
+/* hide all splitter handles */
+.studio--vibe .splitter {
+  display: none !important;
+}
+
+/* make the body a single column so center fills it */
+.studio--vibe .studio__body {
+  grid-template-columns: 1fr;
+}
+
+/* make center area take full width and height */
+.studio--vibe .studio__center {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+}
+
+/* collapse the timeline row */
+.studio--vibe {
+  grid-template-rows: 42px 1fr;
+}
+
+/* hide the timeline toolbar row if it exists */
+.studio--vibe .tbar {
+  display: none !important;
+}
+
+/* make the preview video fill the space */
+.studio--vibe .pv {
+  height: 100%;
+}
+
+.studio--vibe .pv__stage {
+  height: calc(100% - 48px);
+}
