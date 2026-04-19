@@ -29,325 +29,103 @@ Returns a timeline of recent AI operations.
 
 ### `GET /api/ai/stream`
 
-Returns a Server-Sent Events (SSE) stream of real-time AI operation events.
+Returns a server-sent event stream of live AI operations.
 
-### `POST /api/agent/chat`
+## Projects
 
-Initiates or continues an agent chat session.
+### `GET /api/projects`
 
-**Request body:**
+Returns a list of all projects for the current user.
 
-```json
-{
-  "project_id": "string",
-  "message": "string",
-  "conversation_id": "string",
-  "history": [
-    {
-      "role": "user",
-      "content": "string"
-    },
-    {
-      "role": "model",
-      "content": "string"
-    }
-  ],
-  "playhead_ts": "number | null",
-  "duration": "number | null",
-  "bbox": {
-    "x": "number",
-    "y": "number",
-    "w": "number",
-    "h": "number"
-  } | null
-}
-```
-
-**Response:**
-
-Server-Sent Events (SSE) stream of agent responses, tool calls, and results.
-
-### Agent Tools
+### `POST /api/projects`
 
-The agent can call the following functions:
+Creates a new project.
 
-#### `get_timeline`
+### `GET /api/projects/{project_id}`
 
-Returns the current state of the video timeline for the active project.
-
-**Parameters:**
+Returns a single project by ID.
 
-```json
-{
-  "project_id": "string"
-}
-```
+### `DELETE /api/projects/{project_id}`
 
-#### `preview_frame`
+Deletes a project and all its associated data, including segments, jobs, entities, and conversations.
 
-Generates a preview image for a specific timestamp on the timeline.
+**Path Parameters:**
+- `project_id`: The ID of the project to delete.
 
-**Parameters:**
+**Responses:**
+- `200 OK`: `{"status": "deleted", "project_id": "string"}`
+- `404 Not Found`: If the project does not exist or does not belong to the current session.
 
-```json
-{
-  "project_id": "string",
-  "timestamp": "number"
-}
-```
+## Project Segments
 
-#### `preview_strip`
+### `GET /api/projects/{project_id}/segments`
 
-Generates a strip of preview images for a given segment of the timeline.
+Returns all segments for a given project.
 
-**Parameters:**
+### `POST /api/projects/{project_id}/segments`
 
-```json
-{
-  "project_id": "string",
-  "start_ts": "number",
-  "end_ts": "number"
-}
-```
+Creates a new segment for a project.
 
-#### `analyze_video`
+## Project Jobs
 
-Analyzes a video segment for content, entities, or scene changes.
+### `GET /api/projects/{project_id}/jobs`
 
-**Parameters:**
+Returns all jobs for a given project.
 
-```json
-{
-  "project_id": "string",
-  "start_ts": "number",
-  "end_ts": "number"
-}
-```
+### `POST /api/projects/{project_id}/jobs`
 
-#### `identify_region`
+Creates a new job for a project.
 
-Identifies and describes the content within a specified bounding box.
+## Project Entities
 
-**Parameters:**
+### `GET /api/projects/{project_id}/entities`
 
-```json
-{
-  "project_id": "string",
-  "timestamp": "number",
-  "bbox": {
-    "x": "number",
-    "y": "number",
-    "w": "number",
-    "h": "number"
-  }
-}
-```
+Returns all entities for a given project.
 
-#### `generate_edit`
+### `POST /api/projects/{project_id}/entities`
 
-Generates new video variants based on a prompt and a timeline segment.
+Creates a new entity for a project.
 
-**Parameters:**
+## Project Conversations
 
-```json
-{
-  "project_id": "string",
-  "prompt": "string",
-  "start_ts": "number",
-  "end_ts": "number",
-  "bbox": {
-    "x": "number",
-    "y": "number",
-    "w": "number",
-    "h": "number"
-  } | null
-}
-```
+### `GET /api/projects/{project_id}/conversations`
 
-#### `get_job_status`
+Returns all conversations for a given project.
 
-Retrieves the current status of a video generation job.
+### `POST /api/projects/{project_id}/conversations`
 
-**Parameters:**
+Creates a new conversation for a project.
 
-```json
-{
-  "job_id": "string"
-}
-```
+## Uploads
 
-#### `wait_for_job`
+### `POST /api/upload`
 
-Block until a generation job finishes (status=done) or a timeout elapses. This is typically called immediately after `generate_edit` so the variants are in hand before the agent replies.
+Uploads a new media file.
 
-**Parameters:**
+**Request Body:**
+- `file`: The media file to upload.
 
-```json
-{
-  "job_id": "string",
-  "timeout_s": "number" // Optional, default 180
-}
-```
+**Responses:**
+- `200 OK`: `{"upload_id": "string", "filename": "string", "size": "number"}`
 
-**Response:**
+## Users
 
-Returns the job status object, including a `waited_s` field indicating how long the call blocked.
+### `GET /api/users`
 
-#### `accept_variant`
+Returns a list of all users. (Admin only)
 
-Accept a generated variant, applying it to the timeline.
+### `GET /api/users/{user_id}`
 
-**Parameters:**
+Returns a single user by ID. (Admin only)
 
-```json
-{
-  "job_id": "string",
-  "variant_index": "integer"
-}
-```
+### `POST /api/users`
 
-#### `snapshot_timeline`
+Creates a new user. (Admin only)
 
-Creates a snapshot of the current timeline state, allowing for easy reverts.
+### `PUT /api/users/{user_id}`
 
-**Parameters:**
+Updates an existing user. (Admin only)
 
-```json
-{
-  "project_id": "string"
-}
-```
+### `DELETE /api/users/{user_id}`
 
-#### `revert_timeline`
-
-Reverts the timeline to a previously saved snapshot.
-
-**Parameters:**
-
-```json
-{
-  "project_id": "string",
-  "snapshot_id": "string"
-}
-```
-
-#### `score_variant`
-
-Scores a generated variant based on quality, relevance, or other criteria.
-
-**Parameters:**
-
-```json
-{
-  "job_id": "string",
-  "variant_index": "integer"
-}
-```
-
-#### `score_continuity`
-
-Analyzes the continuity of an edit across adjacent frames or segments.
-
-**Parameters:**
-
-```json
-{
-  "project_id": "string",
-  "start_ts": "number",
-  "end_ts": "number"
-}
-```
-
-#### `remix_variant`
-
-Generates new variants based on an existing variant and a new prompt.
-
-**Parameters:**
-
-```json
-{
-  "job_id": "string",
-  "variant_index": "integer",
-  "prompt": "string"
-}
-```
-
-#### `split_segment`
-
-Splits a video segment at a specified timestamp.
-
-**Parameters:**
-
-```json
-{
-  "project_id": "string",
-  "timestamp": "number"
-}
-```
-
-#### `trim_segment`
-
-Trims a video segment to new start and end timestamps.
-
-**Parameters:**
-
-```json
-{
-  "project_id": "string",
-  "segment_id": "string",
-  "new_start_ts": "number",
-  "new_end_ts": "number"
-}
-```
-
-#### `delete_segment`
-
-Deletes a video segment from the timeline.
-
-**Parameters:**
-
-```json
-{
-  "project_id": "string",
-  "segment_id": "string"
-}
-```
-
-#### `color_grade`
-
-Applies a color grading preset or custom adjustments to a segment.
-
-**Parameters:**
-
-```json
-{
-  "project_id": "string",
-  "segment_id": "string",
-  "preset": "string" // e.g., "cinematic", "vibrant"
-}
-```
-
-#### `export_video`
-
-Exports the current timeline as a video file.
-
-**Parameters:**
-
-```json
-{
-  "project_id": "string",
-  "format": "string" // e.g., "mp4", "webm"
-}
-```
-
-#### `get_export_status`
-
-Retrieves the status of a video export job.
-
-**Parameters:**
-
-```json
-{
-  "job_id": "string"
-}
-```
+Deletes a user. (Admin only)
