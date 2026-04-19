@@ -1120,6 +1120,14 @@ export default function App() {
 
   return (
     <div style={{ background: '#000', minHeight: '100vh', color: '#fff' }}>
+      {/* preload metallic paint shaders during loader (offscreen, invisible) */}
+      {!loaderDone && (
+        <div aria-hidden style={{ position: 'fixed', width: 1, height: 1, opacity: 0.001, overflow: 'hidden', pointerEvents: 'none', zIndex: -1 }}>
+          <MetallicPaint imageSrc={IRIS_SVG} {...FLOWER_METALLIC_PROPS} />
+          <MetallicPaint text={IRIS_WORDMARK_TEXT} textOptions={IRIS_WORDMARK_MASK} {...WORDMARK_METALLIC_PROPS} />
+        </div>
+      )}
+
       {/* ascii flower loader */}
       <AnimatePresence mode="wait">
         {!loaderDone && <Loader onComplete={() => setLoaderDone(true)} />}
