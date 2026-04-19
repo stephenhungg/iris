@@ -8,11 +8,27 @@ from app.config.settings import get_settings
 
 _settings = get_settings()
 
-engine = create_async_engine(
-    _settings.database_url,
-    echo=False,
-    future=True,
-)
+
+def _engine_kwargs(url: str) -> dict:
+    """Tune the engine per dialect.
+
+    • postgres (vultr managed): pool, pre_ping, recycle idle conns so the
+      ssl connection doesn't rot after a few mins. ssl is negotiated via
+      the ?ssl=require / ?sslmode=require flag on the DSN.
+    • sqlite: default pool is fine, no extras.
+    """
+    kwargs: dict = {"echo": False, "future": True}
+    if url.startswith("postgresql") or url.startswith("postgres"):
+        kwargs.update(
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,
+            pool_recycle=300,
+        )
+    return kwargs
+
+
+engine = create_async_engine(_settings.database_url, **_engine_kwargs(_settings.database_url))
 
 AsyncSessionLocal = async_sessionmaker(
     engine,

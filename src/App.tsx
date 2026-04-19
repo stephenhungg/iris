@@ -4,6 +4,7 @@ import MetallicPaint from './components/MetallicPaint'
 import Noise from './components/Noise'
 import ScrollFrames from './components/ScrollFrames'
 import { Studio } from './pages/Studio'
+import { useAuth } from './lib/useAuth'
 
 const IRIS_SVG = '/iris-logo.svg'
 
@@ -120,11 +121,68 @@ function PillNav({ onStudio }: { onStudio: () => void }) {
             <a key={l} href={`#${l}`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>{l}</a>
           ))}
+          <AuthChip />
           <button onClick={onStudio} style={{ padding: '8px 20px', background: '#fff', color: '#000', border: 'none', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '0.06em', cursor: 'pointer' }}
             onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>open studio</button>
         </motion.nav>
       )}
     </AnimatePresence>
+  )
+}
+
+// ── auth chip ────────────────────────────────────────────────────────
+// compact sign-in / signed-in indicator. sits in the pill nav + hero top bar.
+
+function GoogleGlyph({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden style={{ display: 'block' }}>
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.6 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35 26.7 36 24 36c-5.4 0-9.9-3.4-11.3-8.1l-6.5 5C9.6 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.2 5.2C41.8 35.8 44 30.3 44 24c0-1.2-.1-2.3-.4-3.5z" />
+    </svg>
+  )
+}
+
+function AuthChip() {
+  const { status, user, signInWithGoogle, signOut } = useAuth()
+  const [hover, setHover] = useState(false)
+
+  if (status === 'loading') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.3)', animation: 'pulse 1.4s ease-in-out infinite' }} />
+        loading
+      </span>
+    )
+  }
+
+  if (status === 'anon') {
+    return (
+      <button onClick={signInWithGoogle}
+        onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 14px', background: 'transparent', color: hover ? '#fff' : 'rgba(255,255,255,0.55)', border: '1px solid ' + (hover ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.12)'), borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.2s' }}>
+        <GoogleGlyph />
+        sign in
+      </button>
+    )
+  }
+
+  const name = (user?.user_metadata?.full_name as string | undefined)?.split(' ')[0]?.toLowerCase()
+    || user?.email?.split('@')[0]?.toLowerCase()
+    || 'you'
+  const truncated = name.length > 14 ? name.slice(0, 14) + '…' : name
+
+  return (
+    <button onClick={signOut}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      title="sign out"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px 6px 6px', background: 'rgba(255,255,255,0.06)', color: hover ? '#fff' : 'rgba(255,255,255,0.75)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.2s' }}>
+      <span style={{ width: 20, height: 20, borderRadius: '50%', background: 'linear-gradient(135deg, #707070, #E0E0E0)', color: '#000', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>
+        {name[0]}
+      </span>
+      {hover ? 'sign out' : truncated}
+    </button>
   )
 }
 
@@ -148,8 +206,11 @@ function Hero({ onStudio }: { onStudio: () => void }) {
             </div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>iris®</span>
           </div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6 }}>
-            ai-powered video editor<br />speak your edits into existence
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6 }}>
+              ai-powered video editor<br />speak your edits into existence
+            </div>
+            <AuthChip />
           </div>
         </motion.div>
 

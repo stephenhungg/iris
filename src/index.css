@@ -77,6 +77,12 @@ body {
   50% { background-position: 100% 50%; }
 }
 
+/* soft pulse for loading dots / indicators */
+@keyframes pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+
 /* utility classes */
 .font-display { font-family: var(--font-display); }
 .font-body { font-family: var(--font-body); }
