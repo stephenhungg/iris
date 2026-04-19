@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react'
+import gsap from 'gsap'
 import MetallicPaint from './components/MetallicPaint'
 import Noise from './components/Noise'
 import ScrollFrames from './components/ScrollFrames'
@@ -8,13 +9,20 @@ import { useAuth } from './lib/useAuth'
 
 const IRIS_SVG = '/iris-logo.svg'
 
-// palmer exact animation configs
+// framerlabs + palmer animation configs
 const SPRING = {
   bouncy: { type: 'spring' as const, stiffness: 350, damping: 40, mass: 1 },
   badge: { type: 'spring' as const, stiffness: 350, damping: 40, mass: 1.5 },
+  magnetic: { type: 'spring' as const, stiffness: 1000, damping: 100 },
 }
 const TWEEN = {
   fast: { type: 'tween' as const, duration: 0.4, ease: [0.82, 0.08, 0.29, 1] as const },
+}
+// framerlabs split-phase easing
+const EASE_FL = {
+  popUp: [0, 0, 0.39, 2.99] as const,     // overshoots naturally, no elastic
+  settle: [0.25, 0.46, 0.45, 0.94] as const, // smooth settle after overshoot
+  sharp: [0.82, 0.08, 0.29, 1] as const,
 }
 const STAGGER = 0.08
 
@@ -85,6 +93,15 @@ function AsciiScramble({ text }: { text: string }) {
 
 function Loader({ onComplete }: { onComplete: () => void }) {
   const [progress, setProgress] = useState(0)
+
+  // scroll lock during loader (framerlabs pattern)
+  useEffect(() => {
+    const orig = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.scrollTo(0, 0)
+    return () => { document.body.style.overflow = orig }
+  }, [])
+
   useEffect(() => {
     const i = setInterval(() => {
       setProgress(p => { if (p >= 100) { clearInterval(i); setTimeout(onComplete, 400); return 100 } return Math.min(p + (p < 60 ? 3 : p < 85 ? 2 : 1), 100) })
@@ -104,26 +121,59 @@ function Loader({ onComplete }: { onComplete: () => void }) {
   )
 }
 
+// ── magnetic wrapper (framerlabs pattern) ────────────────────────────
+
+function Magnetic({ children, intensity = 0.3 }: { children: React.ReactNode; intensity?: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ x: 0, y: 0 })
+
+  const handleMove = (e: React.MouseEvent) => {
+    const el = ref.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    setPos({ x: (e.clientX - cx) * intensity, y: (e.clientY - cy) * intensity })
+  }
+
+  const handleLeave = () => setPos({ x: 0, y: 0 })
+
+  return (
+    <motion.div
+      ref={ref}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+      animate={{ x: pos.x, y: pos.y }}
+      transition={{ type: 'spring', stiffness: 1000, damping: 100 }}
+      style={{ display: 'inline-block' }}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
 // ── pill nav ────────────────────────────────────────────────────────
 
 function PillNav({ onStudio }: { onStudio: () => void }) {
   const [show, setShow] = useState(false)
   useEffect(() => {
-    const fn = () => setShow(window.scrollY > window.innerHeight * 0.8)
+    setShow(true) // always visible
+    const fn = () => setShow(true)
     window.addEventListener('scroll', fn, { passive: true }); return () => window.removeEventListener('scroll', fn)
   }, [])
   return (
     <AnimatePresence>
       {show && (
-        <motion.nav initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={SPRING.bouncy}
+        <motion.nav data-intro="nav" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={{ type: 'tween', duration: 0.5, ease: EASE_FL.settle }}
           style={{ position: 'fixed', bottom: '24px', left: 0, right: 0, marginLeft: 'auto', marginRight: 'auto', width: 'fit-content', zIndex: 50, display: 'flex', alignItems: 'center', gap: '24px', padding: '10px 12px 10px 24px', background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
           {['product', 'editor', 'about'].map(l => (
             <a key={l} href={`#${l}`} style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>{l}</a>
           ))}
           <AuthChip />
-          <button onClick={onStudio} style={{ padding: '8px 20px', background: '#fff', color: '#000', border: 'none', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '0.06em', cursor: 'pointer' }}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>open studio</button>
+          <Magnetic intensity={0.25}>
+            <button onClick={onStudio} style={{ padding: '8px 20px', background: '#fff', color: '#000', border: 'none', borderRadius: '9999px', fontFamily: 'var(--font-mono)', fontSize: '11px', letterSpacing: '0.06em', cursor: 'pointer', transition: 'transform 0.2s' }}>open studio</button>
+          </Magnetic>
         </motion.nav>
       )}
     </AnimatePresence>
@@ -195,24 +245,21 @@ function Hero({ onStudio }: { onStudio: () => void }) {
   const y = useTransform(scrollYProgress, [0, 0.5], [0, -100])
 
   return (
-    <section ref={ref} style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 64px', overflow: 'hidden' }}>
-      {/* scattered preview images */}
-      <motion.img src="/frames/frame_045.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.4 }} viewport={{ once: true }}
-        transition={{ ...SPRING.badge, delay: 0.3 }}
-        style={{ position: 'absolute', top: '12%', right: '8%', width: '200px', height: '130px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
-      <motion.img src="/frames/frame_080.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.4 }} viewport={{ once: true }}
-        transition={{ ...SPRING.badge, delay: 0.5 }}
-        style={{ position: 'absolute', top: '58%', left: '3%', width: '160px', height: '100px', objectFit: 'cover', rotate: '-3deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
-      <motion.img src="/frames/frame_120.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.4 }} viewport={{ once: true }}
-        transition={{ ...SPRING.badge, delay: 0.7 }}
-        style={{ position: 'absolute', top: '40%', right: '4%', width: '180px', height: '120px', objectFit: 'cover', rotate: '1deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+    <section ref={ref} style={{ position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '120px 64px 0', overflow: 'hidden' }}>
+      {/* scattered preview images — controlled by GSAP intro timeline */}
+      <img data-intro="hero-images" src="/frames/frame_045.jpg" alt=""
+        style={{ position: 'absolute', top: '12%', right: '8%', width: '200px', height: '130px', objectFit: 'cover', transform: 'rotate(2deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
+      <img data-intro="hero-images" src="/frames/frame_080.jpg" alt=""
+        style={{ position: 'absolute', top: '58%', left: '3%', width: '160px', height: '100px', objectFit: 'cover', transform: 'rotate(-3deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
+      <img data-intro="hero-images" src="/frames/frame_120.jpg" alt=""
+        style={{ position: 'absolute', top: '40%', right: '4%', width: '180px', height: '120px', objectFit: 'cover', transform: 'rotate(1deg)', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1, opacity: 0 }} />
 
       <motion.div style={{ opacity, y }}>
-        {/* top bar */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={SPRING.badge}
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+        {/* top bar — chrome, hidden initially */}
+        <div data-intro="chrome"
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', opacity: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ width: '80px', height: '80px' }}>
+            <div style={{ width: '80px', height: '80px', willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
               <MetallicPaint imageSrc={IRIS_SVG} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#ffffff" darkColor="#000000" tintColor="#c0c0c0" />
             </div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>iris®</span>
@@ -222,42 +269,47 @@ function Hero({ onStudio }: { onStudio: () => void }) {
               ))}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6 }}>
-              ai-powered video editor<br />speak your edits into existence
-            </div>
-            <AuthChip />
+          <div data-intro="chrome" style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'right', lineHeight: 1.6, opacity: 0 }}>
+            ai-powered video editor<br />speak your edits into existence
           </div>
-        </motion.div>
+        </div>
 
-        {/* massive title */}
-        <motion.h1 initial={{ opacity: 0, y: -90 }} animate={{ opacity: 1, y: 0 }} transition={SPRING.bouncy}
-          style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(100px, 18vw, 240px)', lineHeight: 0.85, letterSpacing: '-0.04em', color: '#fff', marginBottom: '48px' }}>
-          <span style={{ background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite', filter: 'drop-shadow(0 0 80px rgba(255,255,255,0.08))' }}>iris</span>
-          <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.4em', verticalAlign: 'super', marginLeft: '8px' }}>™</span>
-        </motion.h1>
+        {/* title — GSAP controls the reveal */}
+        <h1 data-intro="logo"
+          style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(120px, 22vw, 320px)', lineHeight: 0.85, letterSpacing: '-0.04em', marginBottom: '48px', filter: 'drop-shadow(0 0 80px rgba(255,255,255,0.08))' }}>
+          iris
+        </h1>
 
         {/* bottom row */}
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING.badge, delay: 0.2 }}
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '40px', alignItems: 'end' }}>
-          <p style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', maxWidth: '320px' }}>
-            point at a moment in your video, describe what should change, and watch reality rewrite itself.
-          </p>
+        <div data-intro="chrome"
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '40px', alignItems: 'end', opacity: 0 }}>
+          <div style={{ maxWidth: '320px' }}>
+            <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
+              point at a moment in your video.
+            </p>
+            <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0, marginBottom: '6px' }}>
+              describe what should change.
+            </p>
+            <p data-intro="subtext" style={{ fontFamily: 'var(--font-body)', fontSize: '14px', lineHeight: 1.7, color: 'rgba(255,255,255,0.4)', opacity: 0 }}>
+              watch reality rewrite itself.
+            </p>
+          </div>
           <div>
-            <button onClick={onStudio} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '16px 40px', border: 'none', width: 'fit-content', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s' }}
-              onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 40px rgba(255,255,255,0.12)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>open studio</button>
+            <Magnetic intensity={0.2}>
+              <button onClick={onStudio} style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', padding: '16px 40px', border: 'none', width: 'fit-content', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', animation: 'shimmer 6s ease-in-out infinite', transition: 'box-shadow 0.3s' }}
+                onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 40px rgba(255,255,255,0.12)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>open studio</button>
+            </Magnetic>
           </div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', lineHeight: 2, textAlign: 'right' }}>
             <div>prompt-driven editing</div><div>causal entity tracking</div><div>powered by gemini + veo</div>
           </div>
-        </motion.div>
+        </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5, duration: 0.6 }}
-        style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+      <div data-intro="chrome" style={{ position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', opacity: 0 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.12)', letterSpacing: '0.2em' }}>scroll</span>
         <motion.div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)' }} animate={{ scaleY: [1, 0.4, 1] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
-      </motion.div>
+      </div>
     </section>
   )
 }
@@ -267,7 +319,7 @@ function Hero({ onStudio }: { onStudio: () => void }) {
 function Marquee() {
   const text = 'scrub · select · prompt · transform · '.repeat(10)
   return (
-    <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={SPRING.badge}
+    <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
       style={{ overflow: 'hidden', whiteSpace: 'nowrap', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '24px 0' }}>
       <motion.div animate={{ x: [0, -3000] }} transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
         style={{ display: 'inline-block', fontFamily: 'var(--font-display)', fontSize: 'clamp(60px, 8vw, 100px)', fontWeight: 300, letterSpacing: '-0.02em', color: 'transparent', WebkitTextStroke: '1px rgba(255,255,255,0.1)' }}>{text}</motion.div>
@@ -286,30 +338,46 @@ const STEPS = [
 
 function Thesis() {
   return (
-    <section style={{ padding: '200px 64px 160px', maxWidth: '1200px', margin: '0 auto' }}>
-      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={SPRING.badge}
+    <section style={{ position: 'relative', padding: '200px 64px 160px', maxWidth: '1200px', margin: '0 auto' }}>
+      {/* decorative section number */}
+      <div style={{ position: 'absolute', top: '80px', right: '0', fontFamily: 'var(--font-display)', fontSize: '300px', fontWeight: 300, color: '#fff', opacity: 0.03, lineHeight: 1, pointerEvents: 'none', userSelect: 'none' }}>01</div>
+
+      {/* scattered images */}
+      <motion.img src="/frames/frame_040.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.25 }} viewport={{ once: true }}
+        transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+        style={{ position: 'absolute', top: '10%', right: '6%', width: '240px', height: '160px', objectFit: 'cover', rotate: '-1deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+      <motion.img src="/frames/frame_110.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.2 }} viewport={{ once: true }}
+        transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+        style={{ position: 'absolute', bottom: '12%', left: '2%', width: '200px', height: '140px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+
+      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>001 / about</motion.div>
 
-      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-100px' }} transition={SPRING.bouncy}
-        style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '80px' }}>
+      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-100px' }} transition={{ type: 'tween', duration: 0.5, ease: EASE_FL.settle }}
+        style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '0' }}>
         generation<br /><span style={{ fontStyle: 'italic', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite' }}>is the edit.</span>
       </motion.h2>
 
+      {/* divider line */}
+      <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.06)', margin: '40px 0' }} />
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '120px' }}>
         <div>
-          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={SPRING.badge}
+          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
             style={{ fontFamily: 'var(--font-body)', fontSize: '15px', lineHeight: 1.8, color: 'rgba(255,255,255,0.35)', marginBottom: '32px' }}>
             runway generates video from nothing. premiere edits footage frame by frame. neither lets you point at a specific moment and say "make this different."
           </motion.p>
-          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ ...SPRING.badge, delay: 0.1 }}
+          <motion.p initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: 0.1 }}
             style={{ fontFamily: 'var(--font-body)', fontSize: '15px', lineHeight: 1.8, color: 'rgba(255,255,255,0.35)', marginBottom: '48px' }}>
             iris merges both into one action. scrub to a frame, draw a box, describe the change. the ai generates multiple interpretations. you pick one. it replaces that segment in your timeline.
           </motion.p>
-          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ ...SPRING.badge, delay: 0.2 }}
+          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: 0.2 }}
             style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
             {[{ val: '3', label: 'variants per edit' }, { val: '<40s', label: 'generation time' }, { val: '∞', label: 'iterations' }].map((s, i) => (
-              <div key={i}>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '4px' }}>{s.val}</div>
+              <div key={i} style={{ cursor: 'default', transition: 'transform 0.3s' }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) valEl.style.color = 'rgba(255,255,255,1)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) valEl.style.color = '#fff' }}>
+                <div data-stat-val="" style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '4px', transition: 'color 0.3s' }}>{s.val}</div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>{s.label}</div>
               </div>
             ))}
@@ -319,7 +387,7 @@ function Thesis() {
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {STEPS.map((s, i) => (
             <motion.div key={s.num} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }}
-              transition={{ ...SPRING.bouncy, delay: i * STAGGER }}
+              transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: i * STAGGER }}
               style={{ padding: '28px 0', cursor: 'default', borderBottom: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.3s' }}
               onMouseEnter={e => { e.currentTarget.style.paddingLeft = '16px'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
               onMouseLeave={e => { e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
@@ -343,10 +411,10 @@ const FEATURE_FRAMES = ['/frames/frame_100.jpg', '/frames/frame_060.jpg', '/fram
 function Features() {
   return (
     <section style={{ padding: '160px 64px', maxWidth: '1200px', margin: '0 auto' }}>
-      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={SPRING.badge}
+      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>002 / capabilities</motion.div>
 
-      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={SPRING.bouncy}
+      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.5, ease: EASE_FL.settle }}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(40px, 6vw, 96px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '80px' }}>
         blending <span style={{ fontStyle: 'italic', color: 'rgba(255,255,255,0.4)' }}>intelligence</span><br />with intention.
       </motion.h2>
@@ -359,7 +427,7 @@ function Features() {
           { title: 'voice narration', desc: "elevenlabs generates cinematic voiceover for your reveals. the transformation doesn't just look different. it sounds different.", label: 'elevenlabs' },
         ].map((f, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            transition={{ ...SPRING.bouncy, delay: i * STAGGER }}
+            transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: i * STAGGER }}
             style={{ padding: '48px 40px', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.3s', cursor: 'default', transform: 'translateY(0)', boxShadow: 'none' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderTopColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,255,255,0.03)' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderTopColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.boxShadow = 'none' }}>
@@ -378,7 +446,7 @@ function Features() {
 
 function TechStrip() {
   return (
-    <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={SPRING.badge}
+    <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
       style={{ padding: '80px 64px', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'center', gap: '64px', alignItems: 'center' }}>
       {['gemini 2.5 pro', 'veo 3.1', 'elevenlabs', 'sam2', 'vultr gpu'].map((t, i) => (
         <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em', transition: 'color 0.3s', cursor: 'default' }}
@@ -394,19 +462,33 @@ function TechStrip() {
 function CTA({ onStudio }: { onStudio: () => void }) {
   return (
     <section style={{ padding: '200px 64px', textAlign: 'center' }}>
-      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={SPRING.bouncy}
+      {/* decorative frame strip */}
+      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle }}
+        style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginBottom: '64px' }}>
+        {['/frames/frame_020.jpg', '/frames/frame_070.jpg', '/frames/frame_130.jpg'].map((src, i) => (
+          <img key={i} src={src} alt="" style={{ width: '300px', height: '180px', objectFit: 'cover', opacity: 0.2, border: '1px solid rgba(255,255,255,0.06)' }} />
+        ))}
+      </motion.div>
+
+      <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.5, ease: EASE_FL.settle }}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '32px' }}>
         rewrite <span style={{ fontStyle: 'italic' }}>reality.</span>
       </motion.h2>
-      <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ ...SPRING.badge, delay: 0.1 }}
+      <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: 0.1 }}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', marginBottom: '48px' }}>
         start editing with prompts, not tools.
       </motion.p>
-      <motion.button onClick={onStudio} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-        transition={{ ...SPRING.badge, delay: 0.2 }}
-        whileHover={{ scale: 1.03, transition: TWEEN.fast }} whileTap={{ scale: 0.97, transition: TWEEN.fast }}
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', padding: '18px 56px', border: 'none', background: '#fff', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', transition: 'box-shadow 0.3s' }}
-        onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>open studio</motion.button>
+      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+        transition={{ type: 'tween', duration: 0.4, ease: EASE_FL.settle, delay: 0.2 }}>
+        <Magnetic intensity={0.2}>
+          <button onClick={onStudio}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', padding: '18px 56px', border: 'none', background: '#fff', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', transition: 'all 0.3s' }}
+            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>open studio</button>
+        </Magnetic>
+      </motion.div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '20px' }}>
+        no account required · free during beta
+      </div>
     </section>
   )
 }
@@ -414,41 +496,160 @@ function CTA({ onStudio }: { onStudio: () => void }) {
 // ── footer ──────────────────────────────────────────────────────────
 
 function Footer() {
+  const footerLinks: Record<string, string[]> = {
+    product: ['editor', 'pricing', 'changelog'],
+    resources: ['docs', 'api', 'github'],
+    company: ['about', 'twitter', 'contact'],
+  }
+
   return (
-    <footer style={{ padding: '40px 64px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '16px', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>iris®</span>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em' }}>© 2026 · built at cal hacks</span>
+    <footer style={{ padding: '80px 64px 40px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      {/* link grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', maxWidth: '480px', paddingBottom: '40px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '40px' }}>
+        {Object.entries(footerLinks).map(([heading, links]) => (
+          <div key={heading}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.15em', marginBottom: '12px' }}>{heading}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {links.map(link => (
+                <a key={link} href="#" style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', textDecoration: 'none', transition: 'color 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}>{link}</a>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* bottom row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '16px', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>iris®</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em' }}>© 2026 · built at cal hacks</span>
+      </div>
     </footer>
   )
 }
 
 // ── app ─────────────────────────────────────────────────────────────
 
+function useIntroTimeline() {
+  const runIntro = useCallback(() => {
+
+    const tl = gsap.timeline({ defaults: { ease: 'power2.inOut' } })
+
+    // phase 1: ascii loader (handled by React state, not GSAP)
+    // phase 2: hero reveal (GSAP takes over after loader completes)
+
+    gsap.set('[data-intro="logo"]', { opacity: 0, scale: 0.97, color: '#1a1a1a' })
+    gsap.set('[data-intro="chrome"]', { opacity: 0, y: 16 })
+    gsap.set('[data-intro="subtext"]', { opacity: 0, y: 10 })
+    gsap.set('[data-intro="hero-images"]', { opacity: 0, scale: 0.95 })
+    gsap.set('[data-intro="nav"]', { opacity: 0, y: 30 })
+
+    // 0–1.2s: "iris" fades in as dark grey
+    tl.to('[data-intro="logo"]', {
+      opacity: 1,
+      duration: 1.2,
+      ease: 'power1.in',
+    })
+
+    // 1.2–1.8s: brightens to white
+    .to('[data-intro="logo"]', {
+      color: '#ffffff',
+      duration: 0.6,
+      ease: 'power2.inOut',
+    })
+
+    // 1.8–2.0s: snappy pop UP with overshoot (framerlabs split-phase)
+    .to('[data-intro="logo"]', {
+      scale: 1.03,
+      duration: 0.15,
+      ease: `cubic-bezier(${EASE_FL.popUp.join(',')})`,
+    })
+
+    // 2.0–2.15s: smooth settle DOWN (framerlabs split-phase)
+    .to('[data-intro="logo"]', {
+      scale: 1.0,
+      duration: 0.15,
+      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
+    })
+
+    // 2.0–2.5s: subtitle lines fade up with settle ease
+    .to('[data-intro="subtext"]', {
+      opacity: 1,
+      y: 0,
+      duration: 0.4,
+      stagger: 0.15,
+      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
+    }, '-=0.15')
+
+    // 2.3–2.8s: chrome slides up
+    .to('[data-intro="chrome"]', {
+      opacity: 1,
+      y: 0,
+      duration: 0.45,
+      stagger: 0.07,
+      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
+    }, '-=0.25')
+
+    // 2.5–3.0s: hero images
+    .to('[data-intro="hero-images"]', {
+      opacity: 0.35,
+      scale: 1,
+      duration: 0.5,
+      stagger: 0.12,
+      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
+    }, '-=0.25')
+
+    // 2.8–3.5s: nav last, slow rise
+    .to('[data-intro="nav"]', {
+      opacity: 1,
+      y: 0,
+      duration: 0.6,
+      ease: `cubic-bezier(${EASE_FL.settle.join(',')})`,
+    }, '-=0.1')
+
+  }, [])
+
+  return runIntro
+}
+
 export default function App() {
-  const [loaded, setLoaded] = useState(false)
   const [view, setView] = useState<'landing' | 'studio'>('landing')
+  const [loaderDone, setLoaderDone] = useState(false)
+  const runIntro = useIntroTimeline()
+
+  useEffect(() => {
+    if (!loaderDone) return
+    // loader finished, now run the hero reveal
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { runIntro() })
+    })
+  }, [loaderDone, runIntro])
+
   if (view === 'studio') return <Studio onExit={() => setView('landing')} />
 
   return (
     <div style={{ background: '#000', minHeight: '100vh', color: '#fff', textTransform: 'lowercase' }}>
+      {/* ascii flower loader */}
+      <AnimatePresence mode="wait">
+        {!loaderDone && <Loader onComplete={() => setLoaderDone(true)} />}
+      </AnimatePresence>
+
+      {/* noise */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 90, pointerEvents: 'none', opacity: 0.035 }}>
         <Noise patternSize={256} patternScaleX={1} patternScaleY={1} patternRefreshInterval={2} patternAlpha={15} />
       </div>
-      <AnimatePresence mode="wait">
-        {!loaded && <Loader onComplete={() => setLoaded(true)} />}
-      </AnimatePresence>
-      {loaded && (
-        <ScrollFrames dimOpacity={0.4}>
-          <PillNav onStudio={() => setView('studio')} />
-          <Hero onStudio={() => setView('studio')} />
-          <Marquee />
-          <Thesis />
-          <Features />
-          <TechStrip />
-          <CTA onStudio={() => setView('studio')} />
-          <Footer />
-        </ScrollFrames>
-      )}
+
+      <ScrollFrames dimOpacity={0.4}>
+        <PillNav onStudio={() => setView('studio')} />
+        <Hero onStudio={() => setView('studio')} />
+        <Marquee />
+        <Thesis />
+        <Features />
+        <TechStrip />
+        <CTA onStudio={() => setView('studio')} />
+        <Footer />
+      </ScrollFrames>
     </div>
   )
 }
