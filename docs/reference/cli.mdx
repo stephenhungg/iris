@@ -18,136 +18,236 @@ description: "The Iris command-line interface for scripting and agent-driven edi
   </div>
 </div>
 
-## Commands
+## CLI Commands
 
-### `iris init`
+This section details the available commands in the Iris CLI, providing examples and expected outputs for each.
 
-Initializes a new Iris project.
-
-```bash
-iris init <project_name>
-```
-
-### `iris upload`
-
-Uploads a video file to the Iris library.
+### 3.1 Analyze
 
 ```bash
-iris upload --file <path_to_video> --project <project_id>
+iris analyze proj_abc123 --json
 ```
+Expected output:
+```json
+{"scenes": [...], "entities": [...], "suggestions": [...]}
+```
+Analyzes the video content to extract scenes, entities, and edit suggestions.
 
-### `iris generate`
-
-Generates a new video variant based on a prompt.
+### 3.2 Identify
 
 ```bash
-iris generate --segment <segment_id> --prompt "make this brighter"
+iris identify proj_abc123 --prompt "red car" --start 0 --end 10 --json
 ```
+Expected output:
+```json
+{"region": {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4}, "confidence": 0.9}
+```
+Identifies a specific region within a video segment based on a prompt.
 
-### `iris accept`
-
-Accepts a generated variant, applying it to the timeline.
+### 3.3 Generate
 
 ```bash
-iris accept --variant <variant_id>
+iris generate proj_abc123 --start 2.0 --end 4.0 --bbox "0.1,0.2,0.3,0.4" --prompt "make it rain" --json
 ```
+Expected output:
+```json
+{"job_id": "gen_abc", "status": "pending", "variants": ["var_0", "var_1"]}
+```
+Generates AI edit variants for a specified region and prompt.
 
-### `iris narrate`
-
-Generates a voiceover for a segment using a given prompt.
+### 3.4 Accept
 
 ```bash
-iris narrate --segment <segment_id> --prompt "a calm voice describes the scene"
+iris accept gen_abc --variant var_0 --json
 ```
+Expected output:
+```json
+{"segment_id": "seg_abc", "status": "accepted"}
+```
+Accepts a generated variant and applies it to the timeline.
 
-### `iris preview`
-
-Previews frames, strips, or ranges from a project.
-
-- **Preview a single frame:**
-  ```bash
-  iris preview <project_id> --frame 10.5
-  ```
-- **Preview a frame strip:**
-  ```bash
-  iris preview <project_id> --strip 5.0 15.0 --fps 2.0
-  ```
-- **Preview a time range:**
-  ```bash
-  iris preview <project_id> --range 0.0 30.0
-  ```
-
-### `iris batch-generate`
-
-Submits a batch generation request from a JSON file.
+### 3.5 Narrate
 
 ```bash
-iris batch-generate --edits ./path/to/edits.json
+iris narrate proj_abc123 --text "This is a narration." --start 0 --end 5 --json
 ```
+Expected output:
+```json
+{"narration_job_id": "nar_abc", "status": "completed", "audio_url": "https://..."}
+```
+Adds AI-generated narration to a video segment.
 
-### `iris batch-accept`
-
-Submits a batch accept request from a JSON file.
+### 3.6 Export
 
 ```bash
-iris batch-accept --accepts ./path/to/accepts.json
+iris export proj_abc123 --json
+```
+Expected output:
+```json
+{"export_job_id": "exp_abc", "status": "completed", "download_url": "https://..."}
+```
+Exports the final video.
+
+### 3.7 Preview
+
+**Single frame:**
+```bash
+iris preview proj_abc123 --frame 3.5 --json
+```
+Expected output:
+```json
+{"ts": 3.5, "url": "https://..."}
 ```
 
-### `iris grade`
+**Thumbnail strip (for scrubbing):**
+```bash
+iris preview proj_abc123 --strip 0 10 --fps 1 --json
+```
+Expected output:
+```json
+{"frames": [{"ts": 0.0, "url": "..."}, {"ts": 1.0, "url": "..."}, ...]}
+```
 
-Applies or previews color grading adjustments for a segment.
+**Low-res range preview:**
+```bash
+iris preview proj_abc123 --range 2 5 --json
+```
+Expected output:
+```json
+{"preview_url": "https://...", "duration": 3.0}
+```
+Use preview to verify the current state before committing edits. Much faster than full export.
 
-- **Apply brightness adjustment:**
-  ```bash
-  iris grade --segment <segment_id> --brightness 0.1
-  ```
-- **Preview saturation adjustment:**
-  ```bash
-  iris grade --segment <segment_id> --saturation 0.2 --preview
-  ```
+### 3.8 Timeline Surgery
 
-### `iris remix`
+**Split a segment:**
+```bash
+iris split --project proj_abc123 --segment seg_1 --at 3.5
+```
+Splits the segment into two at timestamp 3.5s. Both halves inherit the original source.
 
-Creates a remix from an existing variant using a modifier prompt.
+**Trim a segment:**
+```bash
+iris trim --project proj_abc123 --segment seg_1 --start 2.0 --end 4.0
+```
+Adjusts segment boundaries. New range must be within original bounds.
 
-- **Remix with composition preserved:**
-  ```bash
-  iris remix --variant <variant_id> --modifier "add a vintage film look"
-  ```
-- **Remix without preserving composition:**
-  ```bash
-  iris remix --variant <variant_id> --modifier "change the background entirely" --no-preserve-composition
-  ```
+**Delete a segment:**
+```bash
+iris delete --project proj_abc123 --segment seg_1
+```
+Soft-deletes (marks inactive). Can be restored via snapshot/revert.
 
-### `iris score`
+**Save a checkpoint:**
+```bash
+iris snapshot proj_abc123
+```
+Expected output:
+```json
+{"snapshot_id": "snap_abc", "created_at": "...", "segment_count": 5}
+```
 
-Scores variants or project continuity.
+**Revert to checkpoint:**
+```bash
+iris revert proj_abc123 --snapshot snap_abc
+```
+Restores the entire timeline to the saved state.
 
-- **Score a single variant:**
-  ```bash
-  iris score --variant <variant_id> --compare-to "prompt"
-  ```
-- **Compare multiple variants:**
-  ```bash
-  iris score --compare <variant_id_1> <variant_id_2>
-  ```
-- **Score project continuity:**
-  ```bash
-  iris score --continuity <project_id>
-  ```
+Always take a snapshot before making destructive changes (delete, reorder, bulk accept).
 
-### `iris snapshot`
+### 3.9 Color Grading
 
-Creates a snapshot of the current project timeline.
+**Apply grading adjustments:**
+```bash
+iris grade --segment seg_1 --brightness 20 --saturation -10 --temperature 5500
+```
+Parameters (all optional, at least one required):
+- `--brightness`: -100 to 100
+- `--contrast`: -100 to 100
+- `--saturation`: -100 to 100
+- `--temperature`: 2000 to 10000 (Kelvin)
+- `--gamma`: 0.1 to 3.0
+- `--hue-shift`: -180 to 180
+
+Creates a new graded segment. The original is preserved.
+
+**Preview grade on a single frame (fast):**
+```bash
+iris grade-preview --segment seg_1 --brightness 20 --saturation -10
+```
+Returns a preview frame URL. Use this to check before applying to the full segment.
+
+### 3.10 Quality Scoring
+
+**Score a single variant:**
+```bash
+iris score --variant var_0 --json
+```
+Expected output:
+```json
+{
+  "visual_coherence": {"score": 8.2, "issues": ["slight_color_shift"]},
+  "prompt_adherence": {"score": 7.5, "misses": ["background_detail"]},
+  "temporal_consistency": {"score": 9.0, "flicker_detected": false},
+  "edge_quality": {"score": 6.8, "issues": ["halo_artifacts"]},
+  "overall": 7.9,
+  "recommendation": "accept"
+}
+```
+
+**Compare multiple variants:**
+```bash
+iris score --compare var_0 var_1 var_2 --json
+```
+Returns rankings with strengths/weaknesses for each. Use this to pick the best variant intelligently.
+
+**Check timeline continuity:**
+```bash
+iris score --continuity proj_abc123 --json
+```
+Analyzes segment boundaries for color jumps, flicker, and temporal inconsistency.
+Expected output:
+```json
+{"overall": 0.92, "issues": [{"at_ts": 5.0, "type": "color_jump", "severity": "medium"}]}
+```
+Run this after making multiple edits to catch consistency problems.
+
+### 3.11 Remix
 
 ```bash
-iris snapshot <project_id>
+iris remix --variant var_0 --modifier "make the colors warmer, fix edge artifacts"
 ```
+Parameters:
+- `--variant` / `-v`: Source variant ID to refine.
+- `--modifier` / `-m`: How to adjust the variant.
+- `--preserve-composition`: Keep subject placement, only adjust style (default true).
 
-### `iris revert`
+Creates a new generation job based on the existing variant. Much faster than starting over.
+Use remix when a variant is close but not right — "more vivid", "less saturated", "fix the edges".
 
-Reverts the project timeline to a specified snapshot.
+### 3.12 Batch Operations
 
+**Batch generate (up to 10 edits in parallel):**
 ```bash
-iris revert <project_id> --snapshot <snapshot_id>
+iris batch-generate --edits edits.json
 ```
+Where `edits.json` contains:
+```json
+[
+  {"project_id": "proj_abc", "start_ts": 2.0, "end_ts": 4.0, "bbox": {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4}, "prompt": "make it rain"},
+  {"project_id": "proj_abc", "start_ts": 6.0, "end_ts": 8.0, "bbox": {"x": 0.5, "y": 0.3, "w": 0.3, "h": 0.3}, "prompt": "add snow"}
+]
+```
+Returns: `{"job_ids": ["job_1", "job_2", ...]}`
+
+**Batch accept:**
+```bash
+iris batch-accept --accepts accepts.json
+```
+Where `accepts.json` contains:
+```json
+[{"job_id": "job_1", "variant_index": 0}, {"job_id": "job_2", "variant_index": 0}]
+```
+Returns: `{"segment_ids": ["seg_1", "seg_2", ...]}`
+
+Use batch operations when editing multiple segments at once. Take a snapshot first.
