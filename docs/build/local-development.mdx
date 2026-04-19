@@ -18,13 +18,97 @@ description: "Environment setup, dev servers, and local workflow for Iris."
   </div>
 </div>
 
-## Environment Variables
+## Environment Setup
 
-The frontend and backend services rely on a shared `.env` file at the repository root for configuration. For local development, ensure the following variables are set:
+### Prerequisites
 
-- `VITE_SUPABASE_URL`: The URL for your Supabase project.
-- `VITE_SUPABASE_ANON_KEY`: The anonymous key for your Supabase project.
-- `VITE_SUPABASE_REDIRECT`: The redirect URL for Supabase authentication.
-- `VITE_BACKEND_URL`: The URL where the Iris backend is accessible (e.g., `http://localhost:8000`).
+- Docker and Docker Compose
+- Python 3.10+
+- Node.js 18+
 
-These `VITE_*` variables are baked into the frontend bundle during its build process.
+### Clone the repository
+
+```bash
+git clone https://github.com/stephenhungg/iris.git
+cd iris
+```
+
+### Install dependencies
+
+```bash
+# Backend
+pip install -r backend/requirements.txt
+
+# Frontend
+npm install --prefix frontend
+```
+
+### Configure environment variables
+
+Create a `.env` file in the root of the repository. This file will hold your API keys and other configuration.
+
+```ini
+# Example .env file
+OPENAI_API_KEY="sk-..."
+GEMINI_API_KEY="AIza..."
+VEO_API_KEY="AIza..."
+
+# Optional: Override the default Veo model for video generation.
+# Defaults to "veo-3.1-fast-generate-preview" for free-tier compatibility.
+# Set to "veo-3.1-generate-preview" for higher quality (requires paid plan).
+# VEO_MODEL="veo-3.1-generate-preview"
+
+# Database configuration (for local development, SQLite is often sufficient)
+DATABASE_URL="sqlite:///./iris.db"
+```
+
+## Running the Stack
+
+### Start the backend
+
+```bash
+cd backend
+uvicorn app.main:app --reload --port 8000
+```
+
+### Start the frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+The frontend will be available at `http://localhost:3000`.
+
+## Local Workflow
+
+### Making changes
+
+- **Backend:** Changes to Python files in `backend/` will trigger a reload of the Uvicorn server.
+- **Frontend:** Changes to React files in `frontend/` will trigger a hot module reload in your browser.
+
+### Database migrations
+
+If you make changes to database models, you'll need to run migrations:
+
+```bash
+# From the backend directory
+alembic revision --autogenerate -m "Your migration message"
+alembic upgrade head
+```
+
+## Testing
+
+### Backend tests
+
+```bash
+# From the backend directory
+pytest
+```
+
+### Frontend tests
+
+```bash
+# From the frontend directory
+npm test
+```
