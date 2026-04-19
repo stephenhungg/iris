@@ -19,25 +19,6 @@ It shows:
 
 ## Library behavior inside the editor
 
-Inside the editor, the library is the local media pool for the current project.
+Inside the editor, the library is the local media pool for all media assets associated with the current project, including uploaded source clips and generated variants.
 
-Uploads and generated outputs can live there before they are committed to timeline use.
-
-That allows Iris to behave more like an editor and less like a single-shot generator.
-
-## What gets tracked
-
-At a high level, a project contains:
-
-- the source video
-- generated variants
-- accepted segments
-- timing metadata
-- timeline composition state
-
-## Related routes
-
-- `GET /api/projects`
-- `GET /api/projects/{project_id}`
-- `POST /api/upload`
-
+When the editor is in 'vibe' mode, the Library sidebar is hidden. To streamline the workflow, any new media uploaded in 'vibe' mode is automatically added to the active timeline, as the usual 'add to timeline' affordance from the library is not visible.
