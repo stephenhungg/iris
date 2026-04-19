@@ -75,18 +75,22 @@ export function Preview() {
 
     if (clipChanged) {
       currentClipIdRef.current = activeClip.id;
-      v.src = activeClip.url;
+      // pause before source swap to prevent audio bleed
+      const wasPlaying = !v.paused;
+      v.pause();
       v.volume = activeClip.volume;
+      v.src = activeClip.url;
       const onLoaded = () => {
         v.currentTime = want;
-        if (state.playing) v.play().catch(() => {});
+        v.volume = activeClip.volume;
+        if (wasPlaying || state.playing) v.play().catch(() => {});
       };
-      v.addEventListener("loadedmetadata", onLoaded);
+      v.addEventListener("loadedmetadata", onLoaded, { once: true });
       return () => v.removeEventListener("loadedmetadata", onLoaded);
     }
 
     v.volume = activeClip.volume;
-    if (Math.abs(v.currentTime - want) > 0.25) {
+    if (Math.abs(v.currentTime - want) > 0.15) {
       v.currentTime = want;
     }
   }, [activeClip?.id, activeClip?.url, activeClip?.volume, hit?.offsetInClip, state.playing, activeClip]);
@@ -110,26 +114,42 @@ export function Preview() {
     function tick() {
       rafRef.current = requestAnimationFrame(tick);
       const v = videoRef.current;
-      if (!v || !state.playing) return;
+      if (!v || !state.playing || v.paused) return;
 
+      // find which clip the playhead is currently in
       const hit2 = clipAtTime(state.clips, state.playhead);
       if (!hit2) return;
       const { clip, startInTimeline } = hit2;
-      const offsetInClip = v.currentTime - clip.sourceStart;
-      const newTimeline = startInTimeline + offsetInClip;
 
-      if (offsetInClip >= duration(clip) - 0.02) {
-        const next = state.clips[hit2.index + 1];
-        if (next) {
-          dispatch({ type: "set_playhead", t: startInTimeline + duration(clip) });
+      // compute offset within the clip using video element's current time
+      // relative to the clip's source range (not timeline position)
+      const clipDur = duration(clip);
+      const sourceOffset = v.currentTime - clip.sourceStart;
+      const clampedOffset = Math.max(0, Math.min(sourceOffset, clipDur));
+
+      // check if we've reached the end of this clip
+      if (clampedOffset >= clipDur - 0.04) {
+        const nextIdx = hit2.index + 1;
+        if (nextIdx < state.clips.length) {
+          // advance to the next clip — pause first, let the source-swap effect handle it
+          const nextStart = startInTimeline + clipDur;
+          v.pause();
+          dispatch({ type: "set_playhead", t: nextStart });
+          // selection follows playback
+          dispatch({ type: "select", id: state.clips[nextIdx].id });
         } else {
+          // end of timeline
           dispatch({ type: "set_playing", playing: false });
           dispatch({ type: "set_playhead", t: totalDuration(state.clips) });
         }
         return;
       }
 
-      dispatch({ type: "set_playhead", t: newTimeline });
+      // only dispatch if playhead actually changed (avoid dispatch spam)
+      const newTimeline = startInTimeline + clampedOffset;
+      if (Math.abs(newTimeline - state.playhead) > 0.01) {
+        dispatch({ type: "set_playhead", t: newTimeline });
+      }
     }
     rafRef.current = requestAnimationFrame(tick);
     return () => {

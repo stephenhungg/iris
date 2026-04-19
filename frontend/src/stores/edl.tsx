@@ -120,16 +120,18 @@ export const duration = (c: Clip) => Math.max(0, c.sourceEnd - c.sourceStart);
 export const totalDuration = (clips: Clip[]) =>
   clips.reduce((s, c) => s + duration(c), 0);
 
-/** returns { clip, offsetInClip, indexInList, clipStartInTimeline } or null */
+/** returns { clip, offsetInClip, index, startInTimeline } or null */
 export function clipAtTime(clips: Clip[], t: number) {
   let acc = 0;
   for (let i = 0; i < clips.length; i++) {
     const d = duration(clips[i]);
     if (t < acc + d || i === clips.length - 1) {
+      // clamp offset so it never reaches exactly `d` (prevents boundary confusion)
+      const offset = Math.max(0, Math.min(d - 0.001, t - acc));
       return {
         clip: clips[i],
         index: i,
-        offsetInClip: Math.max(0, Math.min(d, t - acc)),
+        offsetInClip: offset,
         startInTimeline: acc,
       };
     }
