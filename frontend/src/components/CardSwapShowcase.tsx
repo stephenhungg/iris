@@ -11,7 +11,7 @@ type ShowcaseCard = {
 
 const DEFAULT_CARDS: ShowcaseCard[] = [
   {
-    image: '/frames/card-agent.jpg',
+    image: '/frames/card-vibe.gif',
     label: 'Planning / intent',
     title: 'intent into structure',
     description: 'Prompt-driven direction turns a rough idea into concrete editing options with timing, framing, and purpose.',
