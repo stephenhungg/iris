@@ -1,12 +1,12 @@
 ---
 name: iris-edit
-version: 1.0.0
+version: 2.0.0
 description: |
-  AI video editing agent. Analyzes video content via multi-agent vision,
-  then drives the iris CLI to make prompt-driven localized edits.
-  Supports region identification, AI generation, entity propagation,
-  narration, and export. Use when asked to "edit a video",
-  "change something in a video", or "iris edit".
+  Professional AI video editing agent. Analyzes video via multi-agent vision,
+  then drives the iris CLI for localized edits with preview, color grading,
+  quality scoring, timeline surgery, remix/refine, and batch operations.
+  Supports full iteration loops: generate, score, remix, grade, preview, accept.
+  Use when asked to "edit a video", "change something in a video", or "iris edit".
 allowed-tools:
   - Bash
   - Read
@@ -60,14 +60,22 @@ Follow these steps for any video editing task. Steps marked [ASK] require user c
 2. **Analyze** the video with `iris analyze` to extract scenes, entities, and edit suggestions.
 3. **Read the analysis** output. Understand what is in the video, where, and when.
 4. **[ASK] Present findings** to the user. Summarize scenes, entities, and suggest edits. Ask which edits the user wants.
-5. **For each approved edit:**
+5. **Snapshot** the timeline with `iris snapshot` before making any edits.
+6. **For each approved edit:**
    a. Use `iris identify` to confirm the target region.
-   b. Use `iris generate` to create AI edit variants.
-   c. **[ASK]** Show the variants and quality scores. Ask which to accept.
-   d. Use `iris accept` to lock in the chosen variant.
-6. **[ASK] Propagate** accepted edits to other appearances of the same entity if applicable.
-7. **Optionally** add narration with `iris narrate`.
-8. **[ASK] Export** the final video.
+   b. Use `iris preview` to inspect the current frame.
+   c. Use `iris generate` (or `iris batch-generate` for multiple edits).
+   d. Use `iris score --compare` to rank variants by quality.
+   e. **[ASK]** Show the variants, quality scores, and recommendation. Ask which to accept.
+   f. Use `iris accept` to lock in the chosen variant.
+   g. If the variant is close but not right, use `iris remix` to refine it instead of regenerating.
+7. **Color grade** for consistency: use `iris grade` to adjust individual segments, or `iris score --continuity` to find color jumps between segments.
+8. **Preview** the result with `iris preview --range` to verify before exporting.
+9. **[ASK] Propagate** accepted edits to other appearances of the same entity if applicable.
+10. **Optionally** add narration with `iris narrate`.
+11. **[ASK] Export** the final video.
+
+**If something goes wrong:** Use `iris revert --snapshot SNAP_ID` to roll back to the checkpoint from step 5.
 
 ---
 
@@ -329,6 +337,170 @@ Expected output:
 ```json
 {"export_job_id": "exp_abc", "status": "completed", "download_url": "https://..."}
 ```
+
+### 3.15 Preview
+
+**Single frame:**
+```bash
+iris preview proj_abc123 --frame 3.5 --json
+```
+Expected output:
+```json
+{"ts": 3.5, "url": "https://..."}
+```
+
+**Thumbnail strip (for scrubbing):**
+```bash
+iris preview proj_abc123 --strip 0 10 --fps 1 --json
+```
+Expected output:
+```json
+{"frames": [{"ts": 0.0, "url": "..."}, {"ts": 1.0, "url": "..."}, ...]}
+```
+
+**Low-res range preview:**
+```bash
+iris preview proj_abc123 --range 2 5 --json
+```
+Expected output:
+```json
+{"preview_url": "https://...", "duration": 3.0}
+```
+Use preview to verify the current state before committing edits. Much faster than full export.
+
+### 3.16 Timeline Surgery
+
+**Split a segment:**
+```bash
+iris split --project proj_abc123 --segment seg_1 --at 3.5
+```
+Splits the segment into two at timestamp 3.5s. Both halves inherit the original source.
+
+**Trim a segment:**
+```bash
+iris trim --project proj_abc123 --segment seg_1 --start 2.0 --end 4.0
+```
+Adjusts segment boundaries. New range must be within original bounds.
+
+**Delete a segment:**
+```bash
+iris delete --project proj_abc123 --segment seg_1
+```
+Soft-deletes (marks inactive). Can be restored via snapshot/revert.
+
+**Save a checkpoint:**
+```bash
+iris snapshot proj_abc123
+```
+Expected output:
+```json
+{"snapshot_id": "snap_abc", "created_at": "...", "segment_count": 5}
+```
+
+**Revert to checkpoint:**
+```bash
+iris revert proj_abc123 --snapshot snap_abc
+```
+Restores the entire timeline to the saved state.
+
+Always take a snapshot before making destructive changes (delete, reorder, bulk accept).
+
+### 3.17 Color Grading
+
+**Apply grading adjustments:**
+```bash
+iris grade --segment seg_1 --brightness 20 --saturation -10 --temperature 5500
+```
+Parameters (all optional, at least one required):
+- `--brightness`: -100 to 100
+- `--contrast`: -100 to 100
+- `--saturation`: -100 to 100
+- `--temperature`: 2000 to 10000 (Kelvin)
+- `--gamma`: 0.1 to 3.0
+- `--hue-shift`: -180 to 180
+
+Creates a new graded segment. The original is preserved.
+
+**Preview grade on a single frame (fast):**
+```bash
+iris grade-preview --segment seg_1 --brightness 20 --saturation -10
+```
+Returns a preview frame URL. Use this to check before applying to the full segment.
+
+### 3.18 Quality Scoring
+
+**Score a single variant:**
+```bash
+iris score --variant var_0 --json
+```
+Expected output:
+```json
+{
+  "visual_coherence": {"score": 8.2, "issues": ["slight_color_shift"]},
+  "prompt_adherence": {"score": 7.5, "misses": ["background_detail"]},
+  "temporal_consistency": {"score": 9.0, "flicker_detected": false},
+  "edge_quality": {"score": 6.8, "issues": ["halo_artifacts"]},
+  "overall": 7.9,
+  "recommendation": "accept"
+}
+```
+
+**Compare multiple variants:**
+```bash
+iris score --compare var_0 var_1 var_2 --json
+```
+Returns rankings with strengths/weaknesses for each. Use this to pick the best variant intelligently.
+
+**Check timeline continuity:**
+```bash
+iris score --continuity proj_abc123 --json
+```
+Analyzes segment boundaries for color jumps, flicker, and temporal inconsistency.
+Expected output:
+```json
+{"overall": 0.92, "issues": [{"at_ts": 5.0, "type": "color_jump", "severity": "medium"}]}
+```
+Run this after making multiple edits to catch consistency problems.
+
+### 3.19 Remix
+
+```bash
+iris remix --variant var_0 --modifier "make the colors warmer, fix edge artifacts"
+```
+Parameters:
+- `--variant` / `-v`: Source variant ID to refine.
+- `--modifier` / `-m`: How to adjust the variant.
+- `--preserve-composition`: Keep subject placement, only adjust style (default true).
+
+Creates a new generation job based on the existing variant. Much faster than starting over.
+Use remix when a variant is close but not right — "more vivid", "less saturated", "fix the edges".
+
+### 3.20 Batch Operations
+
+**Batch generate (up to 10 edits in parallel):**
+```bash
+iris batch-generate --edits edits.json
+```
+Where `edits.json` contains:
+```json
+[
+  {"project_id": "proj_abc", "start_ts": 2.0, "end_ts": 4.0, "bbox": {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4}, "prompt": "make it rain"},
+  {"project_id": "proj_abc", "start_ts": 6.0, "end_ts": 8.0, "bbox": {"x": 0.5, "y": 0.3, "w": 0.3, "h": 0.3}, "prompt": "add snow"}
+]
+```
+Returns: `{"job_ids": ["job_1", "job_2", ...]}`
+
+**Batch accept:**
+```bash
+iris batch-accept --accepts accepts.json
+```
+Where `accepts.json` contains:
+```json
+[{"job_id": "job_1", "variant_index": 0}, {"job_id": "job_2", "variant_index": 0}]
+```
+Returns: `{"segment_ids": ["seg_1", "seg_2", ...]}`
+
+Use batch operations when editing multiple segments at once. Take a snapshot first.
 
 ---
 
