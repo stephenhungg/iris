@@ -34,6 +34,12 @@ const DEFAULT_CARDS: ShowcaseCard[] = [
     title: 'from edit to export',
     description: 'Keep narration, presentation, and export inside the same workflow instead of stitching together disconnected tools.',
   },
+  {
+    image: '/frames/card-editing.gif',
+    label: 'Editing / timeline',
+    title: 'the edit in motion',
+    description: 'See the full editing loop in action — select a region, prompt, generate, and splice the result back into your timeline.',
+  },
 ]
 
 type CardSwapShowcaseProps = {
