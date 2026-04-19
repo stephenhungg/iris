@@ -5,9 +5,8 @@ import SplitText from './components/SplitText'
 import Noise from './components/Noise'
 import ScrollFrames from './components/ScrollFrames'
 import { Studio } from './pages/Studio'
-import { useAuth } from './lib/useAuth'
 
-// iris SVG path — aperture/iris shape
+// iris SVG path
 const IRIS_SVG = '/iris-logo.svg'
 
 const ASCII_IRIS = `                               ....
@@ -60,7 +59,6 @@ function AsciiScramble({ text }: { text: string }) {
       return padded.split('')
     })
 
-    // find which cells actually have content (not spaces)
     const contentCells: [number, number][] = []
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -68,12 +66,10 @@ function AsciiScramble({ text }: { text: string }) {
       }
     }
 
-    // start: only content positions get sparse random chars, rest stays empty
-    // but scatter them — each content char starts at a random nearby position
     interface Particle { tr: number; tc: number; sr: number; sc: number; ch: string }
     const particles: Particle[] = contentCells.map(([r, c]) => ({
-      tr: r, tc: c, // target position
-      sr: r + Math.round((Math.random() - 0.5) * 12), // scattered start position
+      tr: r, tc: c,
+      sr: r + Math.round((Math.random() - 0.5) * 12),
       sc: c + Math.round((Math.random() - 0.5) * 20),
       ch: SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)],
     }))
@@ -82,26 +78,21 @@ function AsciiScramble({ text }: { text: string }) {
     let tick = 0
 
     function render() {
-      const progress = tick / totalTicks // 0 to 1
+      const progress = tick / totalTicks
 
-      // build empty grid
       const grid: string[][] = Array.from({ length: rows }, () =>
         Array.from({ length: cols }, () => ' ')
       )
 
       for (const p of particles) {
-        // lerp from scattered position to target
         const r = Math.round(p.sr + (p.tr - p.sr) * progress)
         const c = Math.round(p.sc + (p.tc - p.sc) * progress)
 
-        // clamp to grid bounds
         if (r < 0 || r >= rows || c < 0 || c >= cols) continue
 
         if (progress > 0.7) {
-          // final phase: show real character
           grid[r][c] = target[p.tr][p.tc]
         } else {
-          // scramble phase: random char, occasionally flicker to real
           grid[r][c] = Math.random() < progress * 0.3
             ? target[p.tr][p.tc]
             : SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]
@@ -118,7 +109,6 @@ function AsciiScramble({ text }: { text: string }) {
       }
     }
 
-    // brief pause then start
     const timeout = setTimeout(() => {
       frameRef.current = requestAnimationFrame(render)
     }, 200)
@@ -160,10 +150,8 @@ function Loader({ onComplete }: { onComplete: () => void }) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
     >
-      {/* ascii iris flower — scrambles then resolves */}
       <AsciiScramble text={ASCII_IRIS} />
 
-      {/* progress */}
       <div className="w-[120px] flex flex-col items-center gap-3">
         <div className="w-full h-[1px] bg-white/10 relative overflow-hidden">
           <motion.div
@@ -185,131 +173,86 @@ function Loader({ onComplete }: { onComplete: () => void }) {
   )
 }
 
-function Navbar({ onEnter }: { onEnter: () => void }) {
-  return (
-    <motion.nav
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 border-b border-white/[0.06]"
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}
-    >
-      <span
-        className="font-display italic text-[18px]"
-        style={{
-          background: 'linear-gradient(135deg, #808080, #C0C0C0, #E8E8E8, #C0C0C0, #808080)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-        }}
-      >
-        iris
-      </span>
+function PillNav({ onStudio }: { onStudio: () => void }) {
+  const [visible, setVisible] = useState(false)
 
-      <div className="flex items-center gap-6 font-mono text-[12px]">
-        {['product', 'editor', 'about'].map(link => (
-          <a
-            key={link}
-            href={`#${link}`}
-            className="text-white/50 hover:text-white transition-colors duration-200"
-          >
-            {link}
-          </a>
-        ))}
-        <AuthPill />
-        <button
-          onClick={onEnter}
-          className="px-5 py-2 border border-white/15 text-white/80 hover:border-white/30 hover:text-white transition-all duration-200 tracking-[0.05em] cursor-pointer"
+  useEffect(() => {
+    function onScroll() {
+      setVisible(window.scrollY > window.innerHeight * 0.8)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.nav
+          initial={{ opacity: 0, y: 60 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 60 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: 0,
+            right: 0,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            width: 'fit-content',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '24px',
+            padding: '10px 12px 10px 20px',
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '9999px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '12px',
+          }}
         >
-          open studio
-        </button>
-      </div>
-    </motion.nav>
-  )
-}
-
-// ── auth pill ────────────────────────────────────────────────────────
-// sits in the navbar. "sign in with google" when anon, avatar + menu when
-// authed. keeps state light so it fits the landing aesthetic.
-function AuthPill() {
-  const { status, user, signInWithGoogle, signOut } = useAuth()
-  const [open, setOpen] = useState(false)
-
-  if (status === 'loading') {
-    return (
-      <span className="text-white/20 text-[11px] tracking-[0.15em]">· · ·</span>
-    )
-  }
-
-  if (status === 'anon') {
-    return (
-      <button
-        onClick={signInWithGoogle}
-        className="group flex items-center gap-2 px-4 py-2 border border-white/15 text-white/70 hover:border-white/35 hover:text-white transition-all duration-200 tracking-[0.05em] cursor-pointer"
-      >
-        <GoogleGlyph />
-        <span>sign in</span>
-      </button>
-    )
-  }
-
-  const displayName =
-    (user?.user_metadata?.full_name as string | undefined) ||
-    (user?.user_metadata?.name as string | undefined) ||
-    user?.email ||
-    'signed in'
-  const avatar = user?.user_metadata?.avatar_url as string | undefined
-  const initial = displayName.trim().charAt(0).toUpperCase() || 'i'
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(v => !v)}
-        onBlur={() => setTimeout(() => setOpen(false), 120)}
-        className="flex items-center gap-2 pl-1 pr-3 py-1 border border-white/15 hover:border-white/35 transition-all duration-200 cursor-pointer"
-      >
-        {avatar ? (
-          <img src={avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
-        ) : (
-          <span className="w-6 h-6 grid place-items-center text-[11px] bg-white/5 text-white/80">
-            {initial}
-          </span>
-        )}
-        <span className="text-white/70 text-[11px] tracking-[0.08em] max-w-[140px] truncate">
-          {displayName.toLowerCase()}
-        </span>
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-2 min-w-[180px] bg-black/90 border border-white/[0.08] backdrop-blur-md text-[11px] font-mono py-1">
-          <div className="px-3 py-2 text-white/40 border-b border-white/[0.06] truncate">
-            {user?.email}
-          </div>
+          {['product', 'editor', 'about'].map(link => (
+            <a
+              key={link}
+              href={`#${link}`}
+              style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', transition: 'color 0.2s', whiteSpace: 'nowrap' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
+            >
+              {link}
+            </a>
+          ))}
           <button
-            onMouseDown={e => { e.preventDefault(); signOut() }}
-            className="block w-full text-left px-3 py-2 text-white/70 hover:bg-white/[0.04] hover:text-white transition-colors cursor-pointer"
+            onClick={onStudio}
+            style={{
+              padding: '8px 20px',
+              background: 'rgba(255,255,255,0.9)',
+              color: '#000',
+              border: 'none',
+              borderRadius: '9999px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '11px',
+              letterSpacing: '0.06em',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#fff')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.9)')}
           >
-            sign out
+            open studio
           </button>
-        </div>
+        </motion.nav>
       )}
-    </div>
+    </AnimatePresence>
   )
 }
 
-function GoogleGlyph() {
-  return (
-    <svg viewBox="0 0 48 48" className="w-[14px] h-[14px]" aria-hidden>
-      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.2 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-    </svg>
-  )
-}
-
-function Hero({ onEnter }: { onEnter: () => void }) {
+function Hero({ onStudio }: { onStudio: () => void }) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-12">
-      {/* logo + title side by side, offset left */}
       <div className="flex items-center gap-8 mr-auto ml-[8vw]">
         {/* metallic paint iris logo */}
         <motion.div
@@ -343,11 +286,10 @@ function Hero({ onEnter }: { onEnter: () => void }) {
 
         {/* text block */}
         <div className="flex flex-col gap-5">
-          {/* title — thin, wide tracking */}
           <motion.h1
             className="font-display text-[clamp(72px,12vw,160px)] leading-[0.85] font-light"
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
             style={{
               letterSpacing: '0.35em',
@@ -356,12 +298,12 @@ function Hero({ onEnter }: { onEnter: () => void }) {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               animation: 'shimmer 8s ease-in-out infinite',
+              filter: 'drop-shadow(0 0 40px rgba(255,255,255,0.15)) drop-shadow(0 0 80px rgba(255,255,255,0.08))',
             }}
           >
             iris
           </motion.h1>
 
-          {/* subtitle */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -371,29 +313,46 @@ function Hero({ onEnter }: { onEnter: () => void }) {
               text="speak your edits into existence"
               className="font-mono text-[12px] text-white/40 tracking-[0.2em]"
               delay={40}
-              from={{ opacity: 0, y: 8 }}
-              to={{ opacity: 1, y: 0 }}
+              animationFrom={{ opacity: 0, transform: 'translateY(8px)' }}
+              animationTo={{ opacity: 1, transform: 'translateY(0)' }}
               threshold={0.1}
-              onLetterAnimationComplete={undefined}
             />
           </motion.div>
 
-          {/* cta */}
           <motion.button
-            onClick={onEnter}
-            className="font-mono text-[11px] px-6 py-2.5 border border-white/15 text-white/60 tracking-[0.1em] hover:border-white/40 hover:text-white transition-all duration-300 w-fit cursor-pointer"
+            onClick={onStudio}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+              padding: '14px 36px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #808080, #C0C0C0, #E8E8E8, #C0C0C0, #808080)',
+              backgroundSize: '200% 100%',
+              color: '#000',
+              fontWeight: 600,
+              letterSpacing: '0.12em',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              width: 'fit-content',
+              animation: 'shimmer 6s ease-in-out infinite',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.boxShadow = '0 0 30px rgba(255,255,255,0.15)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.boxShadow = 'none'
+            }}
           >
-            open studio ↗
+            open studio
           </motion.button>
         </div>
       </div>
 
-      {/* scroll indicator */}
       <motion.div
         className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
         initial={{ opacity: 0 }}
@@ -411,18 +370,100 @@ function Hero({ onEnter }: { onEnter: () => void }) {
   )
 }
 
+function Thesis() {
+  return (
+    <section
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: '120px 48px',
+        maxWidth: '900px',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        gap: '48px',
+      }}
+    >
+      <motion.h2
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 'clamp(36px, 6vw, 64px)',
+          fontWeight: 300,
+          lineHeight: 1.1,
+          color: '#fff',
+        }}
+      >
+        every video tool makes you choose.{' '}
+        <span style={{
+          background: 'linear-gradient(135deg, #808080, #C0C0C0, #E8E8E8, #C0C0C0, #808080)',
+          backgroundSize: '200% 100%',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          animation: 'shimmer 8s ease-in-out infinite',
+        }}>
+          generate or edit.
+        </span>
+        {' '}never both.
+      </motion.h2>
+
+      <motion.p
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-80px' }}
+        transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          fontFamily: 'var(--font-body)',
+          fontSize: '16px',
+          lineHeight: 1.8,
+          color: 'rgba(255,255,255,0.55)',
+          maxWidth: '640px',
+        }}
+      >
+        runway generates. premiere edits. neither lets you point at a moment
+        in your video and say "change this." iris does. scrub to a frame,
+        draw a box, describe what you want. generation is the edit.
+      </motion.p>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-60px' }}
+        transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+        }}
+      >
+        <div style={{ height: '1px', width: '40px', background: 'rgba(255,255,255,0.15)' }} />
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: '11px',
+          color: 'rgba(255,255,255,0.3)',
+          letterSpacing: '0.2em',
+        }}>
+          the prompt is the tool. the timeline is the canvas.
+        </span>
+      </motion.div>
+    </section>
+  )
+}
+
 export default function App() {
   const [loaded, setLoaded] = useState(false)
   const [view, setView] = useState<'landing' | 'studio'>('landing')
 
-  // studio takes the whole screen — render it alone, no landing chrome.
   if (view === 'studio') {
     return <Studio onExit={() => setView('landing')} />
   }
 
   return (
     <div className="bg-black min-h-screen text-white lowercase">
-      {/* noise grain overlay */}
       <div className="fixed inset-0 z-[90] pointer-events-none opacity-[0.04]">
         <Noise
           patternSize={256}
@@ -433,23 +474,16 @@ export default function App() {
         />
       </div>
 
-      {/* loading screen */}
       <AnimatePresence mode="wait">
         {!loaded && <Loader onComplete={() => setLoaded(true)} />}
       </AnimatePresence>
 
-      {/* main content */}
       {loaded && (
         <ScrollFrames dimOpacity={0.45}>
-          <Navbar onEnter={() => setView('studio')} />
-          <Hero onEnter={() => setView('studio')} />
-
-          {/* more page height so scroll drives the background frames */}
-          <section className="h-[200vh] flex items-end justify-center pb-[50vh]">
-            <p className="font-mono text-[12px] text-white/20 tracking-[0.15em]">
-              more sections coming
-            </p>
-          </section>
+          <PillNav onStudio={() => setView('studio')} />
+          <Hero onStudio={() => setView('studio')} />
+          <Thesis />
+          <section style={{ height: '100vh' }} />
         </ScrollFrames>
       )}
     </div>

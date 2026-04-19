@@ -42,6 +42,7 @@ export default function ScrollFrames({
   const currentFrameRef = useRef(START_FRAME - 1)
   const rafRef = useRef<number>(0)
   const [loaded, setLoaded] = useState(false)
+  const [scrollOpacity, setScrollOpacity] = useState(1)
 
   useEffect(() => {
     preloadFrames().then(frames => {
@@ -88,14 +89,29 @@ export default function ScrollFrames({
     let currentSmooth = START_FRAME - 1
     let running = true
 
+    // slow ambient drift when not scrolling
+    let lastScrollTime = Date.now()
+    let ambientOffset = 0
+
     function onScroll() {
+      lastScrollTime = Date.now()
+
       const scrollTop = window.scrollY
       const docHeight = document.documentElement.scrollHeight - window.innerHeight
       const progress = Math.max(0, Math.min(1, scrollTop / docHeight))
 
       // reverse: start at last frame, go backwards to 1/3
       const frameRange = START_FRAME - END_FRAME
-      targetFrame = START_FRAME - 1 - progress * frameRange
+      targetFrame = START_FRAME - 1 - progress * frameRange + ambientOffset
+
+      // nonlinear fade: sharp exponential dropoff once you start scrolling
+      // hits near-zero by ~40% of first viewport scroll
+      // stay full brightness through hero, fade once thesis is fully on screen
+      // thesis starts at ~100vh, so start fading at ~1.5vh, fully black by ~2vh
+      const fadeStart = window.innerHeight * 0.5
+      const fadeEnd = window.innerHeight * 1.0
+      const fade = scrollTop < fadeStart ? 1 : scrollTop > fadeEnd ? 0 : 1 - ((scrollTop - fadeStart) / (fadeEnd - fadeStart))
+      setScrollOpacity(fade)
     }
 
     function onResize() {
@@ -106,9 +122,20 @@ export default function ScrollFrames({
     function animate() {
       if (!running) return
 
+      // ambient drift when idle for 500ms+
+      const idleTime = Date.now() - lastScrollTime
+      if (idleTime > 500) {
+        ambientOffset += 0.015 // slow creep backwards through frames
+        const scrollTop = window.scrollY
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight
+        const progress = Math.max(0, Math.min(1, scrollTop / docHeight))
+        const frameRange = START_FRAME - END_FRAME
+        targetFrame = START_FRAME - 1 - progress * frameRange + ambientOffset
+      }
+
       // lerp toward target
       currentSmooth += (targetFrame - currentSmooth) * LERP_SPEED
-      const rounded = Math.round(currentSmooth)
+      const rounded = Math.round(Math.max(0, Math.min(TOTAL_FRAMES - 1, currentSmooth)))
 
       if (rounded !== currentFrameRef.current) {
         currentFrameRef.current = rounded
@@ -133,13 +160,12 @@ export default function ScrollFrames({
 
   return (
     <div className={`relative ${className}`}>
-      {/* background canvas — fixed, covers viewport, dimmed */}
+      {/* background canvas — fixed, covers viewport, fades with scroll */}
       <canvas
         ref={canvasRef}
         className="fixed inset-0 w-full h-full z-0"
         style={{
-          opacity: loaded ? dimOpacity : 0,
-          transition: 'opacity 1s ease',
+          opacity: loaded ? dimOpacity * scrollOpacity : 0,
         }}
       />
 
@@ -147,6 +173,7 @@ export default function ScrollFrames({
       <div
         className="fixed inset-0 z-[1] pointer-events-none"
         style={{
+          opacity: scrollOpacity,
           background: `
             radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 70%, rgba(0,0,0,1) 100%),
             linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 15%, transparent 85%, rgba(0,0,0,0.9) 100%)
