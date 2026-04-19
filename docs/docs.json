@@ -18,6 +18,7 @@
     "href": "/"
   },
   "favicon": "/images/iris-logo.svg",
+  "css": "/custom.css",
   "navigation": {
     "groups": [
       {
