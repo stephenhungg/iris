@@ -96,6 +96,91 @@ body {
   opacity: 0.3 !important;
 }
 
+.iris-hero-lockup {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin-bottom: 48px;
+  padding-left: clamp(28px, 5vw, 92px);
+}
+
+.iris-hero-mark {
+  position: absolute;
+  left: 0;
+  top: clamp(10px, 1vw, 18px);
+  width: clamp(80px, 12vw, 200px);
+  height: clamp(80px, 12vw, 200px);
+  z-index: 2;
+  transform: translateZ(0);
+}
+
+.iris-hero-wordmark-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  min-width: 0;
+  padding-left: clamp(72px, 10vw, 182px);
+}
+
+.iris-hero-wordmark {
+  position: relative;
+  width: min(100%, clamp(520px, 58vw, 1180px));
+  height: clamp(116px, 13vw, 220px);
+  margin-top: clamp(6px, 0.8vw, 16px);
+}
+
+.iris-hero-actions {
+  margin-left: clamp(2px, 0.6vw, 12px);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1024px) {
+  .iris-hero-lockup {
+    padding-left: clamp(18px, 4vw, 48px);
+  }
+
+  .iris-hero-wordmark-block {
+    padding-left: clamp(60px, 9vw, 138px);
+  }
+
+  .iris-hero-wordmark {
+    width: min(100%, clamp(440px, 56vw, 920px));
+    height: clamp(104px, 12vw, 180px);
+  }
+}
+
+@media (max-width: 720px) {
+  .iris-hero-lockup {
+    display: grid;
+    grid-template-columns: 1fr;
+    row-gap: 20px;
+    padding-left: 0;
+  }
+
+  .iris-hero-mark {
+    position: relative;
+    top: 0;
+  }
+
+  .iris-hero-wordmark-block {
+    padding-left: 0;
+  }
+
+  .iris-hero-wordmark {
+    width: min(100%, 540px);
+    height: clamp(92px, 18vw, 140px);
+    margin-top: 0;
+  }
+
+  .iris-hero-actions {
+    margin-left: 0;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
