@@ -17,7 +17,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 4px 9px;
+  padding: 10px 6px;
   font-size: 11px;
   color: var(--ink-fade);
   transition: color var(--dur-s), background var(--dur-s);
@@ -25,6 +25,7 @@
   letter-spacing: 0.02em;
 }
 .insp__tab:hover { color: var(--ink-dim); }
+.insp__tab:focus-visible { outline: 1px solid var(--chrome, #888); }
 .insp__tab--on { color: var(--ink); }
 .insp__tab--on::after {
   content: "";
@@ -39,7 +40,7 @@
 .insp__body {
   min-height: 0;
   overflow: auto;
-  padding: 14px 12px;
+  padding: 14px 14px;
 }
 
 .insp__hint {
@@ -104,7 +105,7 @@
   display: grid;
   grid-template-columns: 72px 1fr;
   align-items: baseline;
-  padding: 5px 0;
+  padding: 6px 0;
   border-bottom: 1px dashed rgba(255,255,255,0.04);
   gap: 8px;
 }
@@ -144,7 +145,7 @@
   grid-template-columns: 18px 1fr 36px;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 8px 0;
   background: var(--recessed);
   border: 1px solid var(--edge);
   color: var(--ink-dim);
@@ -244,6 +245,7 @@
 .variant-card:hover {
   background: rgba(255,255,255,0.06);
   border-color: rgba(255,255,255,0.12);
+  transform: translateY(-2px);
 }
 .variant-card--preview {
   border-color: rgba(255,255,255,0.25);
@@ -258,7 +260,7 @@
   align-items: center;
   justify-content: space-between;
   font-size: 10px;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.55);
   letter-spacing: 0.1em;
 }
 .variant-card__letter {
@@ -267,7 +269,7 @@
   color: rgba(255,255,255,0.7);
 }
 .variant-card__score {
-  color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.4);
 }
 .variant-card__video {
   width: 100%;

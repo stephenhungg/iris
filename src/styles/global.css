@@ -3,6 +3,26 @@
    `.studio` root so it doesn't bleed into the landing page. */
 
 .studio {
+  /* shared gradients */
+  --gradient-chrome: linear-gradient(180deg, #e8e8e8, #a0a0a0);
+  --gradient-chrome-sm: linear-gradient(180deg, #d0d0d0, #909090);
+  --gradient-chrome-text: linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070);
+
+  /* spacing scale */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+
+  /* typography scale */
+  --text-xs: 9px;
+  --text-sm: 11px;
+  --text-md: 13px;
+  --text-lg: 15px;
+  --text-xl: 18px;
+
   /* surfaces (layered flats, no transparency tricks) */
   --bg:        #0a0a0a;
   --panel:     #121212;
@@ -170,7 +190,7 @@
 .studio .cta:hover:enabled { filter: brightness(1.08); }
 .studio .cta:hover:enabled::after { transform: translateX(3px); }
 .studio .cta:active:enabled { filter: brightness(0.92); transform: translateY(1px); }
-.studio .cta:disabled { opacity: 0.42; cursor: not-allowed; }
+.studio .cta:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
 .studio .cta.ghost {
   background: transparent;
@@ -261,8 +281,15 @@
 .studio ::selection { background: var(--chrome); color: var(--bg); }
 
 .studio :focus-visible {
-  outline: 1px solid var(--chrome);
-  outline-offset: 1px;
+  outline: 1px solid var(--chrome, #888);
+  outline-offset: 2px;
+}
+
+.studio [disabled],
+.studio .disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .studio .reveal {
