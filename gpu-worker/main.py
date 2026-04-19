@@ -44,6 +44,8 @@ def get_clip():
         _clip_model.eval()
         if torch.cuda.is_available():
             _clip_model = _clip_model.cuda()
+        elif torch.backends.mps.is_available():
+            _clip_model = _clip_model.to("mps")
     return _clip_model, _clip_preprocess
 
 
@@ -62,12 +64,18 @@ def mask_to_b64(mask: np.ndarray) -> str:
 
 # ---------- endpoints ----------
 
+def get_device():
+    if torch.cuda.is_available(): return "cuda"
+    if torch.backends.mps.is_available(): return "mps"
+    return "cpu"
+
 @app.get("/health")
 async def health():
+    device = get_device()
     return {
         "status": "ok",
-        "gpu": torch.cuda.is_available(),
-        "device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
+        "gpu": device != "cpu",
+        "device": device,
     }
 
 
@@ -108,8 +116,7 @@ async def clip_embed(data: dict):
     model, preprocess = get_clip()
     image = b64_to_image(data["image_b64"])
     tensor = preprocess(image).unsqueeze(0)
-    if torch.cuda.is_available():
-        tensor = tensor.cuda()
+    tensor = tensor.to(get_device())
 
     with torch.no_grad():
         embedding = model.encode_image(tensor)
@@ -128,8 +135,7 @@ async def clip_batch_embed(data: dict):
     model, preprocess = get_clip()
     images = [b64_to_image(b64) for b64 in data["images_b64"]]
     tensors = torch.stack([preprocess(img) for img in images])
-    if torch.cuda.is_available():
-        tensors = tensors.cuda()
+    tensors = tensors.to(get_device())
 
     with torch.no_grad():
         embeddings = model.encode_image(tensors)

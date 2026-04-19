@@ -54,8 +54,8 @@
   --err:      #ff6a6a;
 
   /* type */
-  --f-ui:    "IBM Plex Sans", "Helvetica Neue", system-ui, sans-serif;
-  --f-mono:  "IBM Plex Mono", "SF Mono", "Menlo", monospace;
+  --f-ui:    "Geist Variable", "Geist", system-ui, sans-serif;
+  --f-mono:  "Geist Mono", "SF Mono", "Menlo", monospace;
 
   /* motion */
   --ease:    cubic-bezier(0.22, 0.61, 0.36, 1);
