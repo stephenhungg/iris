@@ -1,5 +1,5 @@
-import { useState, useRef, type ReactNode } from "react";
-import { accept, generate, pollJob, type JobResp, type Variant } from "../api/client";
+import { useState, useRef, useEffect, type ReactNode } from "react";
+import { accept, generate, pollJob, identifyRegion, type JobResp, type Variant, type IdentifyResp } from "../api/client";
 import { duration, newClip, useEDL } from "../stores/edl";
 import { Icon, type IconName } from "./Icon";
 import "./inspector.css";
@@ -65,6 +65,23 @@ function AiTab() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [err, setErr] = useState<string | null>(null);
+
+  // entity identification
+  const [entity, setEntity] = useState<IdentifyResp | null>(null);
+  const [identifying, setIdentifying] = useState(false);
+
+  // auto-identify when bbox changes
+  useEffect(() => {
+    if (!bbox || !selected?.projectId) { setEntity(null); return; }
+    let cancelled = false;
+    setIdentifying(true);
+    const frameTs = (selected.sourceStart + selected.sourceEnd) / 2;
+    identifyRegion(selected.projectId, frameTs, bbox)
+      .then((resp) => { if (!cancelled) setEntity(resp); })
+      .catch(() => { if (!cancelled) setEntity(null); })
+      .finally(() => { if (!cancelled) setIdentifying(false); });
+    return () => { cancelled = true; };
+  }, [bbox, selected?.projectId, selected?.sourceStart, selected?.sourceEnd]);
 
   // variant shelf state
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -232,29 +249,46 @@ function AiTab() {
         <Row k="range"     v={`${selected.sourceStart.toFixed(2)}s → ${selected.sourceEnd.toFixed(2)}s`} />
         <Row k="duration"  v={`${duration(selected).toFixed(2)}s`} />
         {bbox && (
-          <div className="row">
-            <span className="label row__k">region</span>
-            <span className="mono row__v" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {describeBbox(bbox)}
-              <button
-                className="bbox-clear mono"
-                onClick={() => dispatch({ type: "set_bbox", bbox: null })}
-                title="clear region selection"
-                style={{
-                  background: "none",
-                  border: "1px solid var(--c-border, #444)",
-                  borderRadius: 3,
-                  color: "var(--c-muted, #888)",
-                  fontSize: 10,
-                  padding: "1px 5px",
-                  cursor: "pointer",
-                  lineHeight: 1.4,
-                }}
-              >
-                clear
-              </button>
-            </span>
-          </div>
+          <>
+            <div className="row">
+              <span className="label row__k">region</span>
+              <span className="mono row__v" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {describeBbox(bbox)}
+                <button
+                  className="bbox-clear mono"
+                  onClick={() => dispatch({ type: "set_bbox", bbox: null })}
+                  title="clear region selection"
+                  style={{
+                    background: "none",
+                    border: "1px solid var(--c-border, #444)",
+                    borderRadius: 3,
+                    color: "var(--c-muted, #888)",
+                    fontSize: 10,
+                    padding: "1px 5px",
+                    cursor: "pointer",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  clear
+                </button>
+              </span>
+            </div>
+            <div className="row">
+              <span className="label row__k">object</span>
+              <span className="mono row__v" style={{ fontSize: 11 }}>
+                {identifying ? (
+                  <span style={{ color: 'var(--ink-fade)' }}>identifying…</span>
+                ) : entity ? (
+                  <span>
+                    <strong style={{ color: 'var(--ink)' }}>{entity.description}</strong>
+                    <span style={{ color: 'var(--ink-fade)', marginLeft: 6 }}>{entity.category}</span>
+                  </span>
+                ) : (
+                  <span style={{ color: 'var(--ink-fade)' }}>draw a box to identify</span>
+                )}
+              </span>
+            </div>
+          </>
         )}
       </div>
 

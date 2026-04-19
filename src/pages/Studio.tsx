@@ -66,6 +66,17 @@ function StudioInner({
   const [mode, setMode] = useState<'vibe' | 'pro'>('vibe');
   const rootRef = useRef<HTMLDivElement>(null);
 
+  // lock body scroll when studio is mounted
+  useEffect(() => {
+    const orig = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = orig;
+      document.documentElement.style.overflow = '';
+    };
+  }, []);
+
   // hydrate an existing project once, if one was passed in. we fetch the
   // saved segment rows from the backend and rebuild the EDL so resuming
   // gives you back your splits and accepted AI variants exactly as you

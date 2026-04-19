@@ -114,9 +114,12 @@ function Toolbar({
           type="range"
           min={20}
           max={340}
-          step={10}
+          step={20}
           value={pps}
-          onChange={(e) => setPps(+e.target.value)}
+          onChange={(e) => {
+            const v = +e.target.value;
+            requestAnimationFrame(() => setPps(v));
+          }}
         />
         <Icon name="zoom-in" size={12} />
       </div>

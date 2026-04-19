@@ -118,6 +118,13 @@ export type MaskResp = {
   contour: [number, number][]; // normalized 0-1 points forming the mask outline
 };
 
+export type IdentifyResp = {
+  description: string;    // "silver sedan car"
+  category: string;       // "vehicle"
+  attributes: string;     // "silver paint, 4-door"
+  mask?: { contour: [number, number][] };  // SAM mask if GPU available
+};
+
 // ─── endpoints ────────────────────────────────────────────────────────
 
 export function me(): Promise<Me> {
@@ -159,6 +166,18 @@ export function getMask(
   bbox: BBox,
 ): Promise<MaskResp> {
   return request<MaskResp>("/api/mask", {
+    method: "POST",
+    body: JSON.stringify({ project_id: projectId, frame_ts: frameTs, bbox }),
+  });
+}
+
+/** identify the object inside a bbox region — gemini vision + optional SAM mask */
+export function identifyRegion(
+  projectId: string,
+  frameTs: number,
+  bbox: BBox,
+): Promise<IdentifyResp> {
+  return request<IdentifyResp>("/api/identify", {
     method: "POST",
     body: JSON.stringify({ project_id: projectId, frame_ts: frameTs, bbox }),
   });

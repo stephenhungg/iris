@@ -67,6 +67,8 @@
 .tl__body {
   display: flex;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   background: var(--panel);
 }
 
@@ -121,7 +123,8 @@
 .tl__strip {
   flex: 1;
   min-width: 0;
-  overflow: auto;
+  overflow-x: scroll;
+  overflow-y: hidden;
 }
 .tl__scroll {
   position: relative;

@@ -8,6 +8,7 @@
   display: grid;
   grid-template-rows: 42px 1fr var(--split) var(--tl-h);
   height: 100vh;
+  max-height: 100vh;
   background: var(--bg);
   overflow: hidden;
 }
@@ -129,6 +130,7 @@
     var(--split)
     var(--right-w);
   min-height: 0;
+  overflow: hidden;
   background: var(--bg);
 }
 
@@ -144,9 +146,11 @@
 
 .studio__center {
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  overflow: hidden;
 }
 
 /* ─── bottom: timeline ───────────────────────────────────────────────── */
