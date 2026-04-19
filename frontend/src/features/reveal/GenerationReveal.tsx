@@ -18,6 +18,7 @@ type GenerationRevealProps = {
   entity: IdentifiedEntity | null;
   identifying: boolean;
   layout: RevealLayout;
+  windowLabel?: string | null;
   session: RevealSession;
   onClearRegion?: () => void;
 };
@@ -44,6 +45,7 @@ export function GenerationReveal({
   entity,
   identifying,
   layout,
+  windowLabel,
   session,
   onClearRegion,
 }: GenerationRevealProps) {
@@ -210,6 +212,7 @@ export function GenerationReveal({
 
         <div className="reveal__context">
           <ContextPill k="target" v={clip.label ?? "selected range"} />
+          {windowLabel ? <ContextPill k="window" v={windowLabel} /> : null}
           <ContextPill k="duration" v={`${duration(clip).toFixed(2)}s clip`} />
           <ContextPill k="scope" v={regionSummary} />
           <ContextPill k="subject" v={subjectSummary} />

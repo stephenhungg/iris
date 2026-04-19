@@ -5,6 +5,10 @@ import { AgentChat } from "./AgentChat";
 import { ContinuityPanel } from "../features/continuity/ContinuityPanel";
 import type { ContinuityDashboardController } from "../features/continuity/useContinuityDashboard";
 import { GenerationReveal } from "../features/reveal/GenerationReveal";
+import {
+  buildEditWindow,
+  MIN_EDIT_WINDOW_SECONDS,
+} from "../features/reveal/editWindow";
 import { useGenerationSession } from "../hooks/useGenerationSession";
 import "./inspector.css";
 
@@ -91,9 +95,10 @@ function AiTab({
   const { state, dispatch } = useEDL();
   const [lockedContext, setLockedContext] = useState<{
     clip: Clip;
+    sourceClip: Clip;
     previewFrameTs: number | null;
+    windowLabel: string;
   } | null>(null);
-  const selected = state.clips.find((c) => c.id === state.selectedId) ?? null;
   const bbox = state.bbox;
 
   // Entity identification + SAM mask fetch lives in Preview — this tab just
@@ -101,14 +106,20 @@ function AiTab({
   const entity = state.identified;
   const identifying = state.identifying;
   const activeHit = clipAtTime(state.clips, state.playhead);
+  const sourceClip = activeHit?.clip ?? null;
   const previewFrameTs =
-    activeHit && selected && activeHit.clip.id === selected.id
+    activeHit && sourceClip
       ? sourceTimeFor(activeHit.clip, activeHit.offsetInClip)
-      : selected
-        ? (selected.sourceStart + selected.sourceEnd) / 2
+      : sourceClip
+        ? (sourceClip.sourceStart + sourceClip.sourceEnd) / 2
         : null;
-  const activeClip = lockedContext?.clip ?? selected;
-  const activePreviewFrameTs = lockedContext?.previewFrameTs ?? previewFrameTs;
+  const editWindow = buildEditWindow(sourceClip, previewFrameTs);
+  const activeClip = lockedContext?.clip ?? editWindow?.clip ?? null;
+  const activeSourceClip = lockedContext?.sourceClip ?? sourceClip;
+  const activePreviewFrameTs =
+    lockedContext?.previewFrameTs ?? editWindow?.previewFrameTs ?? previewFrameTs;
+  const activeWindowLabel = lockedContext?.windowLabel ?? editWindow?.label ?? null;
+  const hasValidTarget = Boolean(lockedContext || editWindow?.valid);
 
   const {
     prompt,
@@ -126,6 +137,7 @@ function AiTab({
     clearSession,
   } = useGenerationSession({
     clip: activeClip,
+    sourceClip: activeSourceClip,
     bbox,
     previewFrameTs: activePreviewFrameTs,
     onAccepted: async ({ acceptResponse, prompt, sourceVariantUrl }) => {
@@ -146,10 +158,16 @@ function AiTab({
   }, [activeSession]);
 
   async function runReveal() {
-    if (!selected || selected.kind !== "source" || !selected.projectId) return false;
-    setLockedContext({ clip: selected, previewFrameTs });
-    await run();
-    return true;
+    if (!sourceClip || sourceClip.kind !== "source" || !sourceClip.projectId || !editWindow?.valid) {
+      return false;
+    }
+    setLockedContext({
+      clip: editWindow.clip,
+      sourceClip,
+      previewFrameTs: editWindow.previewFrameTs,
+      windowLabel: editWindow.label,
+    });
+    return run();
   }
 
   async function acceptReveal(idx: number) {
@@ -161,13 +179,20 @@ function AiTab({
     clearSession();
   }
 
-  if (!activeClip) {
-    return <Hint>Select a clip on the timeline to edit it with a prompt.</Hint>;
+  if (!sourceClip) {
+    return <Hint>park the playhead on a source clip to aim the ai edit window.</Hint>;
   }
-  if (activeClip.kind !== "source") {
+  if (sourceClip.kind !== "source") {
     return (
       <Hint>
-        AI runs on source clips. Delete this generated clip and reprompt the original range.
+        ai runs on source clips. move the playhead onto original footage before prompting.
+      </Hint>
+    );
+  }
+  if (!hasValidTarget) {
+    return (
+      <Hint>
+        this source slice is shorter than {MIN_EDIT_WINDOW_SECONDS}s, so there is not enough footage to run the edit cleanly.
       </Hint>
     );
   }
@@ -181,6 +206,7 @@ function AiTab({
           entity={entity}
           identifying={identifying}
           layout="panel"
+          windowLabel={activeWindowLabel}
           session={{
             prompt,
             setPrompt,

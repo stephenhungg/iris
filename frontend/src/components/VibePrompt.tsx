@@ -3,6 +3,10 @@ import { useEDL, clipAtTime, sourceTimeFor, type Clip } from '../stores/edl';
 import { useGenerationSession } from '../hooks/useGenerationSession';
 import { GenerationReveal } from '../features/reveal/GenerationReveal';
 import type { ContinuityDashboardController } from '../features/continuity/useContinuityDashboard';
+import {
+  buildEditWindow,
+  MIN_EDIT_WINDOW_SECONDS,
+} from '../features/reveal/editWindow';
 
 const HINT_DISMISS_KEY = 'iris.vibe.hintDismissed';
 
@@ -14,7 +18,9 @@ export function VibePrompt({
   const { state } = useEDL();
   const [lockedContext, setLockedContext] = useState<{
     clip: Clip;
+    sourceClip: Clip;
     previewFrameTs: number | null;
+    windowLabel: string;
   } | null>(null);
   const [hintDismissed, setHintDismissed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -39,11 +45,17 @@ export function VibePrompt({
       : clip
         ? (clip.sourceStart + clip.sourceEnd) / 2
         : null;
+  const editWindow = buildEditWindow(clip, previewFrameTs);
 
-  const activeClip = lockedContext?.clip ?? clip;
-  const activePreviewFrameTs = lockedContext?.previewFrameTs ?? previewFrameTs;
+  const activeClip = lockedContext?.clip ?? editWindow?.clip ?? null;
+  const activeSourceClip = lockedContext?.sourceClip ?? clip;
+  const activePreviewFrameTs =
+    lockedContext?.previewFrameTs ?? editWindow?.previewFrameTs ?? previewFrameTs;
+  const activeWindowLabel = lockedContext?.windowLabel ?? editWindow?.label ?? null;
+  const hasValidTarget = Boolean(lockedContext || editWindow?.valid);
   const session = useGenerationSession({
     clip: activeClip,
+    sourceClip: activeSourceClip,
     bbox: state.bbox,
     previewFrameTs: activePreviewFrameTs,
     onAccepted: async ({ acceptResponse, prompt, sourceVariantUrl }) => {
@@ -65,8 +77,15 @@ export function VibePrompt({
   }, [activeSession]);
 
   async function runReveal() {
-    if (!clip || clip.kind !== 'source' || !clip.projectId) return false;
-    setLockedContext({ clip, previewFrameTs });
+    if (!clip || clip.kind !== 'source' || !clip.projectId || !editWindow?.valid) {
+      return false;
+    }
+    setLockedContext({
+      clip: editWindow.clip,
+      sourceClip: clip,
+      previewFrameTs: editWindow.previewFrameTs,
+      windowLabel: editWindow.label,
+    });
     return session.run();
   }
 
@@ -108,8 +127,37 @@ export function VibePrompt({
               <div className="reveal__context-pill">
                 <span className="reveal__context-k mono">hint</span>
                 <span className="reveal__context-v">
-                  pause playback on the moment you want, then write the change you want to see
+                  pause on the exact moment you want. iris edits a short window around the playhead, not the whole source clip.
                 </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasValidTarget) {
+    return (
+      <div className="reveal-host reveal-host--floating">
+        <div className="reveal reveal--floating">
+          <div className="reveal__composer">
+            <div className="reveal__heading">
+              <div>
+                <p className="reveal__eyebrow mono">vibe mode</p>
+                <h3 className="reveal__title">that clip is too short for ai generation</h3>
+              </div>
+            </div>
+            <div className="reveal__context">
+              <div className="reveal__context-pill">
+                <span className="reveal__context-k mono">needs</span>
+                <span className="reveal__context-v">
+                  at least {MIN_EDIT_WINDOW_SECONDS}s of source footage around the playhead
+                </span>
+              </div>
+              <div className="reveal__context-pill">
+                <span className="reveal__context-k mono">current</span>
+                <span className="reveal__context-v">{editWindow.label}</span>
               </div>
             </div>
           </div>
@@ -126,6 +174,7 @@ export function VibePrompt({
         entity={state.identified}
         identifying={state.identifying}
         layout="floating"
+        windowLabel={activeWindowLabel}
         session={{
           ...session,
           run: runReveal,
