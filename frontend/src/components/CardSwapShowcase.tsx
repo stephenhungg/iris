@@ -29,7 +29,7 @@ const DEFAULT_CARDS: ShowcaseCard[] = [
     description: 'Once a subject is identified, Iris can follow it through surrounding frames so the edit stays coherent.',
   },
   {
-    image: '/frames/card-export.jpg',
+    image: '/frames/card-export.gif',
     label: 'Workflow / delivery',
     title: 'from edit to export',
     description: 'Keep narration, presentation, and export inside the same workflow instead of stitching together disconnected tools.',
