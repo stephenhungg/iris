@@ -64,6 +64,11 @@ def _key_from_path(p: Path) -> str:
     return p.resolve().relative_to(settings.storage_path.resolve()).as_posix()
 
 
+def key_from_url(url: str) -> Optional[str]:
+    """Public alias of `_key_from_url` for callers outside this module."""
+    return _key_from_url(url)
+
+
 def _key_from_url(url: str) -> Optional[str]:
     """Best-effort: pull the S3 object key out of any URL we might have minted.
 
@@ -121,6 +126,41 @@ def url_for_key(key: str) -> str:
 
 def url_for_path(p: Path) -> str:
     return url_for_key(_key_from_path(p))
+
+
+def download_url_for_key(key: str, *, filename: str | None = None) -> str:
+    """Presigned URL that forces the browser to save the file instead of
+    navigating to it inline.
+
+    The trick: include ResponseContentDisposition=attachment in the
+    signed GET params. S3 (and S3-compat gateways like Vultr Object
+    Storage) will echo that as a `Content-Disposition: attachment` header
+    on the response, which any browser interprets as "trigger a file
+    download" regardless of Content-Type. This lets the frontend use a
+    plain `<a href=... download>` (no fetch, no CORS pre-flight) and still
+    end up with a saved .mp4 rather than a new tab full of <video>.
+
+    Falls back to the plain URL when S3 isn't enabled or presigning
+    doesn't apply (public/local modes).
+    """
+    if not settings.s3_enabled or settings.media_url_mode == "public":
+        return url_for_key(key)
+    c = _client()
+    assert c is not None
+    disp = "attachment"
+    if filename:
+        # filename has already been sanitized to ascii-safe chars at the
+        # caller; still keep it quoted to handle any spaces.
+        disp = f'attachment; filename="{filename}"'
+    return c.generate_presigned_url(
+        "get_object",
+        Params={
+            "Bucket": settings.vultr_s3_bucket,
+            "Key": key,
+            "ResponseContentDisposition": disp,
+        },
+        ExpiresIn=settings.presign_expiry,
+    )
 
 
 # ── scratch-path helpers (local) ────────────────────────────────────

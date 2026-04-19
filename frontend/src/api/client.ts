@@ -319,6 +319,10 @@ export type ExportStatusResp = {
   export_job_id: string;
   status: JobStatus;
   export_url: string | null;
+  /** Signed URL that forces an in-browser file save (Content-Disposition:
+   * attachment). Populated once status === "done". Use this for a
+   * download button, use `export_url` for the `<video>` preview. */
+  download_url: string | null;
   error: string | null;
 };
 
