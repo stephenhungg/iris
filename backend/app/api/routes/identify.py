@@ -99,23 +99,28 @@ async def identify(
         log.exception("bbox crop failed for project %s", proj.id)
         raise HTTPException(status_code=500, detail=f"bbox crop failed: {exc}") from exc
 
-    # ---- identify entity via Gemini (or stub) ----
+    # ---- identify entity + SAM mask concurrently ----
+    import asyncio
+
+    async def _identify() -> dict:
+        return await gemini.identify_entity(crop_path)
+
+    async def _sam_mask() -> MaskOut | None:
+        try:
+            if not await sam_available():
+                return None
+            mask_path = await bbox_to_mask(frame_path, bbox_dict)
+            contour = _mask_png_to_contour(mask_path)
+            return MaskOut(contour=contour) if contour else None
+        except Exception:
+            log.warning("SAM mask generation failed — continuing without mask", exc_info=True)
+            return None
+
     try:
-        entity = await gemini.identify_entity(crop_path)
+        entity, mask_out = await asyncio.gather(_identify(), _sam_mask())
     except Exception as exc:
         log.exception("entity identification failed for project %s", proj.id)
         raise HTTPException(status_code=500, detail=f"entity identification failed: {exc}") from exc
-
-    # ---- optional SAM mask (non-blocking, best-effort) ----
-    mask_out: MaskOut | None = None
-    try:
-        if await sam_available():
-            mask_path = await bbox_to_mask(frame_path, bbox_dict)
-            contour = _mask_png_to_contour(mask_path)
-            if contour:
-                mask_out = MaskOut(contour=contour)
-    except Exception:
-        log.warning("SAM mask generation failed — continuing without mask", exc_info=True)
 
     # ---- cleanup temp files ----
     for path in (frame_path, crop_path):
