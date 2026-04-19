@@ -97,6 +97,7 @@ export function useGenerationSession({
     try {
       await accept(jobIdRef.current, idx);
       const variant = variants[idx];
+      if (!variant?.url) throw new Error("variant has no url");
       const duration = target.sourceEnd - target.sourceStart;
       const replacement = newClip({
         url: variant.url,

@@ -73,7 +73,7 @@ export type Mask = { contour: [number, number][] };
 export type IdentifiedEntity = {
   description: string;
   category: string;
-  attributes: string;
+  attributes: Record<string, string>;
 };
 
 export type State = {
@@ -235,6 +235,10 @@ function coreReducer(state: State, a: Action): State {
         selectedId: null,
         playhead: 0,
         playing: false,
+        bbox: null,
+        mask: null,
+        identified: null,
+        identifying: false,
       };
     }
 

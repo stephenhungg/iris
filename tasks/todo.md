@@ -20,9 +20,10 @@
 - [pending] split `frontend/src/pages/Studio.tsx` into dashboard shell pieces (`topbar`, workspace layout, keyboard shortcuts, upload/export controls)
 - [pending] pull ai edit flow ui into a shared editor module so `Inspector` and `VibePrompt` stop feeling like two separate dashboards
 - [pending] reduce inline styles in `VibePrompt` and move editor-specific styling next to the feature it belongs to
-- [pending] fix the editor truth blockers: async export polling, project reopen hydration, and any frontend/backend contract mismatches
-- [pending] expose the causal editing flow in the dashboard: entity appearances, continuity pack, propagation actions, and clear status/progress
-- [pending] add the cinematic reveal layer: before/after compare, stronger variant presentation, and elevenlabs narration playback
+- [completed] fix the editor truth blockers: async export polling, project reopen hydration, and any frontend/backend contract mismatches
+- [completed] expose the causal editing flow in the dashboard: entity appearances, continuity pack, propagation actions, and clear status/progress
+- [completed] add the cinematic reveal layer: before/after compare, stronger variant presentation, and elevenlabs narration playback
+- [completed] add full pipeline integration tests: upload → generate → accept → entity search → export (7 tests, all passing)
 - [pending] mount and surface ai observability/admin plumbing so live demos show provider health, latency, and cost
 - [pending] make the live-ai story explicit: remove accidental stub ambiguity in demo-critical paths and document the real-provider path
 - [pending] align the repo/infra story with prizes: gpu worker wiring, vultr-backed storage/db story, and judge-facing product evidence
@@ -63,6 +64,8 @@
 - docs slice: `README.md` and `.env.example` now spell out the judge/demo path clearly: `USE_AI_STUBS=false`, vultr postgres for state, vultr object storage for media, `GPU_WORKER_URL` for sam/clip, and observability endpoints to keep open during the demo.
 - verification: backend route smoke passed with `TestClient` for `/api/health`, `/api/ai/health`, and `/api/ai/timeline?last_n=2`. compose verification was limited to yaml parsing because `docker` is not installed in this sandbox, so i could not run `docker compose config` or boot the gpu profile here.
 - onboarding flow cleanup: landing now routes into a dedicated `/start` hub, `projects` and `editor` now hard-gate anonymous users back into sign-in, and first-time signed-in users get a short orientation screen before the full studio.
+- flow simplification pass: `open studio` now defaults to the library instead of a start hub, `new reel` jumps straight into the editor, and `/start` is reduced to auth/onboarding-only instead of a general-purpose intermediary page.
+- start-route purge: auth + first-run onboarding now live inside the real library/editor entrypoints, and the dedicated `/start` route/ui is removed entirely.
 - onboarding flow research: used current onboarding guidance emphasizing outcome-based onboarding over feature tours, progressive disclosure, and in-product contextual guidance. that directly drove the dedicated start hub plus the live checklist in the studio instead of a one-shot modal tour.
 - onboarding implementation hardening: fixed a hook-order regression in `EditorRoute`, made onboarding/checklist local storage access fail-soft when the browser blocks storage, and fixed the checklist so continuity-heavy flows can actually reach completion.
 - onboarding verification: `bun run lint` passed, `bun run build` passed, and the only remaining warning is the pre-existing large frontend bundle (`~793 kB` built js), which is a code-splitting problem rather than a correctness blocker.

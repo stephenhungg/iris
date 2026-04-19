@@ -409,6 +409,7 @@
 }
 
 .reveal__variant-media {
+  position: relative;
   aspect-ratio: 16 / 9;
   background: #030303;
 }
