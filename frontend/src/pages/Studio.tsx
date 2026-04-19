@@ -157,24 +157,45 @@ function StudioInner({
   // gives you back your splits and accepted AI variants exactly as you
   // left them. falls back to a single full-length clip if the timeline
   // fetch fails (e.g. offline, brand-new project with no segments yet).
-  const hydratedProjectIdRef = useRef<string | null>(null);
+  //
+  // IMPORTANT: this effect keys ONLY on `projectId`. parent routes routinely
+  // build a fresh `initialProject` literal on each render and may even flip
+  // sibling fields (e.g. label) a tick late once `listProjects()` resolves.
+  // if we included those in deps, the effect would cancel its own in-flight
+  // fetch, the replacement run would early-return via the ref guard, and
+  // state would end up empty (sources=0, clips=0). by snapshotting the
+  // rest into a ref that we read at dispatch-time, we get a stable, single
+  // fetch per projectId change.
+  const projectId = initialProject?.projectId;
+  const initialProjectRef = useRef(initialProject);
+  initialProjectRef.current = initialProject;
   useEffect(() => {
-    if (!initialProject) return;
-    if (hydratedProjectIdRef.current === initialProject.projectId) return;
-    hydratedProjectIdRef.current = initialProject.projectId;
+    if (!projectId) return;
     setHydratingProject(true);
 
     let cancelled = false;
     (async () => {
       try {
-        const tl = await getTimeline(initialProject.projectId);
+        const tl = await getTimeline(projectId);
         if (cancelled) return;
+        // re-read the latest snapshot in case duration/fps/videoUrl settled
+        // after we kicked off the fetch. projectId has not changed (effect
+        // is keyed on it) so the snapshot still refers to the right reel.
+        const snap = initialProjectRef.current;
+        if (!snap || snap.projectId !== projectId) return;
+        const project: StudioInitialProject = {
+          projectId,
+          videoUrl: snap.videoUrl,
+          duration: snap.duration,
+          fps: snap.fps,
+          label: snap.label,
+        };
         const sourceUrl =
           tl.segments.find((seg) => seg.source === "original")?.url
-          ?? initialProject.videoUrl;
-        const sourceAsset = buildSourceAsset(initialProject, sourceUrl);
+          ?? project.videoUrl;
+        const sourceAsset = buildSourceAsset(project, sourceUrl);
         const clips: Clip[] = tl.segments.length > 0
-          ? tl.segments.map((seg) => buildTimelineClip(seg, initialProject, sourceAsset))
+          ? tl.segments.map((seg) => buildTimelineClip(seg, project, sourceAsset))
           : [{
               id: crypto.randomUUID(),
               kind: "source",
@@ -187,16 +208,20 @@ function StudioInner({
               sourceAssetId: sourceAsset.id,
               label: sourceAsset.label,
             }];
-        dispatch({
-          type: "hydrate",
-          sources: [sourceAsset, ...buildGeneratedAssets(initialProject, tl.segments)],
-          clips,
-        });
-      } catch {
+        const sources = [sourceAsset, ...buildGeneratedAssets(project, tl.segments)];
+        dispatch({ type: "hydrate", sources, clips });
+      } catch (err) {
         if (cancelled) return;
-        const sourceAsset = buildSourceAsset(initialProject);
-        // no timeline (new project, network hiccup) — fall back to one
-        // full-length clip pointing at the source video.
+        console.warn("[studio] timeline fetch failed, falling back to single-clip:", err);
+        const snap = initialProjectRef.current;
+        if (!snap || snap.projectId !== projectId) return;
+        const sourceAsset = buildSourceAsset({
+          projectId,
+          videoUrl: snap.videoUrl,
+          duration: snap.duration,
+          fps: snap.fps,
+          label: snap.label,
+        });
         const fallback: Clip = {
           id: crypto.randomUUID(),
           kind: "source",
@@ -216,7 +241,7 @@ function StudioInner({
     })();
 
     return () => { cancelled = true; };
-  }, [initialProject, dispatch]);
+  }, [projectId, dispatch]);
 
   async function handleFile(file: File) {
     setUploading(true);

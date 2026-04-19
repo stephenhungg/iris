@@ -21,10 +21,15 @@ class Settings(BaseSettings):
     runway_api_key: str = ""
     elevenlabs_api_key: str = ""
 
-    # legacy supabase jwt signing secret. when set, the backend verifies
-    # incoming Bearer tokens and scopes data by the google user id. when
-    # unset, the app falls back to anon session cookies (offline dev).
+    # legacy supabase jwt signing secret (HS256). still used by older
+    # projects and required for the fast path when alg=HS256. when unset
+    # the app falls back to anon session cookies (offline dev).
     supabase_jwt_secret: str = ""
+    # supabase project URL, e.g. "https://abc123.supabase.co". used to
+    # fetch JWKS (RS256/ES256 public keys) for modern supabase projects
+    # that signed their tokens asymmetrically. if unset, only HS256 tokens
+    # can be verified.
+    supabase_url: str = ""
 
     max_video_seconds: int = 120
 

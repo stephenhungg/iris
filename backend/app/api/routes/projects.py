@@ -111,9 +111,13 @@ async def get_project(
         )
     ).scalars().all()
 
+    # URLs stored in the DB are presigned GETs that expire after
+    # settings.presign_expiry. re-sign them on read so reels opened past the
+    # window still play. normalize_url_like handles raw keys, stale presigned
+    # URLs, /media URLs, and local paths.
     return ProjectOut(
         project_id=proj.id,
-        video_url=proj.video_url,
+        video_url=storage.normalize_url_like(proj.video_url, fallback=proj.video_url),
         duration=proj.duration,
         fps=proj.fps,
         width=proj.width,
@@ -124,7 +128,7 @@ async def get_project(
                 start_ts=s.start_ts,
                 end_ts=s.end_ts,
                 source=s.source,  # type: ignore[arg-type]
-                url=s.url,
+                url=storage.normalize_url_like(s.url, fallback=s.url),
                 variant_id=s.variant_id,
                 order_index=s.order_index,
             )
