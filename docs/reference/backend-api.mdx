@@ -17,137 +17,31 @@ Returns server liveness status.
 
 Returns the currently authenticated user profile.
 
+## AI and Agent Operations
+
 ### `GET /api/ai/health`
 
 Returns AI provider reachability and configuration status.
 
 ### `GET /api/ai/timeline`
 
-Returns a timeline of recent AI operations.
+Returns a timeline of recent AI operations, including timing and status.
 
-## Preview Endpoints
+### `GET /api/ai/stream`
 
-These endpoints provide low-resolution previews of media, resolving timestamps across original and generated variant media.
+Establishes a Server-Sent Events (SSE) connection to stream real-time AI operation events and agent chat updates. This endpoint provides live feedback on ongoing AI tasks, such as prompt processing, generation progress, and agent responses.
 
-### `GET /api/preview/frame`
+**Response:** A stream of JSON objects, each representing an event.
 
-Returns a low-resolution image preview for a specific frame at a given timestamp within a project's timeline.
-
-**Query Parameters:**
-- `project_id` (string, required): The ID of the project.
-- `timestamp` (float, required): The timestamp in seconds for the desired frame.
-
-**Response:**
-- `200 OK`: Returns a URL to the preview image.
 ```json
+// Example event structure (may vary based on event type)
 {
-  "url": "https://example.com/path/to/preview_frame.jpg"
-}
-```
-
-### `GET /api/preview/strip`
-
-Returns a low-resolution video strip preview for a short duration around a given timestamp.
-
-**Query Parameters:**
-- `project_id` (string, required): The ID of the project.
-- `timestamp` (float, required): The center timestamp in seconds for the desired strip.
-- `duration` (float, optional, default: 2.0): The duration in seconds of the strip.
-
-**Response:**
-- `200 OK`: Returns a URL to the preview video strip.
-```json
-{
-  "url": "https://example.com/path/to/preview_strip.mp4"
-}
-```
-
-### `GET /api/preview/range`
-
-Returns a low-resolution video preview for a specified time range, stitching together original and variant media as needed.
-
-**Query Parameters:**
-- `project_id` (string, required): The ID of the project.
-- `start_ts` (float, required): The start timestamp in seconds of the range.
-- `end_ts` (float, required): The end timestamp in seconds of the range.
-
-**Response:**
-- `200 OK`: Returns a URL to the preview video range.
-```json
-{
-  "url": "https://example.com/path/to/preview_range.mp4"
-}
-```
-
-## Scoring Endpoints
-
-These endpoints provide AI-driven scoring and analysis of generated media variants and continuity.
-
-### `POST /api/score`
-
-Scores a single generated media variant based on a given prompt or criteria.
-
-**Request Body:**
-```json
-{
-  "project_id": "string",
-  "segment_id": "string",
-  "variant_id": "string",
-  "prompt": "string"
-}
-```
-
-**Response:**
-- `200 OK`: Returns a score or analysis result for the variant.
-```json
-{
-  "score": 0.85,
-  "feedback": "The variant effectively addresses the prompt, with minor visual artifacts."
-}
-```
-
-### `POST /api/score/compare`
-
-Compares two generated media variants and ranks them based on a given prompt or criteria.
-
-**Request Body:**
-```json
-{
-  "project_id": "string",
-  "segment_id": "string",
-  "variant_id_1": "string",
-  "variant_id_2": "string",
-  "prompt": "string"
-}
-```
-
-**Response:**
-- `200 OK`: Returns a comparison result, indicating which variant is preferred and why.
-```json
-{
-  "preferred_variant_id": "string",
-  "comparison_notes": "Variant 1 has better lighting and color grading, while Variant 2 shows some blur."
-}
-```
-
-### `POST /api/score/continuity`
-
-Analyzes the continuity of an accepted edit across adjacent frames or segments.
-
-**Request Body:**
-```json
-{
-  "project_id": "string",
-  "segment_id": "string",
-  "entity_job_id": "string"
-}
-```
-
-**Response:**
-- `200 OK`: Returns an analysis of continuity, potentially highlighting areas of inconsistency.
-```json
-{
-  "continuity_score": 0.92,
-  "analysis": "Continuity is largely maintained, with a slight jump detected at 15.2s."
+  "event": "agent_message",
+  "data": {
+    "id": "event-123",
+    "timestamp": "2023-10-27T10:00:00Z",
+    "type": "text",
+    "content": "Analyzing video segment for continuity..."
+  }
 }
 ```
