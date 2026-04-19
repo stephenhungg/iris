@@ -864,16 +864,7 @@ function SocialProof() {
               ))}
 
               <div style={{ marginTop: '8px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.32)', letterSpacing: '0.08em' }}>
-                The skill file gives the agent setup and workflow context.
-              </div>
-              <div style={{ color: 'rgba(255,255,255,0.62)' }}>
-                iris health
-              </div>
-              <div style={{ color: 'rgba(255,255,255,0.62)' }}>
-                iris project list
-              </div>
-              <div style={{ color: 'rgba(255,255,255,0.62)' }}>
-                iris export get-status exp_01
+                one file. any agent can edit video.
               </div>
             </div>
           </div>
