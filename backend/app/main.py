@@ -22,6 +22,7 @@ from app.api.routes import (
     narrate,
     export,
     mask,
+    agent,
 )
 
 
@@ -81,4 +82,5 @@ app.include_router(timeline.router, prefix="/api")
 app.include_router(narrate.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(mask.router, prefix="/api")
+app.include_router(agent.router, prefix="/api")
 app.include_router(ai_observability_router, prefix="/api/ai")
