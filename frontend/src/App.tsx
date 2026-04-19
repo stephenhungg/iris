@@ -319,7 +319,7 @@ function Hero({ onStudio }: { onStudio: () => void }) {
 
           <div data-intro="logo-dark"
             style={{ opacity: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '18px', filter: 'drop-shadow(0 0 60px rgba(255,255,255,0.08))' }}>
-            <div style={{ position: 'relative', width: 'clamp(560px, 62vw, 1240px)', height: 'clamp(128px, 15vw, 252px)', marginLeft: 'clamp(-338px, -20vw, -220px)', marginTop: 'clamp(14px, 1.4vw, 24px)' }}>
+            <div style={{ position: 'relative', width: 'clamp(560px, 62vw, 1240px)', height: 'clamp(128px, 15vw, 252px)', marginLeft: 'clamp(-260px, -15vw, -160px)', marginTop: 'clamp(14px, 1.4vw, 24px)' }}>
               <MetallicPaint text={IRIS_WORDMARK_TEXT} textOptions={IRIS_WORDMARK_MASK} seed={42} scale={4} patternSharpness={1} noiseScale={0.5} speed={0.2} liquid={0.8} brightness={2.2} contrast={0.5} refraction={0.015} blur={0.012} chromaticSpread={2} fresnel={1.2} waveAmplitude={1} distortion={0.8} contour={0.25} lightColor="#f4fbff" darkColor="#000000" tintColor={IRIS_METAL_TINT} />
               <span style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>
                 {IRIS_WORDMARK_TEXT}
