@@ -17,16 +17,16 @@ const DEFAULT_CARDS: ShowcaseCard[] = [
     description: 'Upload a clip or pick up where you left off. Every reel lives here with its edits, variants, and timeline intact.',
   },
   {
-    image: '/frames/card-editing.gif',
+    image: '/frames/card-generation.gif',
     label: '02 / select + prompt',
     title: 'draw a box, describe the change',
     description: 'Scrub to the moment, draw a bounding box around what you want to change, and describe the edit in plain language.',
   },
   {
-    image: '/frames/card-generation.gif',
-    label: '03 / generate',
-    title: 'multiple takes, one decision',
-    description: 'Generate alternate outcomes for the selected region, compare the options, and accept the strongest result.',
+    image: '/frames/card-editing.gif',
+    label: '03 / agent + CLI',
+    title: 'scriptable by any agent',
+    description: 'The iris CLI wraps every editing operation. Any agent that can run bash — Claude Code, Codex, OpenClaw — can edit videos autonomously.',
   },
   {
     image: '/frames/card-vibe.gif',
