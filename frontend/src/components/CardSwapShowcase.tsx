@@ -23,7 +23,7 @@ const DEFAULT_CARDS: ShowcaseCard[] = [
     description: 'Generate alternate outcomes for the exact region you selected, then compare the options before committing.',
   },
   {
-    image: '/frames/card-library.png',
+    image: '/frames/card-library.gif',
     label: 'Tracking / continuity',
     title: 'continuity through the cut',
     description: 'Once a subject is identified, Iris can follow it through surrounding frames so the edit stays coherent.',

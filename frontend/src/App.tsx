@@ -771,7 +771,11 @@ function Features() {
 
 // ── social proof ───────────────────────────────────────────────────
 
-const INSTALL_CMD = 'pip install iris-edit && mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md'
+const INSTALL_CMD = `Install the iris video editing CLI and agent skill file. Run these commands:
+1. pip install iris-edit
+2. mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md
+3. iris auth login --base-url https://useiris.tech
+Then say "iris edit" to start editing videos.`
 
 function CopyInstallButton() {
   const [copied, setCopied] = useState(false)
@@ -802,7 +806,7 @@ function CopyInstallButton() {
         transition: 'all 0.2s ease',
       }}
     >
-      {copied ? 'copied to clipboard' : 'copy one-liner install'}
+      {copied ? 'copied to clipboard' : 'copy agent install prompt'}
     </button>
   )
 }
