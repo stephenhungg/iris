@@ -138,7 +138,7 @@ the local gpu profile assumes the sam checkpoint is present at `gpu-worker/check
 install the CLI:
 
 ```bash
-pip install -e ./cli
+pip install iris-edit
 iris auth login --base-url http://localhost:8000
 ```
 

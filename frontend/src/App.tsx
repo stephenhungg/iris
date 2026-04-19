@@ -772,7 +772,7 @@ function Features() {
 // ── social proof ───────────────────────────────────────────────────
 
 const AGENT_TERMINAL_LINES = [
-  '$ pip install iris-cli',
+  '$ pip install iris-edit',
   '$ mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md',
   '$ iris analyze proj_iris --fps 2.0',
   '$ iris generate --project proj_iris --start 12.0 --end 14.0 --bbox "0.2,0.3,0.4,0.3" --prompt "replace the phone with a chrome orb"',
