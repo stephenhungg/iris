@@ -18,185 +18,34 @@ description: "The Iris command-line interface for scripting and agent-driven edi
   </div>
 </div>
 
-## Installation
+## Installation and Authentication
+
+To get started with the Iris CLI, install it from the local repository and authenticate it against your Iris backend.
 
 ```bash
-pip install iris-cli
+pip install -e ./cli
+iris auth login --base-url http://localhost:8000
 ```
 
-## Configuration
+The `iris auth login` command will prompt you for your credentials and store an authentication token for subsequent CLI commands.
 
-The CLI reads configuration from environment variables or a `.env` file in the current directory.
+## Agent Skill Integration
 
-- `IRIS_API_URL`: The URL of the Iris backend API (e.g., `http://localhost:8000`)
-- `IRIS_AUTH_TOKEN`: Your authentication token for the Iris API
+Iris provides a pre-packaged agent skill that allows AI agents (like Claude, Codex, or Cursor) to interact with the Iris CLI for automated video editing tasks.
 
-## General Commands
+### For Claude Code User
 
-### `iris health`
-
-Checks the health and status of the Iris backend and AI services.
+You can install the Iris agent skill directly into your Claude environment with a single command:
 
 ```bash
-iris health
+mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md
 ```
 
-### `iris me`
+### For Other Agents
 
-Retrieves the profile of the currently authenticated user.
-
-```bash
-iris me
-```
-
-## Project Management
-
-### `iris project list`
-
-Lists all projects associated with your account.
+For agents like Codex, Openclaw, or Cursor, you can integrate the Iris skill by pasting the contents of the `cli/SKILL.md` file directly into your agent's system prompt or configuration. This provides the agent with the necessary context and commands to utilize the Iris CLI.
 
 ```bash
-iris project list
-```
-
-### `iris project create --name <name> --description <description> --video-url <url>`
-
-Creates a new project with an initial video asset.
-
-```bash
-iris project create --name "My Vacation Reel" --description "Highlights from the trip" --video-url "s3://my-bucket/vacation.mp4"
-```
-
-### `iris project get <project_id>`
-
-Retrieves details for a specific project.
-
-```bash
-iris project get proj_abc123
-```
-
-### `iris project delete <project_id>`
-
-Deletes a project.
-
-```bash
-iris project delete proj_abc123
-```
-
-### `iris project upload <project_id> --file <path_to_video> --name <file_name>`
-
-Uploads a local video file to an existing project.
-
-```bash
-iris project upload proj_abc123 --file ./my_clip.mp4 --name "My Clip"
-```
-
-### `iris project preview-frame <project_id> --ts <timestamp>`
-
-Extracts and returns a URL to a single preview frame from the project timeline.
-
-```bash
-iris project preview-frame proj_abc123 --ts 15.5
-```
-
-### `iris project preview-strip <project_id> --start <start_ts> --end <end_ts> [--fps <fps>]`
-
-Extracts and returns URLs to a strip of preview frames across a specified range.
-
-```bash
-iris project preview-strip proj_abc123 --start 10.0 --end 20.0 --fps 2.0
-```
-
-## Editing Operations
-
-### `iris segment split <segment_id> --at <split_ts>`
-
-Splits an existing segment into two new segments at the specified timestamp.
-
-```bash
-iris segment split seg_xyz789 --at 12.3
-```
-
-### `iris segment trim <segment_id> --start <new_start_ts> --end <new_end_ts>`
-
-Trims a segment to new start and end timestamps. The new range must be within the original segment's bounds.
-
-```bash
-iris segment trim seg_xyz789 --start 5.0 --end 10.0
-```
-
-### `iris segment delete <segment_id>`
-
-Soft-deletes a segment from the timeline.
-
-```bash
-iris segment delete seg_xyz789
-```
-
-### `iris segment color-grade <segment_id> [--brightness <val>] [--contrast <val>] [--saturation <val>] [--temperature <val>] [--gamma <val>] [--hue-shift <val>]`
-
-Applies color grade adjustments to a segment, creating a new generated segment.
-
-```bash
-iris segment color-grade seg_xyz789 --brightness 0.1 --contrast 1.1
-```
-
-### `iris segment grade-preview <segment_id> [--brightness <val>] [--contrast <val>] [--saturation <val>] [--temperature <val>] [--gamma <val>] [--hue-shift <val>]`
-
-Renders a preview frame of a segment with specified color adjustments.
-
-```bash
-iris segment grade-preview seg_xyz789 --saturation 1.5
-```
-
-## AI and Generation
-
-### `iris ai generate <project_id> --prompt <prompt_text> --start <start_ts> --end <end_ts> [--bbox <x,y,w,h>]`
-
-Initiates an AI-powered video generation job.
-
-```bash
-iris ai generate proj_abc123 --prompt "make the sky blue" --start 5.0 --end 7.0 --bbox "0.1,0.1,0.8,0.4"
-```
-
-### `iris job get <job_id>`
-
-Checks the status of a generation, entity, or other non-export job and retrieves any variant results.
-
-```bash
-iris job get job_def456
-```
-
-### `iris variant accept <variant_id>`
-
-Accepts a generated variant, applying it to the project timeline.
-
-```bash
-iris variant accept var_ghi789
-```
-
-### `iris variant score <variant_id> [--compare-to <prompt|original>]`
-
-Retrieves detailed Gemini-based scoring for a variant.
-
-```bash
-iris variant score var_ghi789 --compare-to original
-```
-
-## Exports
-
-### `iris export create <project_id> [--format <format>]`
-
-Initiates a video export job for a project.
-
-```bash
-iris export create proj_abc123 --format mp4
-```
-
-### `iris export get-status <export_job_id>`
-
-Checks the status of an export job and retrieves the output URLs when it is done.
-
-```bash
-iris export get-status exp_jkl012
+# Example: View the skill content
+cat cli/SKILL.md
 ```
