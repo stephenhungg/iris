@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   isEditorChecklistDismissed,
@@ -32,9 +32,20 @@ export function EditorChecklist({
   onImport: () => void;
 }) {
   const scope = projectId || "draft";
-  const [dismissed, setDismissed] = useState(false);
-
+  // Lazy-init from storage so the first render already reflects a prior
+  // dismiss — no brief flicker on reopen. Keyed on `scope` below to pull
+  // fresh when the reel changes (tab swap, not same-project re-render).
+  const [dismissed, setDismissed] = useState(() =>
+    isEditorChecklistDismissed(scope),
+  );
+  // Track the last scope we synced for so we only re-read localStorage
+  // when the user actually switches reels. Without this guard, `scope`
+  // flips "draft" → realProjectId a tick after mount on fresh loads,
+  // which would clobber a dismiss the user just made.
+  const lastSyncedScopeRef = useRef(scope);
   useEffect(() => {
+    if (lastSyncedScopeRef.current === scope) return;
+    lastSyncedScopeRef.current = scope;
     setDismissed(isEditorChecklistDismissed(scope));
   }, [scope]);
 
@@ -75,7 +86,10 @@ export function EditorChecklist({
   const completed = steps.filter((step) => step.done).length;
   const nextStep = steps.find((step) => !step.done);
 
-  if (dismissed && completed < steps.length) return null;
+  // Dismiss is user intent — always honor it, regardless of how many
+  // steps are checked off. The old guard required `completed < total`
+  // which meant finishing every step silently "un-dismissed" the panel.
+  if (dismissed) return null;
 
   return (
     <section className="editor-checklist" aria-label="editor onboarding checklist">

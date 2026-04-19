@@ -9,6 +9,7 @@ Uses Veo 3.1 for all video generation:
 import time
 import asyncio
 from pathlib import Path
+from typing import Awaitable, Callable
 
 from google import genai
 from google.genai import types
@@ -16,11 +17,22 @@ from google.genai import types
 from ai.services.config import get_settings
 from ai.services.logger import tracked
 
+TickCallback = Callable[[dict], Awaitable[None] | None]
+
 # Veo 3.1 constraints
 MIN_DURATION = 4  # seconds
 MAX_DURATION = 8
 SUPPORTED_DURATIONS = ["4", "6", "8"]
 GENERATION_TIMEOUT = 360  # 6 minutes max
+
+
+def _maybe_await(result):
+    """Schedule awaitables returned by a tick callback without blocking veo's loop."""
+    if asyncio.iscoroutine(result):
+        try:
+            asyncio.get_event_loop().create_task(result)
+        except RuntimeError:
+            pass
 
 
 def get_client() -> genai.Client:
@@ -35,6 +47,7 @@ async def generate_variant(
     reference_frame_path: str | None = None,
     duration: int = 4,
     aspect_ratio: str = "16:9",
+    on_tick: TickCallback | None = None,
 ) -> str:
     """Generate a single video variant using Veo 3.1.
 
@@ -66,14 +79,38 @@ async def generate_variant(
         "config": config,
     }
 
-    # Image conditioning: use the reference frame as starting frame
+    # Image conditioning: use the reference frame as the starting frame.
+    # Veo expects a still image here — if something else slips through
+    # (e.g. an mp4 slice) we refuse it rather than silently uploading
+    # bytes that Veo will ignore, which was the "identical-output" bug.
     if reference_frame_path:
+        ext = Path(reference_frame_path).suffix.lower()
+        mime_map = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+        }
+        mime = mime_map.get(ext)
+        if mime is None:
+            raise ValueError(
+                f"reference_frame_path must be a still image (png/jpg/webp), got: {reference_frame_path}"
+            )
         kwargs["image"] = types.Image(
-            image_bytes=open(reference_frame_path, "rb").read(),
-            mime_type="image/png",
+            image_bytes=Path(reference_frame_path).read_bytes(),
+            mime_type=mime,
         )
 
     operation = client.models.generate_videos(**kwargs)
+    if on_tick is not None:
+        _maybe_await(on_tick({
+            "kind": "veo.submit",
+            "op": getattr(operation, "name", None),
+            "prompt": prompt_for_veo,
+            "duration": duration_str,
+            "aspect_ratio": aspect_ratio,
+            "conditioned": reference_frame_path is not None,
+        }))
 
     # Poll for completion
     elapsed = 0
@@ -85,14 +122,47 @@ async def generate_variant(
                 f"Veo generation timed out after {GENERATION_TIMEOUT}s"
             )
         operation = client.operations.get(operation)
+        # only emit the heartbeat while the op is still in flight — the
+        # "done" transition is conveyed by the subsequent veo_done event
+        # so we don't confuse the thought-process console with a double
+        # success/failure ordering.
+        if on_tick is not None and not operation.done:
+            _maybe_await(on_tick({
+                "kind": "veo.poll",
+                "elapsed": elapsed,
+                "done": False,
+            }))
 
-    # Download the generated video
+    # Download the generated video. The google-genai SDK dropped the
+    # `Video.name` attribute in recent versions, so we derive a stable
+    # filename from the operation id instead of trusting the Video object.
     generated_video = operation.response.generated_videos[0]
-    client.files.download(file=generated_video.video)
+    video_obj = generated_video.video
 
-    output_path = Path(get_settings().storage_path) / "generated" / f"{generated_video.video.name}.mp4"
+    op_name = getattr(operation, "name", "") or ""
+    op_id = op_name.rsplit("/", 1)[-1] if op_name else ""
+    filename_stem = op_id or f"veo_{int(time.time() * 1000)}"
+
+    output_path = Path(get_settings().storage_path) / "generated" / f"{filename_stem}.mp4"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    generated_video.video.save(str(output_path))
+
+    # Newer SDK: download() populates video_obj.video_bytes; save() writes to disk.
+    # Older SDK: save() alone pulls bytes + writes. Try the modern path first,
+    # fall back to the legacy flow if either step is unavailable.
+    try:
+        client.files.download(file=video_obj)
+    except Exception:
+        # some SDK builds require calling save() directly without prior download
+        pass
+
+    try:
+        video_obj.save(str(output_path))
+    except Exception:
+        # last-resort fallback: write raw bytes if the SDK exposes them.
+        video_bytes = getattr(video_obj, "video_bytes", None)
+        if not video_bytes:
+            raise
+        output_path.write_bytes(video_bytes)
 
     return str(output_path)
 

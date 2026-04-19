@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 
-import { accept, generate, pollJob, type JobResp, type Variant, type BBox } from "../api/client";
+import {
+  accept,
+  generate,
+  pollJob,
+  streamJobEvents,
+  type JobResp,
+  type JobStreamEvent,
+  type Variant,
+  type BBox,
+} from "../api/client";
 import { newClip, useEDL, type Clip } from "../stores/edl";
 
 type GenerationTarget = Pick<
@@ -14,6 +23,8 @@ type UseGenerationSessionArgs = {
   previewFrameTs: number | null;
 };
 
+export type GenerationLogEntry = JobStreamEvent & { id: string };
+
 export function useGenerationSession({
   clip,
   bbox,
@@ -26,8 +37,10 @@ export function useGenerationSession({
   const [variants, setVariants] = useState<Variant[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [acceptingIdx, setAcceptingIdx] = useState<number | null>(null);
+  const [logs, setLogs] = useState<GenerationLogEntry[]>([]);
   const jobIdRef = useRef<string | null>(null);
   const generationTargetRef = useRef<GenerationTarget | null>(null);
+  const streamCtlRef = useRef<AbortController | null>(null);
 
   const canGenerate =
     !!clip &&
@@ -36,11 +49,18 @@ export function useGenerationSession({
     !!prompt.trim() &&
     !busy;
 
+  function closeStream() {
+    streamCtlRef.current?.abort();
+    streamCtlRef.current = null;
+  }
+
   function clearSession({ keepPrompt = true }: { keepPrompt?: boolean } = {}) {
+    closeStream();
     setVariants([]);
     setStatus("");
     setErr(null);
     setAcceptingIdx(null);
+    setLogs([]);
     jobIdRef.current = null;
     generationTargetRef.current = null;
     if (!keepPrompt) setPrompt("");
@@ -50,13 +70,19 @@ export function useGenerationSession({
     clearSession();
   }, [clip?.id]);
 
+  useEffect(() => {
+    return () => closeStream();
+  }, []);
+
   async function run(): Promise<boolean> {
     if (!canGenerate || !clip || !clip.projectId) return false;
+    closeStream();
     setBusy(true);
     setErr(null);
     setStatus("queued");
     setVariants([]);
     setAcceptingIdx(null);
+    setLogs([]);
     generationTargetRef.current = {
       id: clip.id,
       projectId: clip.projectId,
@@ -74,6 +100,31 @@ export function useGenerationSession({
         reference_frame_ts: previewFrameTs ?? (clip.sourceStart + clip.sourceEnd) / 2,
       });
       jobIdRef.current = job_id;
+
+      // open the SSE console stream in parallel with the poll loop.
+      // the stream carries thought-process events; the poll resolves when
+      // the job flips to done/error so we can still drive variants state.
+      streamCtlRef.current = streamJobEvents(job_id, {
+        onEvent: (event) => {
+          setLogs((prev) => [
+            ...prev,
+            { ...event, id: `${event.ts}-${prev.length}` },
+          ]);
+        },
+        onError: (e) => {
+          // stream failure is non-fatal — the poll loop still drives state.
+          setLogs((prev) => [
+            ...prev,
+            {
+              id: `err-${Date.now()}`,
+              ts: Date.now() / 1000,
+              stage: "stream_error",
+              msg: `event stream dropped: ${String(e)}`,
+            },
+          ]);
+        },
+      });
+
       const final: JobResp = await pollJob(job_id, (job) => setStatus(job.status));
       if (final.status !== "done" || !final.variants.length) {
         throw new Error(final.error || "generation failed");
@@ -131,6 +182,7 @@ export function useGenerationSession({
     setErr,
     acceptingIdx,
     canGenerate,
+    logs,
     run,
     acceptVariant,
     clearSession,

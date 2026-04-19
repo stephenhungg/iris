@@ -392,6 +392,95 @@ export function getExportStatus(export_job_id: string): Promise<ExportStatusResp
   return request<ExportStatusResp>(`/api/export/${export_job_id}`);
 }
 
+// ─── SSE: generation "thought process" stream ─────────────────────────
+
+export type JobStreamEvent = {
+  ts: number;
+  stage: string;
+  msg: string;
+  terminal?: boolean;
+  data?: Record<string, unknown>;
+};
+
+/**
+ * Subscribe to a job's event stream (structured LLM/Veo/ffmpeg logs).
+ * Uses fetch + ReadableStream so we can attach auth headers EventSource
+ * can't. Returns an `AbortController` — call `.abort()` to disconnect.
+ */
+export function streamJobEvents(
+  jobId: string,
+  handlers: {
+    onEvent: (event: JobStreamEvent) => void;
+    onError?: (err: unknown) => void;
+    onClose?: () => void;
+  },
+): AbortController {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const headers = new Headers();
+      headers.set("X-Session-Id", getSessionId());
+      headers.set("Accept", "text/event-stream");
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (token) headers.set("Authorization", `Bearer ${token}`);
+      } catch {
+        // anonymous — proceed without auth
+      }
+
+      const res = await fetch(`/api/jobs/${jobId}/stream`, {
+        headers,
+        signal: controller.signal,
+      });
+      if (!res.ok || !res.body) {
+        throw new Error(`${res.status} ${res.statusText}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE frames are separated by a blank line.
+        let idx: number;
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const frame = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const dataLines = frame
+            .split("\n")
+            .filter((line) => line.startsWith("data: "))
+            .map((line) => line.slice(6));
+          if (!dataLines.length) continue;
+          const payload = dataLines.join("\n");
+          try {
+            const event = JSON.parse(payload) as JobStreamEvent;
+            handlers.onEvent(event);
+            if (event.terminal) {
+              controller.abort();
+              handlers.onClose?.();
+              return;
+            }
+          } catch {
+            // malformed frame — skip silently, don't kill the stream.
+          }
+        }
+      }
+      handlers.onClose?.();
+    } catch (e) {
+      if ((e as { name?: string }).name === "AbortError") return;
+      handlers.onError?.(e);
+    }
+  })();
+
+  return controller;
+}
+
 /** poll a job until it reaches done|error, emitting intermediate states. */
 export async function pollJob(
   id: string,

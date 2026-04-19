@@ -77,14 +77,26 @@ else:
     # ------------------------ gemini adapter ------------------------
 
     async def _plan_variants(prompt: str, bbox: dict, frame_path: str) -> list[dict]:
-        plan = await _gemini_real.create_edit_plan(prompt, bbox)
+        plan = await _gemini_real.create_edit_plan(
+            prompt, bbox, frame_path=frame_path
+        )
         variants = plan.get("variants") if isinstance(plan, dict) else None
         if not variants:
             return []
         # Stephen's schema uses prompt_for_veo; my stubs/workers use prompt_for_runway.
-        # Normalize so downstream code always finds prompt_for_runway.
+        # Normalize so downstream code always finds prompt_for_runway, and
+        # give every variant a conditioning_strategy default so the worker
+        # never has to second-guess a missing field.
         for v in variants:
             v.setdefault("prompt_for_runway", v.get("prompt_for_veo", ""))
+            strategy = str(v.get("conditioning_strategy", "")).lower()
+            if strategy not in ("first_frame", "text_only"):
+                intent = str(v.get("intent", "")).lower()
+                v["conditioning_strategy"] = (
+                    "text_only"
+                    if intent in ("remove", "replace", "restyle")
+                    else "first_frame"
+                )
         return variants
 
     async def _score_variant(frames: list[str], prompt: str) -> dict:
@@ -132,17 +144,38 @@ else:
         clip_path: str,
         plan: dict,
         style_ref: str | None = None,
+        frame_path: str | None = None,
+        on_tick=None,
     ) -> dict:
+        """Drive one Veo generation.
+
+        ``clip_path`` is the source MP4 slice — we do NOT pass it to Veo
+        (Veo's image conditioning slot expects a still frame, and handing
+        it an mp4 silently skips conditioning, which is why earlier
+        variants looked identical to the source).
+
+        ``frame_path`` is a still image (png/jpg) that Veo uses as the
+        opening frame. Callers should pass the FULL reference keyframe
+        (not a cropped bbox), otherwise Veo will generate a video of
+        just the cropped region instead of the whole scene. The bbox
+        region is expressed through the Gemini-authored prose prompt.
+        Pass ``None`` to skip image conditioning entirely (useful for
+        'remove/replace' intents where the opening frame would anchor
+        the subject Veo is supposed to regenerate).
+        """
         prompt_text = plan.get("prompt_for_runway") or plan.get("prompt_for_veo") or plan.get("description", "")
+        conditioning = frame_path or style_ref
         if style_ref:
             out_path = await _veo_real.generate_propagation_variant(
                 prompt_for_veo=prompt_text,
                 style_reference_path=style_ref,
+                reference_frame_path=frame_path,
             )
         else:
             out_path = await _veo_real.generate_variant(
                 prompt_for_veo=prompt_text,
-                reference_frame_path=clip_path,  # passes first-frame crop for spatial conditioning
+                reference_frame_path=conditioning,
+                on_tick=on_tick,
             )
         published_url = await storage.publish(Path(out_path), content_type="video/mp4")
         return {

@@ -36,30 +36,64 @@ async def create_edit_plan(
     prompt: str,
     bbox: dict[str, float],
     entity_description: str | None = None,
+    frame_path: str | None = None,
 ) -> dict:
     """Convert a raw user prompt into a structured edit plan with 3 variants.
+
+    We ship the actual reference frame to Gemini-2.5-Pro (vision) so the
+    plan is grounded in what's really on screen instead of hallucinating
+    context. Without this, Gemini tends to emit generic imperative
+    prompts like "remove X, fill background" — phrasing that Veo 3.1
+    ignores because Veo is a text-to-video / first-frame-conditioned
+    model, not an inpainter. The resulting plan must be a Veo-optimised
+    *scene description* (what the user wants to see), with a
+    conditioning_strategy that tells the worker whether to hand Veo the
+    original frame at all.
 
     Args:
         prompt: Raw user prompt (e.g., "make this car red")
         bbox: Normalized bounding box {x, y, w, h} (0-1, top-left origin)
         entity_description: Optional description of the entity in the bbox
+        frame_path: Optional path to the reference frame (jpg/png)
 
     Returns:
-        Structured edit plan with 3 variants, each containing:
-        description, tone, color_grading, region_emphasis, prompt_for_veo
+        Structured edit plan with 1-3 variants, each containing:
+        description, tone, color_grading, region_emphasis,
+        prompt_for_veo, conditioning_strategy, intent.
     """
     client = get_client()
 
     system_prompt = _load_prompt("edit_plan")
-    user_content = json.dumps({
+    user_payload = {
         "user_prompt": prompt,
         "bbox": bbox,
         "entity_description": entity_description,
-    })
+        "bbox_is_full_frame": (
+            bbox.get("w", 0) >= 0.98 and bbox.get("h", 0) >= 0.98
+        ),
+    }
+
+    parts: list = [json.dumps(user_payload)]
+    if frame_path:
+        frame_file = Path(frame_path)
+        if frame_file.exists():
+            ext = frame_file.suffix.lower()
+            mime = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".webp": "image/webp",
+            }.get(ext, "image/jpeg")
+            parts.append(
+                types.Part.from_bytes(
+                    data=frame_file.read_bytes(),
+                    mime_type=mime,
+                )
+            )
 
     response = client.models.generate_content(
         model="gemini-2.5-pro",
-        contents=user_content,
+        contents=parts,
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
             response_mime_type="application/json",

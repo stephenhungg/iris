@@ -141,11 +141,11 @@ export function useContinuityDashboard(
       });
 
       if (!input.entityJobId) {
-        setDiscovery({
-          status: "error",
-          jobId: null,
-          error: "accepted variant landed, but the continuity scan job id was missing.",
-        });
+        // Backend skips the entity-scan job for full-frame regenerations
+        // and "remove" intents because there's no single subject to track.
+        // Stay idle so the UI renders the neutral tracked-count chip
+        // instead of the red "continuity error" chip.
+        setDiscovery({ status: "idle", jobId: null, error: null });
         return;
       }
 

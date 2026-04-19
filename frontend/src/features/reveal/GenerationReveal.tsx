@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { narrate, type Variant } from "../../api/client";
+import type { GenerationLogEntry } from "../../hooks/useGenerationSession";
 import {
   duration,
   type BBox,
@@ -31,6 +32,7 @@ export type RevealSession = {
   setErr: (value: string | null) => void;
   acceptingIdx: number | null;
   canGenerate: boolean;
+  logs: GenerationLogEntry[];
   run: () => Promise<boolean>;
   acceptVariant: (idx: number) => Promise<boolean>;
   clearSession: () => void;
@@ -56,6 +58,7 @@ export function GenerationReveal({
     setErr,
     acceptingIdx,
     canGenerate,
+    logs,
     run,
     acceptVariant,
     clearSession,
@@ -227,7 +230,7 @@ export function GenerationReveal({
         </div>
       )}
 
-      {busy && (
+      {(busy || (logs && logs.length > 0 && !hasVariants)) && (
         <div className="reveal__loading">
           <div className="reveal__loading-copy">
             <p className="reveal__loading-label mono">current prompt</p>
@@ -236,16 +239,17 @@ export function GenerationReveal({
             </p>
           </div>
           <div className="reveal__loading-steps">
-            <LoadingStep active={status === "queued" || status === "pending"}>
+            <LoadingStep active={!hasLogStage(logs, "plan_done")}>
               sampling candidate looks
             </LoadingStep>
-            <LoadingStep active={status === "processing"}>
+            <LoadingStep active={hasLogStage(logs, "plan_done") && !hasLogStage(logs, "veo_done")}>
               rendering through the generation pipeline
             </LoadingStep>
-            <LoadingStep active={false}>
+            <LoadingStep active={hasLogStage(logs, "veo_done") && !hasLogStage(logs, "score_done")}>
               scoring variants for coherence and adherence
             </LoadingStep>
           </div>
+          <ThoughtConsole logs={logs} />
         </div>
       )}
 
@@ -588,6 +592,163 @@ function SegmentVideo({
       playsInline
     />
   );
+}
+
+function hasLogStage(logs: GenerationLogEntry[] | undefined, stage: string) {
+  if (!logs) return false;
+  return logs.some((entry) => entry.stage === stage);
+}
+
+const STAGE_BADGES: Record<string, { label: string; tone: string }> = {
+  queued: { label: "queue", tone: "neutral" },
+  bbox_missing: { label: "heads up", tone: "warn" },
+  extract_clip: { label: "ffmpeg", tone: "neutral" },
+  extract_frame: { label: "ffmpeg", tone: "neutral" },
+  crop_bbox: { label: "ffmpeg", tone: "neutral" },
+  crop_bbox_error: { label: "ffmpeg", tone: "warn" },
+  extract_frame_error: { label: "ffmpeg", tone: "warn" },
+  plan_start: { label: "gemini", tone: "planner" },
+  plan_done: { label: "gemini", tone: "planner" },
+  veo_start: { label: "veo 3.1", tone: "engine" },
+  veo_submit: { label: "veo 3.1", tone: "engine" },
+  veo_poll: { label: "veo 3.1", tone: "engine" },
+  veo_done: { label: "veo 3.1", tone: "engine" },
+  veo_echo: { label: "veo 3.1", tone: "warn" },
+  veo_error: { label: "veo 3.1", tone: "error" },
+  score_start: { label: "gemini", tone: "planner" },
+  score_done: { label: "gemini", tone: "planner" },
+  score_skipped: { label: "gemini", tone: "neutral" },
+  stream_error: { label: "stream", tone: "warn" },
+  done: { label: "done", tone: "done" },
+  error: { label: "error", tone: "error" },
+};
+
+function badgeFor(stage: string) {
+  return (
+    STAGE_BADGES[stage] ?? { label: stage.replace(/_/g, " "), tone: "neutral" }
+  );
+}
+
+function ThoughtConsole({ logs }: { logs: GenerationLogEntry[] | undefined }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [autoScroll, setAutoScroll] = useState(true);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || !autoScroll) return;
+    el.scrollTop = el.scrollHeight;
+  }, [logs?.length, autoScroll]);
+
+  if (!logs || logs.length === 0) {
+    return (
+      <div className="reveal__console reveal__console--empty">
+        <span className="reveal__console-empty mono">
+          waiting for the first signal from the pipeline...
+        </span>
+      </div>
+    );
+  }
+
+  const start = logs[0].ts;
+  return (
+    <div className="reveal__console">
+      <div className="reveal__console-head mono">
+        <span className="reveal__console-title">thought process</span>
+        <div className="reveal__console-controls">
+          <button
+            type="button"
+            className={`reveal__console-toggle ${autoScroll ? "is-active" : ""}`}
+            onClick={() => setAutoScroll((v) => !v)}
+            title={autoScroll ? "pause auto-scroll" : "resume auto-scroll"}
+          >
+            {autoScroll ? "tail" : "paused"}
+          </button>
+          <span className="reveal__console-count">{logs.length} events</span>
+        </div>
+      </div>
+      <div className="reveal__console-scroll" ref={scrollerRef}>
+        {logs.map((entry) => {
+          const badge = badgeFor(entry.stage);
+          const delta = Math.max(0, entry.ts - start);
+          const hasData = entry.data && Object.keys(entry.data).length > 0;
+          const isOpen = expanded.has(entry.id);
+          return (
+            <div
+              className={`reveal__console-row reveal__console-row--${badge.tone}`}
+              key={entry.id}
+            >
+              <header className="reveal__console-meta mono">
+                <span className="reveal__console-time">
+                  +{delta.toFixed(1)}s
+                </span>
+                <span
+                  className={`reveal__console-badge reveal__console-badge--${badge.tone}`}
+                >
+                  {badge.label}
+                </span>
+                <span className="reveal__console-stage">{entry.stage}</span>
+              </header>
+              <p className="reveal__console-msg">{entry.msg}</p>
+              {hasData ? (
+                <>
+                  <button
+                    type="button"
+                    className="reveal__console-disclosure mono"
+                    onClick={() =>
+                      setExpanded((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(entry.id)) next.delete(entry.id);
+                        else next.add(entry.id);
+                        return next;
+                      })
+                    }
+                    aria-expanded={isOpen}
+                  >
+                    <span>{isOpen ? "hide details" : "show details"}</span>
+                    <span className="reveal__console-disclosure-chev" aria-hidden>
+                      {isOpen ? "−" : "+"}
+                    </span>
+                  </button>
+                  {isOpen ? <ConsoleData data={entry.data!} /> : null}
+                </>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ConsoleData({ data }: { data: Record<string, unknown> }) {
+  const entries = Object.entries(data).filter(
+    ([, v]) => v !== undefined && v !== null,
+  );
+  if (entries.length === 0) return null;
+  return (
+    <div className="reveal__console-data mono">
+      {entries.map(([k, v]) => (
+        <div className="reveal__console-kv" key={k}>
+          <span className="reveal__console-key">{k}</span>
+          <span className="reveal__console-val">{formatDatum(v)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatDatum(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number")
+    return Number.isFinite(v) ? String(+v.toFixed(3)) : String(v);
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  try {
+    return JSON.stringify(v, null, 2);
+  } catch {
+    return String(v);
+  }
 }
 
 function formatStatus(status: string) {

@@ -101,6 +101,8 @@ async def _runway_generate(
     clip_path: str,
     plan: EditPlan,
     style_ref: str | None = None,
+    frame_path: str | None = None,  # noqa: ARG001 — mirrors real adapter signature
+    on_tick=None,  # noqa: ARG001 — mirrors real adapter signature
 ) -> VariantResult:
     # staggered sleeps so progressive reveal is visible in the polling loop
     import random

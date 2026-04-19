@@ -4,11 +4,13 @@ import {
   accept,
   generate,
   pollJob,
+  streamJobEvents,
   type AcceptResp,
   type BBox,
   type JobResp,
   type Variant,
 } from "../../api/client";
+import type { GenerationLogEntry } from "../../hooks/useGenerationSession";
 import { newClip, useEDL, type Clip } from "../../stores/edl";
 
 type GenerationTarget = Pick<
@@ -43,8 +45,15 @@ export function useContinuityGenerationSession({
   const [variants, setVariants] = useState<Variant[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [acceptingIdx, setAcceptingIdx] = useState<number | null>(null);
+  const [logs, setLogs] = useState<GenerationLogEntry[]>([]);
   const jobIdRef = useRef<string | null>(null);
   const generationTargetRef = useRef<GenerationTarget | null>(null);
+  const streamCtlRef = useRef<AbortController | null>(null);
+
+  function closeStream() {
+    streamCtlRef.current?.abort();
+    streamCtlRef.current = null;
+  }
 
   const canGenerate =
     !!clip &&
@@ -54,10 +63,12 @@ export function useContinuityGenerationSession({
     !busy;
 
   function clearSession({ keepPrompt = true }: { keepPrompt?: boolean } = {}) {
+    closeStream();
     setVariants([]);
     setStatus("");
     setErr(null);
     setAcceptingIdx(null);
+    setLogs([]);
     jobIdRef.current = null;
     generationTargetRef.current = null;
     if (!keepPrompt) setPrompt("");
@@ -67,13 +78,19 @@ export function useContinuityGenerationSession({
     clearSession();
   }, [clip?.id]);
 
+  useEffect(() => {
+    return () => closeStream();
+  }, []);
+
   async function run() {
     if (!canGenerate || !clip || !clip.projectId) return;
+    closeStream();
     setBusy(true);
     setErr(null);
     setStatus("queued");
     setVariants([]);
     setAcceptingIdx(null);
+    setLogs([]);
     generationTargetRef.current = {
       id: clip.id,
       projectId: clip.projectId,
@@ -91,6 +108,25 @@ export function useContinuityGenerationSession({
         reference_frame_ts: previewFrameTs ?? (clip.sourceStart + clip.sourceEnd) / 2,
       });
       jobIdRef.current = job_id;
+      streamCtlRef.current = streamJobEvents(job_id, {
+        onEvent: (event) => {
+          setLogs((prev) => [
+            ...prev,
+            { ...event, id: `${event.ts}-${prev.length}` },
+          ]);
+        },
+        onError: (e) => {
+          setLogs((prev) => [
+            ...prev,
+            {
+              id: `err-${Date.now()}`,
+              ts: Date.now() / 1000,
+              stage: "stream_error",
+              msg: `event stream dropped: ${String(e)}`,
+            },
+          ]);
+        },
+      });
       const final: JobResp = await pollJob(job_id, (job) => setStatus(job.status));
       if (final.status !== "done" || !final.variants.length) {
         throw new Error(final.error || "generation failed");
@@ -158,6 +194,7 @@ export function useContinuityGenerationSession({
     setErr,
     acceptingIdx,
     canGenerate,
+    logs,
     run,
     acceptVariant,
     clearSession,
