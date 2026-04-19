@@ -190,23 +190,33 @@ function StudioInner({
         setShowShortcuts(false);
         return;
       }
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.code === "Space") {
-        e.preventDefault();
-        dispatch({ type: "set_playing", playing: !state.playing });
-      } else if (e.key === "s" || (e.key === "b" && (e.metaKey || e.ctrlKey))) {
-        e.preventDefault();
-        dispatch({ type: "split_at_playhead" });
-      } else if ((e.key === "Backspace" || e.key === "Delete") && state.selectedId) {
-        e.preventDefault();
-        dispatch({ type: "remove", id: state.selectedId });
-      } else if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey) {
-        e.preventDefault();
-        dispatch({ type: "redo" });
-      } else if (e.key === "z" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        dispatch({ type: "undo" });
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          dispatch({ type: 'set_playing', playing: !state.playing });
+          break;
+        case 's':
+        case 'b':
+          if (!e.metaKey && !e.ctrlKey) {
+            dispatch({ type: 'split_at_playhead' });
+          }
+          break;
+        case 'Backspace':
+        case 'Delete':
+          if (state.selectedId) dispatch({ type: 'remove', id: state.selectedId });
+          break;
+        case 'z':
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault();
+            if (e.shiftKey) {
+              dispatch({ type: 'redo' });
+            } else {
+              dispatch({ type: 'undo' });
+            }
+          }
+          break;
       }
     }
     window.addEventListener("keydown", onKey);
@@ -234,7 +244,78 @@ function StudioInner({
 
   return (
     <main className={`studio ${mode === 'vibe' ? 'studio--vibe' : ''}`} ref={rootRef}>
-      <TopBar onExit={onExit} onLibrary={onLibrary} projectLabel={projectLabel} mode={mode} onToggleMode={() => setMode(m => m === 'vibe' ? 'pro' : 'vibe')} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+          e.target.value = '';
+        }}
+      />
+      <TopBar
+        onExit={onExit}
+        onLibrary={onLibrary}
+        projectLabel={projectLabel}
+        mode={mode}
+        onToggleMode={() => setMode(m => m === 'vibe' ? 'pro' : 'vibe')}
+        onImport={() => fileInputRef.current?.click()}
+        onShowShortcuts={() => setShowShortcuts(true)}
+        onExport={handleExport}
+        exporting={exporting}
+        canExport={state.clips.length > 0}
+      />
+
+      {showShortcuts && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={() => setShowShortcuts(false)}
+        >
+          <div
+            style={{
+              background: '#1a1a1a',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 12,
+              padding: '28px 36px',
+              minWidth: 320,
+              maxWidth: 420,
+              color: 'rgba(255,255,255,0.85)',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontSize: 13,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 18px', fontSize: 15, letterSpacing: '0.06em', color: '#fff' }}>
+              Keyboard Shortcuts
+            </h3>
+            {([
+              ['Space', 'Play / Pause'],
+              ['S', 'Split at playhead'],
+              ['Delete / Backspace', 'Remove selected clip'],
+              ['\u2318 Z', 'Undo'],
+              ['\u2318 Shift Z', 'Redo'],
+            ] as const).map(([key, desc]) => (
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <span style={{ color: 'rgba(255,255,255,0.5)' }}>{desc}</span>
+                <kbd style={{ background: 'rgba(255,255,255,0.08)', padding: '2px 8px', borderRadius: 4, fontSize: 11 }}>{key}</kbd>
+              </div>
+            ))}
+            <p style={{ marginTop: 16, fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
+              Press Escape or click outside to close
+            </p>
+          </div>
+        </div>
+      )}
 
       <section className="studio__body">
         <aside className="studio__left">
@@ -372,14 +453,20 @@ function TopBar({
   onToggleMode,
   onImport,
   onShowShortcuts,
+  onExport,
+  exporting,
+  canExport,
 }: {
   onExit: () => void;
   onLibrary?: () => void;
   projectLabel?: string;
   mode: 'vibe' | 'pro';
   onToggleMode: () => void;
-  onImport: () => void;
-  onShowShortcuts: () => void;
+  onImport?: () => void;
+  onShowShortcuts?: () => void;
+  onExport?: () => void;
+  exporting?: boolean;
+  canExport?: boolean;
 }) {
   return (
     <header className="topbar">
@@ -436,8 +523,12 @@ function TopBar({
           <Icon name="keyboard" size={14} />
           <span>Shortcuts</span>
         </button>
-        <button className="cta topbar__export" disabled>
-          Export
+        <button
+          className="cta topbar__export"
+          disabled={!canExport || exporting}
+          onClick={onExport}
+        >
+          {exporting ? "Exporting…" : "Export"}
         </button>
       </div>
     </header>

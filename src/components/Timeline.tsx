@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { type Clip, duration, totalDuration, useEDL } from "../stores/edl";
+import { type Clip, clipAtTime, duration, sourceTimeFor, totalDuration, useEDL } from "../stores/edl";
 import { Icon, type IconName } from "./Icon";
 import "./timeline.css";
 
@@ -106,8 +106,30 @@ function Toolbar({
         onClick={() => dispatch({ type: "split_at_playhead" })}
         disabled={state.clips.length === 0}
       />
-      <ToolBtn icon="trim-in" title="trim in (drag clip edge)" disabled />
-      <ToolBtn icon="trim-out" title="trim out (drag clip edge)" disabled />
+      <ToolBtn
+        icon="trim-in"
+        title="trim in to playhead"
+        onClick={() => {
+          if (!selected) return;
+          const hit = clipAtTime(state.clips, state.playhead);
+          if (!hit || hit.clip.id !== selected.id) return;
+          const sourceTs = sourceTimeFor(hit.clip, hit.offsetInClip);
+          dispatch({ type: "trim", id: selected.id, side: "in", sourceTs });
+        }}
+        disabled={!selected}
+      />
+      <ToolBtn
+        icon="trim-out"
+        title="trim out to playhead"
+        onClick={() => {
+          if (!selected) return;
+          const hit = clipAtTime(state.clips, state.playhead);
+          if (!hit || hit.clip.id !== selected.id) return;
+          const sourceTs = sourceTimeFor(hit.clip, hit.offsetInClip);
+          dispatch({ type: "trim", id: selected.id, side: "out", sourceTs });
+        }}
+        disabled={!selected}
+      />
       <ToolBtn
         icon="trash"
         title="delete selected (⌫)"
@@ -119,7 +141,12 @@ function Toolbar({
       <div className="tbar__spacer" />
 
       <div className="tbar__zoom">
-        <Icon name="zoom-out" size={12} />
+        <Icon
+          name="zoom-out"
+          size={12}
+          style={{ cursor: 'pointer' }}
+          onClick={() => setPps(Math.max(20, pps - 20))}
+        />
         <input
           type="range"
           min={20}
@@ -131,7 +158,12 @@ function Toolbar({
             requestAnimationFrame(() => setPps(v));
           }}
         />
-        <Icon name="zoom-in" size={12} />
+        <Icon
+          name="zoom-in"
+          size={12}
+          style={{ cursor: 'pointer' }}
+          onClick={() => setPps(Math.min(340, pps + 20))}
+        />
       </div>
     </div>
   );
