@@ -19,7 +19,6 @@ import { Inspector } from "../components/Inspector";
 import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
-import { VibePrompt } from "../components/VibePrompt";
 import { VideoScrubber } from "../components/VideoScrubber";
 import { AgentProvider } from "../stores/agent";
 import {
@@ -792,7 +791,6 @@ function StudioInner({
                   }))}
                 />
               )}
-              {mode === 'vibe' && <VibePrompt continuity={continuity} />}
             </>
           ) : hydratingProject ? (
             <div
