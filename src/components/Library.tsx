@@ -26,13 +26,14 @@ export function Library({
     <div className="lib">
       <nav className="lib__tabs">
         <TabBtn active={tab === "media"} onClick={() => setTab("media")} icon="media" label="Media" />
-        <TabBtn disabled icon="audio" label="Audio" />
-        <TabBtn disabled icon="effects" label="Effects" />
-        <TabBtn disabled icon="adjust" label="Adjust" />
+        <TabBtn active={tab === "audio"} onClick={() => setTab("audio")} icon="audio" label="Audio" />
+        <TabBtn active={tab === "effects"} onClick={() => setTab("effects")} icon="effects" label="Effects" />
+        <TabBtn active={tab === "adjust"} onClick={() => setTab("adjust")} icon="adjust" label="Adjust" />
       </nav>
 
       <div className="lib__body">
         {tab === "media" && <MediaTab onUpload={onUpload} uploading={uploading} />}
+        {tab !== "media" && <ComingSoon tab={tab} />}
       </div>
     </div>
   );
@@ -40,13 +41,11 @@ export function Library({
 
 function TabBtn({
   active,
-  disabled,
   onClick,
   icon,
   label,
 }: {
   active?: boolean;
-  disabled?: boolean;
   onClick?: () => void;
   icon: IconName;
   label: string;
@@ -55,12 +54,27 @@ function TabBtn({
     <button
       className={`lib__tab ${active ? "lib__tab--on" : ""}`}
       onClick={onClick}
-      disabled={disabled}
-      title={disabled ? `${label} — coming soon` : label}
+      title={label}
     >
       <Icon name={icon} size={15} />
       <span>{label}</span>
     </button>
+  );
+}
+
+function ComingSoon({ tab }: { tab: Tab }) {
+  return (
+    <div
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: 11,
+        color: "var(--ink-fade)",
+        textAlign: "center",
+        padding: 40,
+      }}
+    >
+      {tab} coming soon
+    </div>
   );
 }
 

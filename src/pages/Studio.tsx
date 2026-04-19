@@ -64,7 +64,9 @@ function StudioInner({
   const { state, dispatch } = useEDL();
   const [uploading, setUploading] = useState(false);
   const [mode, setMode] = useState<'vibe' | 'pro'>('vibe');
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // lock body scroll when studio is mounted
   useEffect(() => {
@@ -184,6 +186,10 @@ function StudioInner({
   // keyboard shortcuts
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setShowShortcuts(false);
+        return;
+      }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.code === "Space") {
@@ -195,6 +201,12 @@ function StudioInner({
       } else if ((e.key === "Backspace" || e.key === "Delete") && state.selectedId) {
         e.preventDefault();
         dispatch({ type: "remove", id: state.selectedId });
+      } else if (e.key === "z" && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+        e.preventDefault();
+        dispatch({ type: "redo" });
+      } else if (e.key === "z" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        dispatch({ type: "undo" });
       }
     }
     window.addEventListener("keydown", onKey);
@@ -342,12 +354,16 @@ function TopBar({
   projectLabel,
   mode,
   onToggleMode,
+  onImport,
+  onShowShortcuts,
 }: {
   onExit: () => void;
   onLibrary?: () => void;
   projectLabel?: string;
   mode: 'vibe' | 'pro';
   onToggleMode: () => void;
+  onImport: () => void;
+  onShowShortcuts: () => void;
 }) {
   return (
     <header className="topbar">
@@ -370,10 +386,10 @@ function TopBar({
             <span className="topbar__divider" />
           </>
         )}
-        <TopMenuItem label="File" />
+        <TopMenuItem label="File" onClick={onImport} title="import clip" />
         <TopMenuItem label="Edit" />
-        <TopMenuItem label="View" />
-        <TopMenuItem label="Help" />
+        <TopMenuItem label="View" onClick={onToggleMode} title={`switch to ${mode === 'vibe' ? 'pro' : 'vibe'} mode`} />
+        <TopMenuItem label="Help" onClick={onShowShortcuts} title="keyboard shortcuts" />
       </div>
 
       <div className="topbar__center">
@@ -400,7 +416,7 @@ function TopBar({
         >
           {mode}
         </button>
-        <button className="topbar__ghost" title="keyboard shortcuts">
+        <button className="topbar__ghost" title="keyboard shortcuts" onClick={onShowShortcuts}>
           <Icon name="keyboard" size={14} />
           <span>Shortcuts</span>
         </button>
@@ -412,6 +428,6 @@ function TopBar({
   );
 }
 
-function TopMenuItem({ label }: { label: string }) {
-  return <button className="topbar__menu">{label}</button>;
+function TopMenuItem({ label, onClick, title }: { label: string; onClick?: () => void; title?: string }) {
+  return <button className="topbar__menu" onClick={onClick} title={title}>{label}</button>;
 }

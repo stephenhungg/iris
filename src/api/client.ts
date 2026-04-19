@@ -183,6 +183,17 @@ export function identifyRegion(
   });
 }
 
+export type ExportResp = {
+  export_url: string;
+};
+
+export function exportVideo(project_id: string): Promise<ExportResp> {
+  return request<ExportResp>("/api/export", {
+    method: "POST",
+    body: JSON.stringify({ project_id }),
+  });
+}
+
 /** poll a job until it reaches done|error, emitting intermediate states. */
 export async function pollJob(
   id: string,

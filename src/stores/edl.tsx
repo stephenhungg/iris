@@ -77,6 +77,10 @@ export type State = {
   playing: boolean;
   /** bounding box selection for AI generation (normalized 0-1) */
   bbox: BBox | null;
+  /** past states for undo */
+  _history: State[];
+  /** future states for redo */
+  _future: State[];
 };
 
 export const initialState: State = {
@@ -86,6 +90,8 @@ export const initialState: State = {
   playhead: 0,
   playing: false,
   bbox: null,
+  _history: [],
+  _future: [],
 };
 
 // ─── helpers ──────────────────────────────────────────────────────────
@@ -133,9 +139,52 @@ export type Action =
   | { type: "reorder"; from: number; to: number }
   | { type: "replace"; id: string; with: Clip }
   | { type: "set_bbox"; bbox: BBox | null }
-  | { type: "hydrate"; sources: MediaAsset[]; clips: Clip[] };
+  | { type: "hydrate"; sources: MediaAsset[]; clips: Clip[] }
+  | { type: "undo" }
+  | { type: "redo" };
 
-function reducer(state: State, a: Action): State {
+/** Actions that don't mutate the timeline and shouldn't create undo entries */
+const SKIP_HISTORY = new Set<string>(["undo", "redo", "set_playhead", "set_playing"]);
+
+const MAX_HISTORY = 50;
+
+/** Strip history arrays from a snapshot so we don't nest them recursively */
+function snap(s: State): State {
+  return { ...s, _history: [], _future: [] };
+}
+
+function undoableReducer(state: State, a: Action): State {
+  if (a.type === "undo") {
+    if (state._history.length === 0) return state;
+    const prev = state._history[state._history.length - 1];
+    return {
+      ...prev,
+      _history: state._history.slice(0, -1),
+      _future: [...state._future, snap(state)],
+    };
+  }
+  if (a.type === "redo") {
+    if (state._future.length === 0) return state;
+    const next = state._future[state._future.length - 1];
+    return {
+      ...next,
+      _history: [...state._history, snap(state)],
+      _future: state._future.slice(0, -1),
+    };
+  }
+
+  const newState = coreReducer(state, a);
+  if (newState === state) return state; // no-op, skip history
+
+  if (SKIP_HISTORY.has(a.type)) {
+    return { ...newState, _history: state._history, _future: state._future };
+  }
+
+  const history = [...state._history, snap(state)].slice(-MAX_HISTORY);
+  return { ...newState, _history: history, _future: [] };
+}
+
+function coreReducer(state: State, a: Action): State {
   switch (a.type) {
     case "hydrate": {
       // wholesale replace library + timeline. used when reopening a saved
@@ -276,7 +325,7 @@ const StoreCtx = createContext<{
 } | null>(null);
 
 export function EDLProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(undoableReducer, initialState);
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
 }

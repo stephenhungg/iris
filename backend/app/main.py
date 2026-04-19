@@ -12,6 +12,7 @@ from app.api.routes import (
     upload,
     projects,
     generate,
+    identify,
     jobs,
     accept,
     entities,
@@ -19,6 +20,7 @@ from app.api.routes import (
     timeline,
     narrate,
     export,
+    mask,
 )
 
 
@@ -69,6 +71,7 @@ app.include_router(health.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(generate.router, prefix="/api")
+app.include_router(identify.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(accept.router, prefix="/api")
 app.include_router(entities.router, prefix="/api")
@@ -76,3 +79,4 @@ app.include_router(propagate.router, prefix="/api")
 app.include_router(timeline.router, prefix="/api")
 app.include_router(narrate.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
+app.include_router(mask.router, prefix="/api")

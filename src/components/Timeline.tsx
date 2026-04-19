@@ -87,8 +87,18 @@ function Toolbar({
         onClick={() => dispatch({ type: "set_playing", playing: !state.playing })}
         disabled={state.clips.length === 0}
       />
-      <ToolBtn icon="undo" title="undo (coming soon)" disabled />
-      <ToolBtn icon="redo" title="redo (coming soon)" disabled />
+      <ToolBtn
+        icon="undo"
+        title="undo (⌘Z)"
+        onClick={() => dispatch({ type: "undo" })}
+        disabled={!state._history || state._history.length === 0}
+      />
+      <ToolBtn
+        icon="redo"
+        title="redo (⌘⇧Z)"
+        onClick={() => dispatch({ type: "redo" })}
+        disabled={!state._future || state._future.length === 0}
+      />
       <Sep />
       <ToolBtn
         icon="split"
