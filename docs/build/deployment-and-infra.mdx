@@ -6,9 +6,9 @@ description: "How Iris deploys to Vultr via Docker Compose and GitHub Actions."
 # Deployment
 
 <div className="docs-hero">
-  <div className="docs-hero__row">
+  <div class="docs-hero__row">
     <div>
-      <div className="docs-hero__eyebrow">infrastructure</div>
+      <div class="docs-hero__eyebrow">infrastructure</div>
       <h1>Push to main. It deploys.</h1>
       <p>
         Iris runs on a Vultr VPS via Docker Compose. GitHub Actions handles
@@ -18,62 +18,44 @@ description: "How Iris deploys to Vultr via Docker Compose and GitHub Actions."
   </div>
 </div>
 
-## Production stack
+## Production Environment
 
-| Component | Technology | Port |
-|-----------|-----------|------|
-| Frontend | Vite + React (nginx) | 3000 |
-| Backend | FastAPI (uvicorn) | 8000 |
-| Database | PostgreSQL 16 | 5432 |
-| Storage | Vultr Object Storage (S3-compatible) | — |
-| GPU worker | Modal (serverless, optional) | — |
+Iris uses Docker Compose for orchestrating services in production.
+The frontend service's Docker image is built with specific environment variables passed as build arguments, which are then baked into the frontend bundle.
+These include:
 
-## CI pipeline
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_REDIRECT`
+- `VITE_BACKEND_URL`
 
-Every push to main triggers three checks:
+Ensure these variables are configured in your deployment environment (e.g., via a `.env` file or environment variables on the host) so they can be passed to the Docker build process.
 
-1. **typecheck** — `bunx tsc --noEmit` on the frontend
-2. **CLI tests** — 75 unit tests via pytest
-3. **backend syntax** — AST parse check on all Python files
+## Production Architecture
 
-## Deploy pipeline
+Iris runs as a multi-service application on a single Vultr VPS:
 
-On push to main (after CI passes):
+- **Frontend**: A Vite application served by Nginx.
+- **Backend**: A FastAPI application.
+- **Database**: Postgres.
+- **Redis**: For caching and task queues.
+- **GPU Worker (optional)**: For accelerated media processing.
 
-1. SSH into Vultr server via ed25519 key
-2. `git fetch origin main && git reset --hard origin/main`
-3. `docker compose build --parallel && docker compose up -d`
-4. Health check: polls `/api/health` until backend responds
-5. `docker image prune -f` to clean up old images
+All services are containerized with Docker and orchestrated using Docker Compose.
 
-## Docs pipeline
+## Deployment Workflow
 
-On push to main (if non-docs files changed):
+1.  **Push to `main`**: Any push to the `main` branch triggers a GitHub Actions workflow.
+2.  **CI Checks**: The workflow runs tests and linting.
+3.  **Docker Build**: New Docker images for the frontend and backend are built.
+4.  **Deployment**: The updated images are pulled and deployed to the Vultr VPS via SSH and `docker compose up -d`.
 
-1. Feeds the git diff to Gemini
-2. Gemini analyzes what documentation needs updating
-3. Commits and pushes doc changes automatically
-4. Mintlify auto-redeploys from `docs/`
+This ensures that `main` is always production-ready and automatically deployed.
 
-## Server layout
+## Configuration
 
-```
-/opt/iris/              # git repo
-/opt/iris/infra/        # docker-compose.yml
-/opt/iris/.env          # production environment
-```
+Environment variables are managed via a `.env` file on the VPS, which is loaded by Docker Compose.
 
-## Docker Compose services
+## Monitoring
 
-- `frontend` — builds from `infra/Dockerfile.frontend`, serves on port 3000
-- `backend` — builds from `infra/Dockerfile.backend`, serves on port 8000, reads `.env`
-- `db` — PostgreSQL 16 Alpine with persistent volume
-- `gpu-worker` — optional, activated with `--profile gpu`
-
-## GitHub secrets
-
-| Secret | Purpose |
-|--------|---------|
-| `DEPLOY_HOST` | Vultr server IP |
-| `DEPLOY_SSH_KEY` | Ed25519 private key for SSH |
-| `GEMINI_API_KEY` | For auto-docs agent |
+Basic health checks are available via `/api/health` and `/api/ai/health` endpoints. For more detailed observability, refer to the [Observability](/build/observability) documentation.

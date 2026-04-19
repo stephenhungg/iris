@@ -15,90 +15,16 @@ description: "Environment setup, dev servers, and local workflow for Iris."
         FastAPI backend on port 8000. Both read from a shared .env at the repo root.
       </p>
     </div>
-    <div className="docs-slab">
-      <div className="docs-section__eyebrow">prerequisites</div>
-      <ul className="docs-mini-list">
-        <li>Node.js 20+ or Bun</li>
-        <li>Python 3.11+</li>
-        <li>FFmpeg + FFprobe</li>
-        <li>PostgreSQL (or Docker)</li>
-      </ul>
-    </div>
   </div>
 </div>
 
-## Environment variables
+## Environment Variables
 
-Create a `.env` file at the repo root. See `.env.example` for the full list.
+The frontend and backend services rely on a shared `.env` file at the repository root for configuration. For local development, ensure the following variables are set:
 
-Key variables:
+- `VITE_SUPABASE_URL`: The URL for your Supabase project.
+- `VITE_SUPABASE_ANON_KEY`: The anonymous key for your Supabase project.
+- `VITE_SUPABASE_REDIRECT`: The redirect URL for Supabase authentication.
+- `VITE_BACKEND_URL`: The URL where the Iris backend is accessible (e.g., `http://localhost:8000`).
 
-| Variable | Purpose | Required |
-|----------|---------|----------|
-| `GEMINI_API_KEY` | Gemini vision + text generation | Yes (or use stubs) |
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `USE_AI_STUBS` | `true` for offline dev, `false` for real AI | No (defaults to true) |
-| `VULTR_ACCESS_KEY` / `VULTR_SECRET_KEY` | Object storage for media | No (local storage fallback) |
-| `SUPABASE_URL` / `SUPABASE_JWT_SECRET` | Authentication | No (anon sessions work) |
-| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Frontend auth client | No |
-| `GPU_WORKER_URL` | SAM2 segmentation worker | No |
-| `ELEVENLABS_API_KEY` | TTS narration | No |
-
-## Starting the frontend
-
-```bash
-cd frontend
-bun install
-bun run dev
-```
-
-Runs on `http://localhost:3000`.
-
-## Starting the backend
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Or use the helper script:
-
-```bash
-./scripts/dev_backend.sh
-```
-
-Runs on `http://localhost:8000`.
-
-## Docker alternative
-
-```bash
-cd infra
-docker compose up --build
-```
-
-This starts frontend, backend, and PostgreSQL together. The backend runs on port 8000, frontend on port 3000.
-
-## Stub mode
-
-Set `USE_AI_STUBS=true` in your `.env` to run without any API keys. All AI calls return deterministic placeholder responses. Good for UI development and testing.
-
-## Iris CLI (optional)
-
-```bash
-cd cli
-pip install -e .
-iris auth status
-```
-
-The CLI wraps the backend API for scripting and agent-driven editing. See [CLI reference](/reference/cli) for all commands.
-
-## Verification
-
-```bash
-curl http://localhost:8000/api/health
-curl http://localhost:8000/api/ai/health
-npx tsc --noEmit --project frontend
-```
-
-All three should pass before you start developing.
+These `VITE_*` variables are baked into the frontend bundle during its build process.
