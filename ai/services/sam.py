@@ -70,16 +70,17 @@ async def bbox_to_mask(
 async def is_available() -> bool:
     """Check if the GPU worker is reachable."""
     try:
-        settings = get_settings()
-        gpu_url = settings.gpu_worker_url
+        import os
+        gpu_url = os.environ.get("GPU_WORKER_URL", "")
+        if not gpu_url:
+            gpu_url = get_settings().gpu_worker_url
 
-        # modal endpoints have a separate health URL
-        health_url = (
-            gpu_url.replace("segment", "health") if "modal.run" in gpu_url
-            else f"{gpu_url}/health"
-        )
+        if "modal.run" in gpu_url:
+            health_url = gpu_url.replace("segment", "health")
+        else:
+            health_url = f"{gpu_url}/health"
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(health_url)
             return resp.status_code == 200
     except Exception:
