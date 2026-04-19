@@ -47,7 +47,8 @@
         "group": "Reference",
         "pages": [
           "reference/architecture",
-          "reference/backend-api"
+          "reference/backend-api",
+          "reference/cli"
         ]
       }
     ]

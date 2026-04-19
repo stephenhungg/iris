@@ -1,44 +1,296 @@
 ---
-title: "Backend API"
-description: "A practical overview of the backend routes Iris exposes today."
+title: "backend api."
+description: "practical route reference for every endpoint the iris backend exposes."
 ---
 
-# Backend API
+# backend api.
 
-This page is a practical route overview, not a formal OpenAPI reference.
+this page is a practical route reference, not a formal OpenAPI spec. all routes are prefixed with `/api`.
 
-## Core routes
+## health and status.
 
-### Health
+### `GET /api/health`
 
-- `GET /api/health`
-- `GET /api/ai/health`
-- `GET /api/ai/timeline`
-- `GET /api/ai/stream`
+returns server liveness status.
 
-### Projects and uploads
+### `GET /api/me`
 
-- `POST /api/upload`
-- `GET /api/projects`
-- `GET /api/projects/{project_id}`
+returns the currently authenticated user profile.
 
-### Generation and editing
+### `GET /api/ai/health`
 
-- `POST /api/generate`
-- `POST /api/identify`
-- `POST /api/mask`
-- `POST /api/accept`
-- `POST /api/propagate`
-- `POST /api/narrate`
-- `POST /api/export`
+returns ai provider reachability and configuration status.
 
-### Jobs
+### `GET /api/ai/timeline`
 
-- job and worker routes that track generation and propagation progress
+returns the current ai-managed timeline state.
 
-## Notes
+### `GET /api/ai/stream`
 
-- Uploads rely on FFmpeg and FFprobe to inspect incoming media.
-- Some AI-heavy routes rely on the GPU worker being available.
-- Storage can resolve through local media paths or object storage depending on environment configuration.
+streaming endpoint for ai status events.
 
+## projects and uploads.
+
+### `GET /api/projects`
+
+returns all projects for the current user.
+
+**response:** array of project objects with `id`, `title`, `thumbnail_url`, `created_at`, `updated_at`.
+
+### `GET /api/projects/{project_id}`
+
+returns a single project by id, including its media and metadata.
+
+**response:** project object with `id`, `title`, `source_url`, `duration`, `fps`, `width`, `height`, `variants`, `entities`.
+
+### `POST /api/upload`
+
+multipart file upload. creates a new project from the uploaded video.
+
+**request:** `multipart/form-data` with a `file` field.
+
+**response:** the created project object. the backend runs ffprobe to extract duration, resolution, and fps during ingestion.
+
+## editing and generation.
+
+### `POST /api/generate`
+
+starts a localized generation job for a selected region and time range.
+
+**request body:**
+
+```json
+{
+  "project_id": "string",
+  "start_ts": 1.5,
+  "end_ts": 3.0,
+  "bbox": { "x": 0.1, "y": 0.2, "w": 0.5, "h": 0.4 },
+  "prompt": "change the jacket to red leather",
+  "reference_frame_ts": 2.0
+}
+```
+
+**response:** `{ "job_id": "string" }`. poll the job endpoint for progress and variants.
+
+### `GET /api/jobs/{job_id}`
+
+returns the current status of a generation or export job.
+
+**response:** `{ "job_id", "status": "pending|running|completed|failed", "variants": [...], "error": null }`.
+
+### `POST /api/accept`
+
+accepts a specific variant from a completed generation job.
+
+**request body:**
+
+```json
+{
+  "job_id": "string",
+  "variant_index": 0
+}
+```
+
+**response:** the accepted variant object. triggers downstream entity detection.
+
+### `POST /api/identify`
+
+runs entity identification on a selected region of a frame.
+
+**request body:**
+
+```json
+{
+  "project_id": "string",
+  "frame_ts": 2.0,
+  "bbox": { "x": 0.1, "y": 0.2, "w": 0.5, "h": 0.4 }
+}
+```
+
+**response:** identified entity with `entity_id`, `label`, `confidence`.
+
+### `POST /api/mask`
+
+generates a segmentation mask for a selected region.
+
+**request body:**
+
+```json
+{
+  "project_id": "string",
+  "frame_ts": 2.0,
+  "bbox": { "x": 0.1, "y": 0.2, "w": 0.5, "h": 0.4 }
+}
+```
+
+**response:** mask data with `mask_url` and bounding geometry.
+
+## entities and propagation.
+
+### `GET /api/entities/{entity_id}`
+
+returns an entity and all its tracked appearances across the project timeline.
+
+**response:** `{ "entity_id", "label", "appearances": [{ "frame_ts", "bbox", "confidence" }] }`.
+
+### `POST /api/propagate`
+
+fans out a generation to all known appearances of an entity.
+
+**request body:**
+
+```json
+{
+  "entity_id": "string",
+  "source_variant_url": "string",
+  "prompt": "string",
+  "auto_apply": false
+}
+```
+
+**response:** `{ "propagation_job_id": "string" }`. each appearance gets its own generation sub-job.
+
+### `GET /api/propagate/{propagation_job_id}`
+
+returns propagation progress and per-appearance results.
+
+**response:** `{ "propagation_job_id", "status", "results": [{ "result_id", "appearance_frame_ts", "variant_url", "applied": false }] }`.
+
+### `POST /api/propagate/{propagation_job_id}/apply/{result_id}`
+
+applies a single propagation result to the timeline.
+
+**response:** the updated result with `applied: true`.
+
+## timeline and output.
+
+### `GET /api/timeline/{project_id}`
+
+returns the full editorial timeline for a project, including all accepted edits and their positions.
+
+**response:** array of timeline entries with `variant_id`, `start_ts`, `end_ts`, `source`, `applied_at`.
+
+### `POST /api/narrate`
+
+generates a voiceover narration for an accepted variant.
+
+**request body:**
+
+```json
+{
+  "variant_id": "string",
+  "description": "optional context for narration tone"
+}
+```
+
+**response:** `{ "narration_url": "string" }`.
+
+### `POST /api/export`
+
+starts a full project export job that stitches all accepted edits into a final video.
+
+**request body:**
+
+```json
+{
+  "project_id": "string"
+}
+```
+
+**response:** `{ "export_job_id": "string" }`.
+
+### `GET /api/export/{export_job_id}`
+
+returns export job status and the download url when complete.
+
+**response:** `{ "export_job_id", "status", "download_url": "string | null" }`.
+
+## agent chat.
+
+### `POST /api/agent/chat`
+
+opens an SSE stream for agent-assisted editing. the agent uses gemini function calling to analyze the video, identify regions, and trigger edits on behalf of the user.
+
+**request body:**
+
+```json
+{
+  "project_id": "string",
+  "message": "make the sky more dramatic",
+  "conversation_id": "string | null",
+  "history": [{ "role": "user", "content": "..." }]
+}
+```
+
+**response:** server-sent events stream. each event has a `type` field:
+
+| event type | payload | description |
+|---|---|---|
+| `token` | `{ "text": "..." }` | incremental text from the agent |
+| `tool_call_start` | `{ "name": "identify", "args": {...} }` | agent is invoking a tool |
+| `tool_call_end` | `{ "name": "identify", "result": {...} }` | tool execution completed |
+| `suggestion` | `{ "action": "generate", "params": {...} }` | agent suggests an edit action |
+| `variant_ready` | `{ "variant_url": "...", "job_id": "..." }` | a generated variant is available for review |
+| `done` | `{}` | stream complete |
+| `error` | `{ "message": "..." }` | something went wrong |
+
+## conversations.
+
+persistent chat history for agent interactions within a project.
+
+### `GET /api/projects/{project_id}/conversations`
+
+returns all conversations for a project.
+
+**response:** array of `{ "conversation_id", "title", "created_at", "updated_at" }`.
+
+### `POST /api/projects/{project_id}/conversations`
+
+creates a new conversation in the project.
+
+**response:** the created conversation object.
+
+### `GET /api/conversations/{conversation_id}/messages`
+
+returns all messages in a conversation, ordered chronologically.
+
+**response:** array of `{ "message_id", "role": "user|assistant|system", "content", "created_at" }`.
+
+### `POST /api/conversations/{conversation_id}/messages`
+
+appends messages to a conversation.
+
+**request body:**
+
+```json
+{
+  "messages": [
+    { "role": "user", "content": "change the background to a sunset" },
+    { "role": "assistant", "content": "i'll identify the background region first..." }
+  ]
+}
+```
+
+### `PATCH /api/conversations/{conversation_id}`
+
+updates conversation metadata.
+
+**request body:**
+
+```json
+{
+  "title": "background edits"
+}
+```
+
+### `DELETE /api/conversations/{conversation_id}`
+
+deletes a conversation and all its messages.
+
+## notes.
+
+- uploads rely on ffmpeg and ffprobe to inspect incoming media.
+- some ai-heavy routes depend on the gpu worker being available.
+- storage resolves through local media paths or object storage depending on environment configuration.
+- agent chat requires gemini api keys to be configured.
+- conversation data is stored in postgres via the Conversation and ChatMessage models.

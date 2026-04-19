@@ -1,0 +1,79 @@
+---
+title: "deployment."
+description: "how iris deploys to vultr via docker compose and github actions."
+---
+
+# deployment.
+
+<div className="docs-hero">
+  <div className="docs-hero__row">
+    <div>
+      <div className="docs-hero__eyebrow">infrastructure</div>
+      <h1>push to main. it deploys.</h1>
+      <p>
+        iris runs on a vultr VPS via docker compose. github actions handles
+        CI checks and auto-deployment on every push to main.
+      </p>
+    </div>
+  </div>
+</div>
+
+## production stack.
+
+| component | technology | port |
+|-----------|-----------|------|
+| frontend | vite + react (nginx) | 3000 |
+| backend | fastapi (uvicorn) | 8000 |
+| database | postgresql 16 | 5432 |
+| storage | vultr object storage (S3-compatible) | — |
+| GPU worker | modal (serverless, optional) | — |
+
+## CI pipeline.
+
+every push to main triggers three checks:
+
+1. **typecheck** — `bunx tsc --noEmit` on the frontend
+2. **CLI tests** — 75 unit tests via pytest
+3. **backend syntax** — AST parse check on all python files
+
+## deploy pipeline.
+
+on push to main (after CI passes):
+
+1. SSH into vultr server via ed25519 key
+2. `git fetch origin main && git reset --hard origin/main`
+3. `docker compose build --parallel && docker compose up -d`
+4. health check: polls `/api/health` until backend responds
+5. `docker image prune -f` to clean up old images
+
+## docs pipeline.
+
+on push to main (if non-docs files changed):
+
+1. feeds the git diff to gemini
+2. gemini analyzes what documentation needs updating
+3. commits and pushes doc changes automatically
+4. mintlify auto-redeploys from `docs/`
+
+## server layout.
+
+```
+/opt/iris/              # git repo
+/opt/iris/infra/        # docker-compose.yml
+/opt/iris/.env          # production environment
+```
+
+## docker compose services.
+
+- `frontend` — builds from `infra/Dockerfile.frontend`, serves on port 3000
+- `backend` — builds from `infra/Dockerfile.backend`, serves on port 8000, reads `.env`
+- `db` — postgres 16 alpine with persistent volume
+- `gpu-worker` — optional, activated with `--profile gpu`
+
+## github secrets.
+
+| secret | purpose |
+|--------|---------|
+| `DEPLOY_HOST` | vultr server IP |
+| `DEPLOY_SSH_KEY` | ed25519 private key for SSH |
+| `GEMINI_API_KEY` | for auto-docs agent |

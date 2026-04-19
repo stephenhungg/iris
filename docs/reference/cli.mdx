@@ -1,0 +1,107 @@
+---
+title: "CLI reference."
+description: "the iris command-line interface for scripting and agent-driven editing."
+---
+
+# CLI reference.
+
+<div className="docs-hero">
+  <div className="docs-hero__row">
+    <div>
+      <div className="docs-hero__eyebrow">tooling</div>
+      <h1>edit videos from the terminal.</h1>
+      <p>
+        the iris CLI wraps every backend endpoint for scripting, automation,
+        and agent-driven editing. any agent that can run bash can use it.
+      </p>
+    </div>
+  </div>
+</div>
+
+## install.
+
+```bash
+cd cli
+pip install -e .
+iris --help
+```
+
+## configuration.
+
+config lives at `~/.iris/config.json`. auto-created on first run.
+
+```bash
+iris auth login --base-url http://localhost:8000
+iris auth login --token YOUR_SUPABASE_TOKEN
+iris auth status
+```
+
+## commands.
+
+### projects.
+
+```bash
+iris upload VIDEO_PATH                    # upload video, get project_id
+iris projects                             # list all projects
+iris project PROJECT_ID                   # project detail + segments + entities
+```
+
+### editing.
+
+```bash
+iris identify --project PID --frame 3.5 --bbox "0.1,0.2,0.3,0.4"
+iris mask --project PID --frame 3.5 --bbox "0.1,0.2,0.3,0.4"
+iris generate --project PID --start 2.0 --end 4.0 --bbox "0.1,0.2,0.3,0.4" --prompt "make it rain"
+iris job JOB_ID
+iris accept --job JOB_ID --variant 0
+```
+
+### continuity.
+
+```bash
+iris entity ENTITY_ID
+iris propagate --entity EID --source-url URL --prompt "make it rain"
+```
+
+### output.
+
+```bash
+iris timeline PROJECT_ID
+iris narrate --variant VID --description "the scene transforms"
+iris export PROJECT_ID
+```
+
+### video analysis.
+
+```bash
+iris analyze PROJECT_ID                   # multi-agent video understanding
+iris analyze PROJECT_ID --fps 2.0         # sample more frames
+iris analyze PROJECT_ID --no-cache        # skip cached results
+```
+
+the analyze command extracts frames, fans them out to parallel gemini vision calls, and synthesizes a comprehensive understanding of the video content including scenes, entities, mood, lighting, and suggested edits.
+
+## output format.
+
+all commands output JSON by default. use `--human` for pretty-printed tables.
+
+```bash
+iris projects --human                     # rich table output
+iris job JOB_ID --json                    # force JSON (default)
+```
+
+## constraints.
+
+- generate segments must be **2-5 seconds** long
+- bounding box values are **normalized 0-1** (x, y, w, h)
+- `GEMINI_API_KEY` env var required for `iris analyze`
+
+## agent integration.
+
+the CLI ships with a `SKILL.md` file at `cli/SKILL.md` that teaches any AI agent how to use iris. paste it as a system prompt or install it as a claude code skill:
+
+```bash
+cp cli/SKILL.md ~/.claude/skills/iris-edit/SKILL.md
+```
+
+any agent that can run bash commands can follow the skill file to analyze videos, make edits, propagate changes, and export.

@@ -86,6 +86,10 @@ the frontend runs on `http://localhost:3000`.
 
 run the fastapi backend with the repo-root environment loaded.
 
+```bash
+cd backend && uvicorn app.main:app --reload --port 8000
+```
+
 the backend serves uploads, projects, generation, identify, mask, propagation, narration, and export on `http://localhost:8000`.
 
   </Step>
@@ -159,8 +163,12 @@ curl http://localhost:8000/api/health
 curl http://localhost:8000/api/ai/health
 ```
 
+## optional: the cli.
+
+iris includes a command-line interface in the `cli/` directory that wraps the backend api. you can use it to list projects, upload clips, and trigger edits from your terminal. it also supports multi-agent video analysis for batch workflows.
+
 ## read next.
 
 - [editor workflow](/product/editor-workflow) to understand the full product loop
-- [local development](/build/local-development) for the current environment model
-- [observability](/build/observability) for live debugging and demo telemetry
+- [architecture](/reference/architecture) for a high-level map of the codebase
+- [backend api](/reference/backend-api) for the full route reference

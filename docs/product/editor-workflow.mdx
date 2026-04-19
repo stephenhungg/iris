@@ -120,6 +120,24 @@ iris exists between those models. it is designed for:
   framing, and the user’s selection. that is what makes iris feel like editing.
 </div>
 
+## editing modes.
+
+iris has two editing modes. toggle between them via the view menu or the mode pill in the top bar.
+
+### vibe mode.
+
+a simplified 60/40 layout with the video player on the left and an agent chat panel on the right. users describe edits in natural language and the agent handles the rest — it uses gemini function calling to analyze the video, identify regions, generate edits, and present variants for review.
+
+vibe mode includes a video scrubber below the player for navigating the clip and tool call visualization in the chat so you can see exactly what the agent is doing at each step.
+
+this is the best starting point for users who want to edit conversationally without manually selecting regions or configuring parameters.
+
+### pro mode.
+
+the full editor with a library sidebar, inspector panel (ai/basic/info tabs), timeline, and continuity dashboard. pro mode gives more granular control over individual edits — manual bounding box selection, direct generation parameter tuning, and frame-level timeline management.
+
+use pro mode when you need precise control over timing, region selection, or want to manage continuity propagation manually.
+
 ## main surfaces in the editor.
 
 ### library.
