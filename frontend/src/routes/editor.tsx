@@ -8,10 +8,6 @@ import {
   hasCompletedOnboarding,
   markOnboardingComplete,
 } from '../features/onboarding/storage';
-import {
-  AuthGateView,
-  FirstRunOnboardingView,
-} from '../features/onboarding/EntryGate';
 
 function EditorLoader({ onDone }: { onDone: () => void }) {
   const [progress, setProgress] = useState(0);
@@ -153,38 +149,15 @@ export function EditorRoute() {
 
   if (status === 'loading') return null;
   if (status === 'anon') {
-    return (
-      <AuthGateView
-        scope="editor"
-        onBack={() => navigate('/')}
-        onContinue={() => signInWithGoogle()}
-      />
-    );
+    // skip the gate — go straight to google sign-in
+    void signInWithGoogle();
+    return null;
   }
 
+  // auto-complete onboarding — no intermediary screens
   if (!onboardingDone) {
-    const targetPath = projectId ? `/editor/${projectId}` : '/editor';
-    const displayName = user?.user_metadata?.full_name
-      || user?.user_metadata?.name
-      || user?.email?.split('@')[0]
-      || 'editor';
-
-    return (
-      <FirstRunOnboardingView
-        displayName={String(displayName)}
-        scope="editor"
-        onEnterStudio={() => {
-          markOnboardingComplete(user?.id);
-          setOnboardingDone(true);
-          navigate(targetPath, { replace: true });
-        }}
-        onOpenLibrary={() => {
-          markOnboardingComplete(user?.id);
-          setOnboardingDone(true);
-          navigate('/projects', { replace: true });
-        }}
-      />
-    );
+    markOnboardingComplete(user?.id);
+    setOnboardingDone(true);
   }
 
   const loadingProject = !!projectId && !project && !projectErr;
