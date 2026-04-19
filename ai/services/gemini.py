@@ -117,8 +117,8 @@ async def identify_entity(
     """
     client = get_client()
 
-    image = types.Part.from_uri(
-        file_uri=reference_crop_path,
+    image = types.Part.from_bytes(
+        data=Path(reference_crop_path).read_bytes(),
         mime_type="image/png",
     )
 
@@ -159,7 +159,7 @@ async def search_keyframes_for_entity(
         f"Find this entity in the following keyframes: {entity_description}"
     )]
     for path in keyframe_paths[:10]:
-        parts.append(types.Part.from_uri(file_uri=path, mime_type="image/png"))
+        parts.append(types.Part.from_bytes(data=Path(path).read_bytes(), mime_type="image/png"))
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
@@ -195,7 +195,7 @@ async def score_variant(
         f"Original prompt: {original_prompt}"
     )]
     for path in variant_frame_paths:
-        parts.append(types.Part.from_uri(file_uri=path, mime_type="image/png"))
+        parts.append(types.Part.from_bytes(data=Path(path).read_bytes(), mime_type="image/png"))
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
