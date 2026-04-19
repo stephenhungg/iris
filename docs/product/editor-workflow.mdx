@@ -1,17 +1,17 @@
 ---
-title: "editor workflow."
-description: "move from source clip to accepted result with iris's localized, prompt-driven editing loop."
+title: "Editor Workflow"
+description: "Move from source clip to accepted result with Iris's localized, prompt-driven editing loop."
 ---
 
-# editor workflow.
+# Editor Workflow
 
 <div className="docs-hero">
   <div className="docs-hero__row">
     <div>
       <div className="docs-hero__eyebrow">product loop</div>
-      <h1>select. prompt. accept. continue.</h1>
+      <h1>Select. Prompt. Accept. Continue.</h1>
       <p>
-        the iris editor is built around changing a specific part of a specific
+        The Iris editor is built around changing a specific part of a specific
         moment, then preserving enough continuity that the result feels authored
         instead of accidental.
       </p>
@@ -19,158 +19,158 @@ description: "move from source clip to accepted result with iris's localized, pr
     <div className="docs-slab">
       <div className="docs-section__eyebrow">the difference</div>
       <ul className="docs-mini-list">
-        <li>not full-scene generation</li>
-        <li>not frame-by-frame manual compositing</li>
-        <li>editorial control with generation inside the loop</li>
+        <li>Not full-scene generation</li>
+        <li>Not frame-by-frame manual compositing</li>
+        <li>Editorial control with generation inside the loop</li>
       </ul>
     </div>
   </div>
 </div>
 
 <Tip>
-  think of iris as an editor with generation built into the loop, not a generator with a thin editing shell wrapped around it.
+  Think of Iris as an editor with generation built into the loop, not a generator with a thin editing shell wrapped around it.
 </Tip>
 
 <div className="docs-metric-grid">
   <div className="docs-metric">
     <div className="docs-metric__value">01</div>
     <div className="docs-metric__label">upload</div>
-    <p>start from a project-backed source clip.</p>
+    <p>Start from a project-backed source clip.</p>
   </div>
   <div className="docs-metric">
     <div className="docs-metric__value">02</div>
     <div className="docs-metric__label">select</div>
-    <p>lock onto the exact moment and region you want to change.</p>
+    <p>Lock onto the exact moment and region you want to change.</p>
   </div>
   <div className="docs-metric">
     <div className="docs-metric__value">03</div>
     <div className="docs-metric__label">generate</div>
-    <p>prompt an edit and compare multiple interpretations.</p>
+    <p>Prompt an edit and compare multiple interpretations.</p>
   </div>
   <div className="docs-metric">
     <div className="docs-metric__value">04</div>
     <div className="docs-metric__label">propagate</div>
-    <p>carry the accepted look through surrounding context.</p>
+    <p>Carry the accepted look through surrounding context.</p>
   </div>
 </div>
 
 <div className="docs-stage">
   <div className="docs-section__eyebrow">core workflow</div>
-  <h2 className="docs-section__title">the editing loop.</h2>
+  <h2 className="docs-section__title">The editing loop</h2>
   <p className="docs-section__lead">
-    each step exists to preserve timing, selection accuracy, and user judgment.
-    the product is intentionally built around review and acceptance, not one-shot output.
+    Each step exists to preserve timing, selection accuracy, and user judgment.
+    The product is intentionally built around review and acceptance, not one-shot output.
   </p>
 
   <Steps>
-  <Step title="upload or open a project">
-    start from a source video in your library or create a new project by uploading a fresh clip.
+  <Step title="Upload or open a project">
+    Start from a source video in your library or create a new project by uploading a fresh clip.
   </Step>
-  <Step title="find the moment">
-    scrub the video until you reach the exact frame or short range that needs to change.
+  <Step title="Find the moment">
+    Scrub the video until you reach the exact frame or short range that needs to change.
   </Step>
-  <Step title="select the subject">
-    draw a bounding box over the object or region you care about. iris can use identify and mask flows to refine that target.
+  <Step title="Select the subject">
+    Draw a bounding box over the object or region you care about. Iris can use identify and mask flows to refine that target.
   </Step>
-  <Step title="describe the edit">
-    write the change in plain language. the prompt is about editorial intent, not raw rendering parameters.
+  <Step title="Describe the edit">
+    Write the change in plain language. The prompt is about editorial intent, not raw rendering parameters.
   </Step>
-  <Step title="generate options">
-    iris creates candidate variants for the selected moment instead of trying to replace the entire scene.
+  <Step title="Generate options">
+    Iris creates candidate variants for the selected moment instead of trying to replace the entire scene.
   </Step>
-  <Step title="review and accept">
-    compare the outputs, choose the strongest interpretation, and commit that decision into the editing flow.
+  <Step title="Review and accept">
+    Compare the outputs, choose the strongest interpretation, and commit that decision into the editing flow.
   </Step>
-  <Step title="carry it forward">
-    use continuity-aware tooling to keep the accepted result coherent through nearby frames and surrounding context.
+  <Step title="Carry it forward">
+    Use continuity-aware tooling to keep the accepted result coherent through nearby frames and surrounding context.
   </Step>
   </Steps>
 </div>
 
-## why this workflow exists.
+## Why this workflow exists
 
-full-scene generation is too global for many real edits.
+Full-scene generation is too global for many real edits.
 
-traditional editing is precise, but every meaningful visual change is still manual.
+Traditional editing is precise, but every meaningful visual change is still manual.
 
-iris exists between those models. it is designed for:
+Iris exists between those models. It is designed for:
 
-- local edits instead of total scene replacement
-- selection and timing instead of broad prompting
-- multiple options instead of one irreversible output
-- editorial choice instead of blind automation
+- Local edits instead of total scene replacement
+- Selection and timing instead of broad prompting
+- Multiple options instead of one irreversible output
+- Editorial choice instead of blind automation
 
 <div className="docs-flow-grid">
   <div className="docs-flow">
-    <h3>library.</h3>
-    <p>holds uploaded and generated media that belongs to the current project context.</p>
+    <h3>Library</h3>
+    <p>Holds uploaded and generated media that belongs to the current project context.</p>
   </div>
   <div className="docs-flow">
-    <h3>preview.</h3>
-    <p>where timing, frame inspection, and visual selection happen.</p>
+    <h3>Preview</h3>
+    <p>Where timing, frame inspection, and visual selection happen.</p>
   </div>
   <div className="docs-flow">
-    <h3>inspector.</h3>
-    <p>turns the current selection into an actionable ai-assisted editing flow.</p>
+    <h3>Inspector</h3>
+    <p>Turns the current selection into an actionable AI-assisted editing flow.</p>
   </div>
 </div>
 
 <div className="docs-band">
-  <strong>the important constraint:</strong> generation stays subordinate to timing,
-  framing, and the user’s selection. that is what makes iris feel like editing.
+  <strong>The important constraint:</strong> generation stays subordinate to timing,
+  framing, and the user’s selection. That is what makes Iris feel like editing.
 </div>
 
-## editing modes.
+## Editing modes
 
-iris has two editing modes. toggle between them via the view menu or the mode pill in the top bar.
+Iris has two editing modes. Toggle between them via the view menu or the mode pill in the top bar.
 
-### vibe mode.
+### Vibe mode
 
-a simplified 60/40 layout with the video player on the left and an agent chat panel on the right. users describe edits in natural language and the agent handles the rest — it uses gemini function calling to analyze the video, identify regions, generate edits, and present variants for review.
+A simplified 60/40 layout with the video player on the left and an agent chat panel on the right. Users describe edits in natural language and the agent handles the rest — it uses Gemini function calling to analyze the video, identify regions, generate edits, and present variants for review.
 
-vibe mode includes a video scrubber below the player for navigating the clip and tool call visualization in the chat so you can see exactly what the agent is doing at each step.
+Vibe mode includes a video scrubber below the player for navigating the clip and tool call visualization in the chat so you can see exactly what the agent is doing at each step.
 
-this is the best starting point for users who want to edit conversationally without manually selecting regions or configuring parameters.
+This is the best starting point for users who want to edit conversationally without manually selecting regions or configuring parameters.
 
-### pro mode.
+### Pro mode
 
-the full editor with a library sidebar, inspector panel (ai/basic/info tabs), timeline, and continuity dashboard. pro mode gives more granular control over individual edits — manual bounding box selection, direct generation parameter tuning, and frame-level timeline management.
+The full editor with a library sidebar, inspector panel (AI/basic/info tabs), timeline, and continuity dashboard. Pro mode gives more granular control over individual edits — manual bounding box selection, direct generation parameter tuning, and frame-level timeline management.
 
-use pro mode when you need precise control over timing, region selection, or want to manage continuity propagation manually.
+Use pro mode when you need precise control over timing, region selection, or want to manage continuity propagation manually.
 
-## main surfaces in the editor.
+## Main surfaces in the editor
 
-### library.
+### Library
 
-the library holds the media available to the current project, including uploads and generated assets.
+The library holds the media available to the current project, including uploads and generated assets.
 
-### preview.
+### Preview
 
-the preview is where users inspect frames, scrub through the clip, and make a visual selection.
+The preview is where users inspect frames, scrub through the clip, and make a visual selection.
 
-### inspector.
+### Inspector
 
-the inspector turns the active selection into an actionable ai editing flow. it handles generation controls, accepted edit flow, and continuity follow-through.
+The inspector turns the active selection into an actionable AI editing flow. It handles generation controls, accepted edit flow, and continuity follow-through.
 
-### timeline.
+### Timeline
 
-the timeline is where accepted edits stop being isolated outputs and become part of an editorial sequence.
+The timeline is where accepted edits stop being isolated outputs and become part of an editorial sequence.
 
 <div className="docs-stage">
   <div className="docs-section__eyebrow">acceptance</div>
-  <h2 className="docs-section__title">generated output is not the end state.</h2>
+  <h2 className="docs-section__title">Generated output is not the end state</h2>
   <p className="docs-section__lead">
-    in iris, the user is expected to judge the result and select intentionally.
-    that acceptance step is part of the product model, not cleanup after generation.
+    In Iris, the user is expected to judge the result and select intentionally.
+    That acceptance step is part of the product model, not cleanup after generation.
   </p>
 </div>
 
 <Note>
-  the strongest iris interaction is not "prompt and hope." it is "select, prompt, compare, accept, continue."
+  The strongest Iris interaction is not "prompt and hope." It is "select, prompt, compare, accept, continue."
 </Note>
 
-## related pages.
+## Related pages
 
-- [continuity](/product/continuity)
-- [library and projects](/product/library-and-projects)
-- [backend api](/reference/backend-api)
+- [Continuity](/product/continuity)
+- [Library and projects](/product/library-and-projects)
+- [Backend API](/reference/backend-api)

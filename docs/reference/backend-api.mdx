@@ -1,61 +1,61 @@
 ---
-title: "backend api."
-description: "practical route reference for every endpoint the iris backend exposes."
+title: "Backend API"
+description: "Practical route reference for every endpoint the Iris backend exposes."
 ---
 
-# backend api.
+# Backend API
 
-this page is a practical route reference, not a formal OpenAPI spec. all routes are prefixed with `/api`.
+This page is a practical route reference, not a formal OpenAPI spec. All routes are prefixed with `/api`.
 
-## health and status.
+## Health and status
 
 ### `GET /api/health`
 
-returns server liveness status.
+Returns server liveness status.
 
 ### `GET /api/me`
 
-returns the currently authenticated user profile.
+Returns the currently authenticated user profile.
 
 ### `GET /api/ai/health`
 
-returns ai provider reachability and configuration status.
+Returns AI provider reachability and configuration status.
 
 ### `GET /api/ai/timeline`
 
-returns the current ai-managed timeline state.
+Returns the current AI-managed timeline state.
 
 ### `GET /api/ai/stream`
 
-streaming endpoint for ai status events.
+Streaming endpoint for AI status events.
 
-## projects and uploads.
+## Projects and uploads
 
 ### `GET /api/projects`
 
-returns all projects for the current user.
+Returns all projects for the current user.
 
 **response:** array of project objects with `id`, `title`, `thumbnail_url`, `created_at`, `updated_at`.
 
 ### `GET /api/projects/{project_id}`
 
-returns a single project by id, including its media and metadata.
+Returns a single project by ID, including its media and metadata.
 
 **response:** project object with `id`, `title`, `source_url`, `duration`, `fps`, `width`, `height`, `variants`, `entities`.
 
 ### `POST /api/upload`
 
-multipart file upload. creates a new project from the uploaded video.
+Multipart file upload. Creates a new project from the uploaded video.
 
 **request:** `multipart/form-data` with a `file` field.
 
-**response:** the created project object. the backend runs ffprobe to extract duration, resolution, and fps during ingestion.
+**response:** The created project object. The backend runs FFprobe to extract duration, resolution, and FPS during ingestion.
 
-## editing and generation.
+## Editing and generation
 
 ### `POST /api/generate`
 
-starts a localized generation job for a selected region and time range.
+Starts a localized generation job for a selected region and time range.
 
 **request body:**
 
@@ -70,17 +70,17 @@ starts a localized generation job for a selected region and time range.
 }
 ```
 
-**response:** `{ "job_id": "string" }`. poll the job endpoint for progress and variants.
+**response:** `{ "job_id": "string" }`. Poll the job endpoint for progress and variants.
 
 ### `GET /api/jobs/{job_id}`
 
-returns the current status of a generation or export job.
+Returns the current status of a generation or export job.
 
 **response:** `{ "job_id", "status": "pending|running|completed|failed", "variants": [...], "error": null }`.
 
 ### `POST /api/accept`
 
-accepts a specific variant from a completed generation job.
+Accepts a specific variant from a completed generation job.
 
 **request body:**
 
@@ -91,11 +91,11 @@ accepts a specific variant from a completed generation job.
 }
 ```
 
-**response:** the accepted variant object. triggers downstream entity detection.
+**response:** The accepted variant object. Triggers downstream entity detection.
 
 ### `POST /api/identify`
 
-runs entity identification on a selected region of a frame.
+Runs entity identification on a selected region of a frame.
 
 **request body:**
 
@@ -107,11 +107,11 @@ runs entity identification on a selected region of a frame.
 }
 ```
 
-**response:** identified entity with `entity_id`, `label`, `confidence`.
+**response:** Identified entity with `entity_id`, `label`, `confidence`.
 
 ### `POST /api/mask`
 
-generates a segmentation mask for a selected region.
+Generates a segmentation mask for a selected region.
 
 **request body:**
 
@@ -123,19 +123,19 @@ generates a segmentation mask for a selected region.
 }
 ```
 
-**response:** mask data with `mask_url` and bounding geometry.
+**response:** Mask data with `mask_url` and bounding geometry.
 
-## entities and propagation.
+## Entities and propagation
 
 ### `GET /api/entities/{entity_id}`
 
-returns an entity and all its tracked appearances across the project timeline.
+Returns an entity and all its tracked appearances across the project timeline.
 
 **response:** `{ "entity_id", "label", "appearances": [{ "frame_ts", "bbox", "confidence" }] }`.
 
 ### `POST /api/propagate`
 
-fans out a generation to all known appearances of an entity.
+Fans out a generation to all known appearances of an entity.
 
 **request body:**
 
@@ -148,31 +148,31 @@ fans out a generation to all known appearances of an entity.
 }
 ```
 
-**response:** `{ "propagation_job_id": "string" }`. each appearance gets its own generation sub-job.
+**response:** `{ "propagation_job_id": "string" }`. Each appearance gets its own generation sub-job.
 
 ### `GET /api/propagate/{propagation_job_id}`
 
-returns propagation progress and per-appearance results.
+Returns propagation progress and per-appearance results.
 
 **response:** `{ "propagation_job_id", "status", "results": [{ "result_id", "appearance_frame_ts", "variant_url", "applied": false }] }`.
 
 ### `POST /api/propagate/{propagation_job_id}/apply/{result_id}`
 
-applies a single propagation result to the timeline.
+Applies a single propagation result to the timeline.
 
-**response:** the updated result with `applied: true`.
+**response:** The updated result with `applied: true`.
 
-## timeline and output.
+## Timeline and output
 
 ### `GET /api/timeline/{project_id}`
 
-returns the full editorial timeline for a project, including all accepted edits and their positions.
+Returns the full editorial timeline for a project, including all accepted edits and their positions.
 
 **response:** array of timeline entries with `variant_id`, `start_ts`, `end_ts`, `source`, `applied_at`.
 
 ### `POST /api/narrate`
 
-generates a voiceover narration for an accepted variant.
+Generates a voiceover narration for an accepted variant.
 
 **request body:**
 
@@ -187,7 +187,7 @@ generates a voiceover narration for an accepted variant.
 
 ### `POST /api/export`
 
-starts a full project export job that stitches all accepted edits into a final video.
+Starts a full project export job that stitches all accepted edits into a final video.
 
 **request body:**
 
@@ -201,15 +201,15 @@ starts a full project export job that stitches all accepted edits into a final v
 
 ### `GET /api/export/{export_job_id}`
 
-returns export job status and the download url when complete.
+Returns export job status and the download URL when complete.
 
 **response:** `{ "export_job_id", "status", "download_url": "string | null" }`.
 
-## agent chat.
+## Agent chat
 
 ### `POST /api/agent/chat`
 
-opens an SSE stream for agent-assisted editing. the agent uses gemini function calling to analyze the video, identify regions, and trigger edits on behalf of the user.
+Opens an SSE stream for agent-assisted editing. The agent uses Gemini function calling to analyze the video, identify regions, and trigger edits on behalf of the user.
 
 **request body:**
 
@@ -222,7 +222,7 @@ opens an SSE stream for agent-assisted editing. the agent uses gemini function c
 }
 ```
 
-**response:** server-sent events stream. each event has a `type` field:
+**response:** Server-sent events stream. Each event has a `type` field:
 
 | event type | payload | description |
 |---|---|---|
@@ -234,31 +234,31 @@ opens an SSE stream for agent-assisted editing. the agent uses gemini function c
 | `done` | `{}` | stream complete |
 | `error` | `{ "message": "..." }` | something went wrong |
 
-## conversations.
+## Conversations
 
-persistent chat history for agent interactions within a project.
+Persistent chat history for agent interactions within a project.
 
 ### `GET /api/projects/{project_id}/conversations`
 
-returns all conversations for a project.
+Returns all conversations for a project.
 
 **response:** array of `{ "conversation_id", "title", "created_at", "updated_at" }`.
 
 ### `POST /api/projects/{project_id}/conversations`
 
-creates a new conversation in the project.
+Creates a new conversation in the project.
 
-**response:** the created conversation object.
+**response:** The created conversation object.
 
 ### `GET /api/conversations/{conversation_id}/messages`
 
-returns all messages in a conversation, ordered chronologically.
+Returns all messages in a conversation, ordered chronologically.
 
 **response:** array of `{ "message_id", "role": "user|assistant|system", "content", "created_at" }`.
 
 ### `POST /api/conversations/{conversation_id}/messages`
 
-appends messages to a conversation.
+Appends messages to a conversation.
 
 **request body:**
 
@@ -273,7 +273,7 @@ appends messages to a conversation.
 
 ### `PATCH /api/conversations/{conversation_id}`
 
-updates conversation metadata.
+Updates conversation metadata.
 
 **request body:**
 
@@ -285,12 +285,12 @@ updates conversation metadata.
 
 ### `DELETE /api/conversations/{conversation_id}`
 
-deletes a conversation and all its messages.
+Deletes a conversation and all its messages.
 
-## notes.
+## Notes
 
-- uploads rely on ffmpeg and ffprobe to inspect incoming media.
-- some ai-heavy routes depend on the gpu worker being available.
-- storage resolves through local media paths or object storage depending on environment configuration.
-- agent chat requires gemini api keys to be configured.
-- conversation data is stored in postgres via the Conversation and ChatMessage models.
+- Uploads rely on FFmpeg and FFprobe to inspect incoming media.
+- Some AI-heavy routes depend on the GPU worker being available.
+- Storage resolves through local media paths or object storage depending on environment configuration.
+- Agent chat requires Gemini API keys to be configured.
+- Conversation data is stored in Postgres via the Conversation and ChatMessage models.

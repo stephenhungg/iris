@@ -1,18 +1,18 @@
 ---
-title: "local development."
-description: "environment setup, dev servers, and local workflow for iris."
+title: "Local Development"
+description: "Environment setup, dev servers, and local workflow for Iris."
 ---
 
-# local development.
+# Local Development
 
 <div className="docs-hero">
   <div className="docs-hero__row">
     <div>
       <div className="docs-hero__eyebrow">environment</div>
-      <h1>run the full stack locally.</h1>
+      <h1>Run the full stack locally</h1>
       <p>
-        iris runs as two processes locally: a vite frontend on port 3000 and a
-        fastapi backend on port 8000. both read from a shared .env at the repo root.
+        Iris runs as two processes locally: a Vite frontend on port 3000 and a
+        FastAPI backend on port 8000. Both read from a shared .env at the repo root.
       </p>
     </div>
     <div className="docs-slab">
@@ -27,24 +27,24 @@ description: "environment setup, dev servers, and local workflow for iris."
   </div>
 </div>
 
-## environment variables.
+## Environment variables
 
-create a `.env` file at the repo root. see `.env.example` for the full list.
+Create a `.env` file at the repo root. See `.env.example` for the full list.
 
-key variables:
+Key variables:
 
-| variable | purpose | required |
+| Variable | Purpose | Required |
 |----------|---------|----------|
-| `GEMINI_API_KEY` | gemini vision + text generation | yes (or use stubs) |
-| `DATABASE_URL` | postgres connection string | yes |
-| `USE_AI_STUBS` | `true` for offline dev, `false` for real AI | no (defaults to true) |
-| `VULTR_ACCESS_KEY` / `VULTR_SECRET_KEY` | object storage for media | no (local storage fallback) |
-| `SUPABASE_URL` / `SUPABASE_JWT_SECRET` | authentication | no (anon sessions work) |
-| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | frontend auth client | no |
-| `GPU_WORKER_URL` | SAM2 segmentation worker | no |
-| `ELEVENLABS_API_KEY` | TTS narration | no |
+| `GEMINI_API_KEY` | Gemini vision + text generation | Yes (or use stubs) |
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `USE_AI_STUBS` | `true` for offline dev, `false` for real AI | No (defaults to true) |
+| `VULTR_ACCESS_KEY` / `VULTR_SECRET_KEY` | Object storage for media | No (local storage fallback) |
+| `SUPABASE_URL` / `SUPABASE_JWT_SECRET` | Authentication | No (anon sessions work) |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Frontend auth client | No |
+| `GPU_WORKER_URL` | SAM2 segmentation worker | No |
+| `ELEVENLABS_API_KEY` | TTS narration | No |
 
-## starting the frontend.
+## Starting the frontend
 
 ```bash
 cd frontend
@@ -52,9 +52,9 @@ bun install
 bun run dev
 ```
 
-runs on `http://localhost:3000`.
+Runs on `http://localhost:3000`.
 
-## starting the backend.
+## Starting the backend
 
 ```bash
 cd backend
@@ -62,28 +62,28 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-or use the helper script:
+Or use the helper script:
 
 ```bash
 ./scripts/dev_backend.sh
 ```
 
-runs on `http://localhost:8000`.
+Runs on `http://localhost:8000`.
 
-## docker alternative.
+## Docker alternative
 
 ```bash
 cd infra
 docker compose up --build
 ```
 
-this starts frontend, backend, and postgres together. the backend runs on port 8000, frontend on port 3000.
+This starts frontend, backend, and PostgreSQL together. The backend runs on port 8000, frontend on port 3000.
 
-## stub mode.
+## Stub mode
 
-set `USE_AI_STUBS=true` in your `.env` to run without any API keys. all AI calls return deterministic placeholder responses. good for UI development and testing.
+Set `USE_AI_STUBS=true` in your `.env` to run without any API keys. All AI calls return deterministic placeholder responses. Good for UI development and testing.
 
-## iris CLI (optional).
+## Iris CLI (optional)
 
 ```bash
 cd cli
@@ -91,9 +91,9 @@ pip install -e .
 iris auth status
 ```
 
-the CLI wraps the backend API for scripting and agent-driven editing. see [CLI reference](/reference/cli) for all commands.
+The CLI wraps the backend API for scripting and agent-driven editing. See [CLI reference](/reference/cli) for all commands.
 
-## verification.
+## Verification
 
 ```bash
 curl http://localhost:8000/api/health
@@ -101,4 +101,4 @@ curl http://localhost:8000/api/ai/health
 npx tsc --noEmit --project frontend
 ```
 
-all three should pass before you start developing.
+All three should pass before you start developing.

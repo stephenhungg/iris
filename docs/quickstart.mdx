@@ -1,17 +1,17 @@
 ---
-title: "quickstart."
-description: "run iris locally, verify the stack, and make your first localized edit."
+title: "Quickstart"
+description: "Run Iris locally, verify the stack, and make your first localized edit."
 ---
 
-# quickstart.
+# Quickstart
 
 <div className="docs-hero">
   <div className="docs-hero__row">
     <div>
       <div className="docs-hero__eyebrow">run the stack</div>
-      <h1>from clone to first edit.</h1>
+      <h1>From clone to first edit</h1>
       <p>
-        this guide gets iris from repository checkout to a working local editor
+        This guide gets Iris from repository checkout to a working local editor
         as quickly as possible, with the minimum environment needed to upload a
         clip and test a localized edit.
       </p>
@@ -22,34 +22,34 @@ description: "run iris locally, verify the stack, and make your first localized 
         <li>Node.js 20+</li>
         <li>Python 3.11+</li>
         <li>FFmpeg and FFprobe</li>
-        <li>a repo-root <code>.env</code></li>
+        <li>A repo-root <code>.env</code></li>
       </ul>
     </div>
   </div>
 </div>
 
 <Tip>
-  the happy path is: install frontend dependencies, start the frontend, start the backend, verify health, then upload a clip and test one localized edit.
+  The happy path is: install frontend dependencies, start the frontend, start the backend, verify health, then upload a clip and test one localized edit.
 </Tip>
 
 <div className="docs-card-grid">
   <div className="docs-card">
-    <h3>frontend.</h3>
-    <p>vite and react app for landing, projects, and the active editing surface.</p>
+    <h3>Frontend</h3>
+    <p>Vite and React app for landing, projects, and the active editing surface.</p>
   </div>
   <div className="docs-card">
-    <h3>backend.</h3>
-    <p>fastapi service for uploads, projects, generation, masking, narration, and export.</p>
+    <h3>Backend</h3>
+    <p>FastAPI service for uploads, projects, generation, masking, narration, and export.</p>
   </div>
   <div className="docs-card">
-    <h3>media stack.</h3>
-    <p>ffmpeg and ffprobe bridge uploaded video into actual editorial operations.</p>
+    <h3>Media stack</h3>
+    <p>FFmpeg and FFprobe bridge uploaded video into actual editorial operations.</p>
   </div>
 </div>
 
-## know the layout.
+## Know the layout
 
-the repo is split by responsibility:
+The repo is split by responsibility:
 
 - `frontend/` for the Vite and React app
 - `backend/` for the FastAPI service and worker orchestration
@@ -59,48 +59,48 @@ the repo is split by responsibility:
 
 <div className="docs-stage">
   <div className="docs-section__eyebrow">boot sequence</div>
-  <h2 className="docs-section__title">start iris locally.</h2>
+  <h2 className="docs-section__title">Start Iris locally</h2>
   <p className="docs-section__lead">
-    keep the frontend and backend as separate processes. the frontend renders the
-    editor. the backend handles uploads, jobs, metadata, and ai-heavy routes.
+    Keep the frontend and backend as separate processes. The frontend renders the
+    editor. The backend handles uploads, jobs, metadata, and AI-heavy routes.
   </p>
 
   <Steps>
-  <Step title="install frontend dependencies">
+  <Step title="Install frontend dependencies">
 
 ```bash
 npm install --prefix frontend
 ```
 
   </Step>
-  <Step title="start the frontend">
+  <Step title="Start the frontend">
 
 ```bash
 npm run dev
 ```
 
-the frontend runs on `http://localhost:3000`.
+The frontend runs on `http://localhost:3000`.
 
   </Step>
-  <Step title="start the backend">
+  <Step title="Start the backend">
 
-run the fastapi backend with the repo-root environment loaded.
+Run the FastAPI backend with the repo-root environment loaded.
 
 ```bash
 cd backend && uvicorn app.main:app --reload --port 8000
 ```
 
-the backend serves uploads, projects, generation, identify, mask, propagation, narration, and export on `http://localhost:8000`.
+The backend serves uploads, projects, generation, identify, mask, propagation, narration, and export on `http://localhost:8000`.
 
   </Step>
-  <Step title="verify health">
+  <Step title="Verify health">
 
 ```bash
 curl http://localhost:8000/api/health
 curl http://localhost:8000/api/ai/health
 ```
 
-open `http://localhost:3000` once both checks are green.
+Open `http://localhost:3000` once both checks are green.
 
   </Step>
   </Steps>
@@ -108,54 +108,54 @@ open `http://localhost:3000` once both checks are green.
 
 <div className="docs-stage">
   <div className="docs-section__eyebrow">first run</div>
-  <h2 className="docs-section__title">make one real edit.</h2>
+  <h2 className="docs-section__title">Make one real edit</h2>
 
-1. open the editor.
-2. upload a source clip.
-3. scrub to a moment you want to change.
-4. draw a box around the subject or region.
-5. prompt a change.
-6. review the generated options.
-7. accept one result and continue editing.
+1. Open the editor.
+2. Upload a source clip.
+3. Scrub to a moment you want to change.
+4. Draw a box around the subject or region.
+5. Prompt a change.
+6. Review the generated options.
+7. Accept one result and continue editing.
 </div>
 
 <div className="docs-flow-grid">
   <div className="docs-flow">
-    <h3>environment.</h3>
-    <p>the repo-root <code>.env</code> powers both browser and backend behavior.</p>
+    <h3>Environment</h3>
+    <p>The repo-root <code>.env</code> powers both browser and backend behavior.</p>
   </div>
   <div className="docs-flow">
-    <h3>ai mode.</h3>
-    <p>stub mode is enough for local work. real demo paths want provider keys and reachable workers.</p>
+    <h3>AI mode</h3>
+    <p>Stub mode is enough for local work. Real demo paths want provider keys and reachable workers.</p>
   </div>
   <div className="docs-flow">
-    <h3>verification.</h3>
-    <p>use health endpoints and typecheck commands before debugging the editor itself.</p>
+    <h3>Verification</h3>
+    <p>Use health endpoints and typecheck commands before debugging the editor itself.</p>
   </div>
 </div>
 
 <div className="docs-band">
-  <strong>fastest local path:</strong> frontend on port 3000, backend on port 8000,
+  <strong>Fastest local path:</strong> frontend on port 3000, backend on port 8000,
   health checks green, then one upload and one accepted edit.
 </div>
 
-## what the backend needs.
+## What the backend needs
 
-the backend is not just an api shell. it depends on real media tooling.
+The backend is not just an API shell. It depends on real media tooling.
 
-### required for the local stack.
+### Required for the local stack
 
 - Python environment and dependencies
-- environment variables from the repo root
+- Environment variables from the repo root
 - FFmpeg and FFprobe for upload probing and media transforms
 
-### optional but important for the full experience.
+### Optional but important for the full experience
 
-- real provider keys instead of stub mode
-- object storage for durable media URLs
+- Real provider keys instead of stub mode
+- Object storage for durable media URLs
 - GPU worker for segmentation-heavy flows
 
-## common verification commands.
+## Common verification commands
 
 ```bash
 npm run lint
@@ -163,11 +163,11 @@ curl http://localhost:8000/api/health
 curl http://localhost:8000/api/ai/health
 ```
 
-## optional: the cli.
+## Optional: the CLI
 
-iris includes a command-line interface in the `cli/` directory that wraps the backend api. you can use it to list projects, upload clips, and trigger edits from your terminal. it also supports multi-agent video analysis for batch workflows.
+Iris includes a command-line interface in the `cli/` directory that wraps the backend API. You can use it to list projects, upload clips, and trigger edits from your terminal. It also supports multi-agent video analysis for batch workflows.
 
-## read next.
+## Read next
 
 - [editor workflow](/product/editor-workflow) to understand the full product loop
 - [architecture](/reference/architecture) for a high-level map of the codebase

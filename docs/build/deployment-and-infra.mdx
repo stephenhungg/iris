@@ -1,61 +1,61 @@
 ---
-title: "deployment."
-description: "how iris deploys to vultr via docker compose and github actions."
+title: "Deployment"
+description: "How Iris deploys to Vultr via Docker Compose and GitHub Actions."
 ---
 
-# deployment.
+# Deployment
 
 <div className="docs-hero">
   <div className="docs-hero__row">
     <div>
       <div className="docs-hero__eyebrow">infrastructure</div>
-      <h1>push to main. it deploys.</h1>
+      <h1>Push to main. It deploys.</h1>
       <p>
-        iris runs on a vultr VPS via docker compose. github actions handles
+        Iris runs on a Vultr VPS via Docker Compose. GitHub Actions handles
         CI checks and auto-deployment on every push to main.
       </p>
     </div>
   </div>
 </div>
 
-## production stack.
+## Production stack
 
-| component | technology | port |
+| Component | Technology | Port |
 |-----------|-----------|------|
-| frontend | vite + react (nginx) | 3000 |
-| backend | fastapi (uvicorn) | 8000 |
-| database | postgresql 16 | 5432 |
-| storage | vultr object storage (S3-compatible) | — |
-| GPU worker | modal (serverless, optional) | — |
+| Frontend | Vite + React (nginx) | 3000 |
+| Backend | FastAPI (uvicorn) | 8000 |
+| Database | PostgreSQL 16 | 5432 |
+| Storage | Vultr Object Storage (S3-compatible) | — |
+| GPU worker | Modal (serverless, optional) | — |
 
-## CI pipeline.
+## CI pipeline
 
-every push to main triggers three checks:
+Every push to main triggers three checks:
 
 1. **typecheck** — `bunx tsc --noEmit` on the frontend
 2. **CLI tests** — 75 unit tests via pytest
-3. **backend syntax** — AST parse check on all python files
+3. **backend syntax** — AST parse check on all Python files
 
-## deploy pipeline.
+## Deploy pipeline
 
-on push to main (after CI passes):
+On push to main (after CI passes):
 
-1. SSH into vultr server via ed25519 key
+1. SSH into Vultr server via ed25519 key
 2. `git fetch origin main && git reset --hard origin/main`
 3. `docker compose build --parallel && docker compose up -d`
-4. health check: polls `/api/health` until backend responds
+4. Health check: polls `/api/health` until backend responds
 5. `docker image prune -f` to clean up old images
 
-## docs pipeline.
+## Docs pipeline
 
-on push to main (if non-docs files changed):
+On push to main (if non-docs files changed):
 
-1. feeds the git diff to gemini
-2. gemini analyzes what documentation needs updating
-3. commits and pushes doc changes automatically
-4. mintlify auto-redeploys from `docs/`
+1. Feeds the git diff to Gemini
+2. Gemini analyzes what documentation needs updating
+3. Commits and pushes doc changes automatically
+4. Mintlify auto-redeploys from `docs/`
 
-## server layout.
+## Server layout
 
 ```
 /opt/iris/              # git repo
@@ -63,17 +63,17 @@ on push to main (if non-docs files changed):
 /opt/iris/.env          # production environment
 ```
 
-## docker compose services.
+## Docker Compose services
 
 - `frontend` — builds from `infra/Dockerfile.frontend`, serves on port 3000
 - `backend` — builds from `infra/Dockerfile.backend`, serves on port 8000, reads `.env`
-- `db` — postgres 16 alpine with persistent volume
+- `db` — PostgreSQL 16 Alpine with persistent volume
 - `gpu-worker` — optional, activated with `--profile gpu`
 
-## github secrets.
+## GitHub secrets
 
-| secret | purpose |
+| Secret | Purpose |
 |--------|---------|
-| `DEPLOY_HOST` | vultr server IP |
-| `DEPLOY_SSH_KEY` | ed25519 private key for SSH |
-| `GEMINI_API_KEY` | for auto-docs agent |
+| `DEPLOY_HOST` | Vultr server IP |
+| `DEPLOY_SSH_KEY` | Ed25519 private key for SSH |
+| `GEMINI_API_KEY` | For auto-docs agent |

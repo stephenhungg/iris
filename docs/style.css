@@ -24,7 +24,6 @@ body {
     linear-gradient(180deg, #050505 0%, #000000 40%, #020202 100%);
   color: rgba(255, 255, 255, 0.96);
   font-family: "Geist", system-ui, sans-serif;
-  text-transform: lowercase;
 }
 
 body::before {
@@ -135,12 +134,6 @@ aside {
   backdrop-filter: blur(16px);
 }
 
-nav,
-aside,
-[data-testid="sidebar"],
-[data-testid="table-of-contents"] {
-  text-transform: lowercase;
-}
 
 .docs-card,
 .docs-stage,
@@ -149,7 +142,6 @@ aside,
 .docs-flow,
 .docs-slab {
   position: relative;
-  overflow: hidden;
   border: 1px solid var(--iris-edge-soft);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018));
   box-shadow:

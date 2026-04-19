@@ -1,11 +1,11 @@
 ---
-title: "observability."
-description: "health endpoints, AI telemetry, and debugging tools."
+title: "Observability"
+description: "Health endpoints, AI telemetry, and debugging tools."
 ---
 
-# observability.
+# Observability
 
-## health endpoints.
+## Health endpoints
 
 ```bash
 # system health — reports ai mode, storage mode, service readiness
@@ -21,14 +21,14 @@ GET /api/ai/timeline
 GET /api/ai/stream
 ```
 
-## ai modes.
+## AI modes
 
-| mode | `USE_AI_STUBS` | behavior |
+| Mode | `USE_AI_STUBS` | Behavior |
 |------|---------------|----------|
-| stub | `true` | deterministic responses, no API calls, fast |
-| real | `false` | live gemini/veo/elevenlabs calls, requires API keys |
+| Stub | `true` | Deterministic responses, no API calls, fast |
+| Real | `false` | Live Gemini/Veo/ElevenLabs calls, requires API keys |
 
-the `/api/health` response tells you which mode is active:
+The `/api/health` response tells you which mode is active:
 
 ```json
 {
@@ -40,16 +40,16 @@ the `/api/health` response tells you which mode is active:
 }
 ```
 
-## debugging tips.
+## Debugging tips
 
-- check `ai_mode` first — most generation issues are caused by running in stub mode without realizing it
+- Check `ai_mode` first — most generation issues are caused by running in stub mode without realizing it
 - `storage_mode: "local"` means media is served from `/media/` mount, not S3
-- backend logs include `[iris.*]` prefixed logger names for each subsystem
-- the agent chat endpoint streams SSE events — use browser devtools network tab to inspect the event stream in real time
+- Backend logs include `[iris.*]` prefixed logger names for each subsystem
+- The agent chat endpoint streams SSE events — use browser DevTools Network tab to inspect the event stream in real time
 
-## job tracking.
+## Job tracking
 
-long-running operations (generate, export, propagate) are background jobs. poll status via:
+Long-running operations (generate, export, propagate) are background jobs. Poll status via:
 
 ```bash
 GET /api/jobs/{job_id}          # generation jobs
@@ -57,4 +57,4 @@ GET /api/export/{export_job_id} # export jobs
 GET /api/propagate/{prop_id}    # propagation jobs
 ```
 
-each returns a `status` field: `pending` → `processing` → `done` | `error`.
+Each returns a `status` field: `pending` → `processing` → `done` | `error`.

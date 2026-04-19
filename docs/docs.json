@@ -1,8 +1,8 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "iris.",
-  "description": "prompt-driven video editing docs for localized edits, variant generation, and continuity propagation.",
+  "name": "Iris",
+  "description": "Prompt-driven video editing docs for localized edits, variant generation, and continuity propagation.",
   "appearance": {
     "default": "dark",
     "strict": true
@@ -60,13 +60,13 @@
         "href": "https://github.com/stephenhungg/iris"
       },
       {
-        "label": "workflow",
+        "label": "Workflow",
         "href": "/product/editor-workflow"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "quickstart",
+      "label": "Quickstart",
       "href": "/quickstart"
     }
   },
