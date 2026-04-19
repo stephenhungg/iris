@@ -234,7 +234,6 @@ function Hero({ onStudio }: { onStudio: () => void }) {
         <motion.h1 initial={{ opacity: 0, y: -90 }} animate={{ opacity: 1, y: 0 }} transition={SPRING.bouncy}
           style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(100px, 18vw, 240px)', lineHeight: 0.85, letterSpacing: '-0.04em', color: '#fff', marginBottom: '48px' }}>
           <span style={{ background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite', filter: 'drop-shadow(0 0 80px rgba(255,255,255,0.08))' }}>iris</span>
-          <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.4em', verticalAlign: 'super', marginLeft: '8px' }}>™</span>
         </motion.h1>
 
         {/* bottom row */}
@@ -286,14 +285,28 @@ const STEPS = [
 
 function Thesis() {
   return (
-    <section style={{ padding: '200px 64px 160px', maxWidth: '1200px', margin: '0 auto' }}>
+    <section style={{ position: 'relative', padding: '200px 64px 160px', maxWidth: '1200px', margin: '0 auto' }}>
+      {/* decorative section number */}
+      <div style={{ position: 'absolute', top: '80px', right: '0', fontFamily: 'var(--font-display)', fontSize: '300px', fontWeight: 300, color: '#fff', opacity: 0.03, lineHeight: 1, pointerEvents: 'none', userSelect: 'none' }}>01</div>
+
+      {/* scattered images */}
+      <motion.img src="/frames/frame_040.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.25 }} viewport={{ once: true }}
+        transition={SPRING.badge}
+        style={{ position: 'absolute', top: '10%', right: '6%', width: '240px', height: '160px', objectFit: 'cover', rotate: '-1deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+      <motion.img src="/frames/frame_110.jpg" alt="" initial={{ opacity: 0 }} whileInView={{ opacity: 0.2 }} viewport={{ once: true }}
+        transition={SPRING.badge}
+        style={{ position: 'absolute', bottom: '12%', left: '2%', width: '200px', height: '140px', objectFit: 'cover', rotate: '2deg', border: '1px solid rgba(255,255,255,0.06)', pointerEvents: 'none', zIndex: 1 }} />
+
       <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={SPRING.badge}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em', marginBottom: '40px' }}>001 / about</motion.div>
 
       <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-100px' }} transition={SPRING.bouncy}
-        style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '80px' }}>
+        style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '0' }}>
         generation<br /><span style={{ fontStyle: 'italic', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', backgroundSize: '200% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animation: 'shimmer 8s ease-in-out infinite' }}>is the edit.</span>
       </motion.h2>
+
+      {/* divider line */}
+      <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.06)', margin: '40px 0' }} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '120px' }}>
         <div>
@@ -308,8 +321,10 @@ function Thesis() {
           <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ ...SPRING.badge, delay: 0.2 }}
             style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
             {[{ val: '3', label: 'variants per edit' }, { val: '<40s', label: 'generation time' }, { val: '∞', label: 'iterations' }].map((s, i) => (
-              <div key={i}>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '4px' }}>{s.val}</div>
+              <div key={i} style={{ cursor: 'default', transition: 'transform 0.3s' }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) valEl.style.color = 'rgba(255,255,255,1)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; const valEl = e.currentTarget.querySelector('[data-stat-val]') as HTMLElement | null; if (valEl) valEl.style.color = '#fff' }}>
+                <div data-stat-val="" style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 300, color: '#fff', letterSpacing: '-0.02em', marginBottom: '4px', transition: 'color 0.3s' }}>{s.val}</div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>{s.label}</div>
               </div>
             ))}
@@ -394,6 +409,14 @@ function TechStrip() {
 function CTA({ onStudio }: { onStudio: () => void }) {
   return (
     <section style={{ padding: '200px 64px', textAlign: 'center' }}>
+      {/* decorative frame strip */}
+      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={SPRING.badge}
+        style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginBottom: '64px' }}>
+        {['/frames/frame_020.jpg', '/frames/frame_070.jpg', '/frames/frame_130.jpg'].map((src, i) => (
+          <img key={i} src={src} alt="" style={{ width: '300px', height: '180px', objectFit: 'cover', opacity: 0.2, border: '1px solid rgba(255,255,255,0.06)' }} />
+        ))}
+      </motion.div>
+
       <motion.h2 initial={{ opacity: 0, y: -90 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={SPRING.bouncy}
         style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 'clamp(48px, 8vw, 128px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#fff', marginBottom: '32px' }}>
         rewrite <span style={{ fontStyle: 'italic' }}>reality.</span>
@@ -407,6 +430,9 @@ function CTA({ onStudio }: { onStudio: () => void }) {
         whileHover={{ scale: 1.03, transition: TWEEN.fast }} whileTap={{ scale: 0.97, transition: TWEEN.fast }}
         style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', padding: '18px 56px', border: 'none', background: '#fff', color: '#000', fontWeight: 600, letterSpacing: '0.1em', cursor: 'pointer', transition: 'box-shadow 0.3s' }}
         onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 0 60px rgba(255,255,255,0.15)')} onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>open studio</motion.button>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', marginTop: '20px' }}>
+        no account required · free during beta
+      </div>
     </section>
   )
 }
@@ -414,10 +440,35 @@ function CTA({ onStudio }: { onStudio: () => void }) {
 // ── footer ──────────────────────────────────────────────────────────
 
 function Footer() {
+  const footerLinks: Record<string, string[]> = {
+    product: ['editor', 'pricing', 'changelog'],
+    resources: ['docs', 'api', 'github'],
+    company: ['about', 'twitter', 'contact'],
+  }
+
   return (
-    <footer style={{ padding: '40px 64px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '16px', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>iris®</span>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em' }}>© 2026 · built at cal hacks</span>
+    <footer style={{ padding: '80px 64px 40px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      {/* link grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', maxWidth: '480px', paddingBottom: '40px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '40px' }}>
+        {Object.entries(footerLinks).map(([heading, links]) => (
+          <div key={heading}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.15em', marginBottom: '12px' }}>{heading}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {links.map(link => (
+                <a key={link} href="#" style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(255,255,255,0.3)', textDecoration: 'none', transition: 'color 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}>{link}</a>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* bottom row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '16px', background: 'linear-gradient(135deg, #707070, #B0B0B0, #E0E0E0, #B0B0B0, #707070)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>iris®</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(255,255,255,0.15)', letterSpacing: '0.15em' }}>© 2026 · built at cal hacks</span>
+      </div>
     </footer>
   )
 }
