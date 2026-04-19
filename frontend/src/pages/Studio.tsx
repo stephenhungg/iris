@@ -20,7 +20,16 @@ import { Timeline } from "../components/Timeline";
 import { Library } from "../components/Library";
 import { UploadDrop } from "../components/UploadDrop";
 import { VibePrompt } from "../components/VibePrompt";
-import { exportVideo, getTimeline, pollExport, upload, type TimelineSegment } from "../api/client";
+import {
+  exportVideo,
+  getTimeline,
+  pollExport,
+  saveTimeline,
+  upload,
+  type PersistedAsset,
+  type PersistedClip,
+  type TimelineSegment,
+} from "../api/client";
 import { Icon } from "../components/Icon";
 import { ContinuityStatusBadge } from "../features/continuity/ContinuityStatusBadge";
 import {
@@ -84,6 +93,82 @@ function buildTimelineClip(
     sourceAssetId: sourceAsset.id,
     label: sourceAsset.label,
   };
+}
+
+// ─── EDL round-trip helpers ──────────────────────────────────────────
+//
+// The persisted EDL on the backend uses snake_case fields; the frontend
+// store uses camelCase. These two helpers are the *only* places where
+// translation happens — one on hydrate (server → store) and one on save
+// (store → server). Keep them mirror images.
+
+function clipFromPersisted(c: PersistedClip): Clip {
+  return {
+    id: c.id,
+    kind: c.kind,
+    url: c.url,
+    sourceStart: c.source_start,
+    sourceEnd: c.source_end,
+    mediaDuration: c.media_duration,
+    volume: c.volume,
+    label: c.label ?? undefined,
+    projectId: c.project_id ?? undefined,
+    sourceAssetId: c.source_asset_id ?? undefined,
+    generatedFromClipId: c.generated_from_clip_id ?? undefined,
+  };
+}
+
+function assetFromPersisted(a: PersistedAsset): MediaAsset {
+  return {
+    id: a.id,
+    kind: a.kind,
+    url: a.url,
+    duration: a.duration,
+    fps: a.fps,
+    projectId: a.project_id,
+    label: a.label,
+  };
+}
+
+function clipToPersisted(c: Clip): PersistedClip {
+  return {
+    id: c.id,
+    kind: c.kind,
+    url: c.url,
+    source_start: c.sourceStart,
+    source_end: c.sourceEnd,
+    media_duration: c.mediaDuration,
+    volume: c.volume,
+    label: c.label ?? null,
+    project_id: c.projectId ?? null,
+    source_asset_id: c.sourceAssetId ?? null,
+    generated_from_clip_id: c.generatedFromClipId ?? null,
+  };
+}
+
+function assetToPersisted(a: MediaAsset): PersistedAsset {
+  return {
+    id: a.id,
+    kind: a.kind,
+    url: a.url,
+    duration: a.duration,
+    fps: a.fps,
+    project_id: a.projectId,
+    label: a.label,
+  };
+}
+
+/** Compact content-hash of everything that affects playback. Used by the
+ * auto-save effect to skip no-op PUTs (selection changes, playhead moves,
+ * bbox draws — all of those leave this signature unchanged). */
+function edlSignature(clips: Clip[], sources: MediaAsset[]): string {
+  const c = clips
+    .map((x) =>
+      `${x.id}|${x.url}|${x.sourceStart.toFixed(3)}|${x.sourceEnd.toFixed(3)}|${x.volume.toFixed(3)}`,
+    )
+    .join(";");
+  const s = sources.map((x) => `${x.id}|${x.url}|${x.duration.toFixed(3)}`).join(";");
+  return `${c}#${s}`;
 }
 
 function buildGeneratedAssets(project: StudioInitialProject, segments: TimelineSegment[]) {
@@ -184,6 +269,20 @@ function StudioInner({
         // is keyed on it) so the snapshot still refers to the right reel.
         const snap = initialProjectRef.current;
         if (!snap || snap.projectId !== projectId) return;
+
+        // prefer the saved EDL if one exists — it encodes splits/trims/
+        // reorders/volume that the flat segment view can't express. this
+        // is the happy path for any reel the user has edited and reopened.
+        if (tl.edl && tl.edl.clips.length > 0) {
+          const clips = tl.edl.clips.map(clipFromPersisted);
+          const sources = tl.edl.sources.map(assetFromPersisted);
+          // stamp lastSavedAt so we don't immediately auto-save on hydrate.
+          lastSavedAtRef.current = tl.edl.updated_at ?? Date.now() / 1000;
+          lastSavedSigRef.current = edlSignature(clips, sources);
+          dispatch({ type: "hydrate", sources, clips });
+          return;
+        }
+
         const project: StudioInitialProject = {
           projectId,
           videoUrl: snap.videoUrl,
@@ -210,6 +309,9 @@ function StudioInner({
               label: sourceAsset.label,
             }];
         const sources = [sourceAsset, ...buildGeneratedAssets(project, tl.segments)];
+        // treat the reconstructed-from-segments state as the baseline so
+        // the very first auto-save only fires after a real user edit.
+        lastSavedSigRef.current = edlSignature(clips, sources);
         dispatch({ type: "hydrate", sources, clips });
       } catch (err) {
         if (cancelled) return;
@@ -235,6 +337,7 @@ function StudioInner({
           sourceAssetId: sourceAsset.id,
           label: sourceAsset.label,
         };
+        lastSavedSigRef.current = edlSignature([fallback], [sourceAsset]);
         dispatch({ type: "hydrate", sources: [sourceAsset], clips: [fallback] });
       } finally {
         if (!cancelled) setHydratingProject(false);
@@ -243,6 +346,76 @@ function StudioInner({
 
     return () => { cancelled = true; };
   }, [projectId, dispatch]);
+
+  // ─── auto-save ────────────────────────────────────────────────────
+  //
+  // Debounced PUT to /api/timeline whenever the user's EDL actually
+  // changes. Guards:
+  //   - never fire while we're still hydrating (the effect above)
+  //   - never fire for no-op state (signature comparison)
+  //   - never fire until we've seen at least one clip (blank canvas
+  //     should not overwrite a saved EDL with garbage)
+  //
+  // Signature covers only the fields that would affect playback — clip
+  // order, timing, volume, url; library membership, etc. Transient state
+  // like playhead/selection/bbox is ignored.
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "pending" | "saving" | "saved" | "error"
+  >("idle");
+  const lastSavedSigRef = useRef<string>("");
+  const lastSavedAtRef = useRef<number>(0);
+  const saveTimerRef = useRef<number | null>(null);
+
+  const currentSig = edlSignature(state.clips, state.sources);
+  useEffect(() => {
+    if (!projectId) return;
+    if (hydratingProject) return;
+    if (state.clips.length === 0 && state.sources.length === 0) return;
+    if (currentSig === lastSavedSigRef.current) return;
+
+    setSaveStatus("pending");
+    if (saveTimerRef.current != null) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    // capture the state snapshot for the closure — we deliberately do NOT
+    // add state.clips/state.sources to deps because currentSig already
+    // summarizes them and re-deriving means adding every intermediate
+    // keystroke to the debounce chain would burn timers needlessly.
+    const clipsSnapshot = state.clips;
+    const sourcesSnapshot = state.sources;
+    saveTimerRef.current = window.setTimeout(async () => {
+      setSaveStatus("saving");
+      try {
+        const clips = clipsSnapshot.map(clipToPersisted);
+        const sources = sourcesSnapshot.map(assetToPersisted);
+        const resp = await saveTimeline(projectId, clips, sources);
+        lastSavedSigRef.current = currentSig;
+        lastSavedAtRef.current = resp.updated_at;
+        setSaveStatus("saved");
+      } catch (err) {
+        console.warn("[studio] timeline save failed:", err);
+        setSaveStatus("error");
+      }
+    }, 600);
+
+    return () => {
+      if (saveTimerRef.current != null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, hydratingProject, currentSig]);
+
+  // on unmount, flush any pending save synchronously-ish — last chance to
+  // get the user's final state to the server before the route unmounts.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current != null) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
 
   async function handleFile(file: File) {
     setUploading(true);
@@ -413,6 +586,8 @@ function StudioInner({
         exportLabel={exportLabel}
         canExport={state.clips.length > 0}
         continuity={continuity}
+        saveStatus={saveStatus}
+        lastSavedAt={lastSavedAtRef.current}
       />
 
       {showShortcuts && (
@@ -746,6 +921,8 @@ function TopBar({
   exportLabel,
   canExport,
   continuity,
+  saveStatus,
+  lastSavedAt,
 }: {
   onExit: () => void;
   onLibrary?: () => void;
@@ -759,6 +936,8 @@ function TopBar({
   exportLabel?: string;
   canExport?: boolean;
   continuity: ContinuityDashboardController;
+  saveStatus?: "idle" | "pending" | "saving" | "saved" | "error";
+  lastSavedAt?: number;
 }) {
   return (
     <header className="topbar">
@@ -794,6 +973,7 @@ function TopBar({
       </div>
 
       <div className="topbar__right">
+        <SaveChip status={saveStatus} lastSavedAt={lastSavedAt} />
         <ContinuityStatusBadge continuity={continuity} />
         <button
           onClick={onToggleMode}
@@ -815,6 +995,95 @@ function TopBar({
         </button>
       </div>
     </header>
+  );
+}
+
+// ─── save-status chip ───────────────────────────────────────────────
+//
+// Lives on the right side of the top bar, to the left of the continuity
+// badge. Shows one of four states:
+//   • pending / saving → animated dot, "saving…"
+//   • saved            → quiet "saved · <relative time>"
+//   • error            → "save failed" in the error hue
+//   • idle + no last save → nothing (blank canvas)
+//
+// The relative-time label re-computes every 15s so it drifts naturally
+// ("saved · now" → "saved · 15s ago" → "saved · 1m ago") without us
+// having to keep a timer alive on every dispatch.
+
+function relativeTime(epochSeconds: number): string {
+  if (!epochSeconds) return "";
+  const delta = Math.max(0, Date.now() / 1000 - epochSeconds);
+  if (delta < 5) return "just now";
+  if (delta < 60) return `${Math.floor(delta)}s ago`;
+  if (delta < 3600) return `${Math.floor(delta / 60)}m ago`;
+  return `${Math.floor(delta / 3600)}h ago`;
+}
+
+function SaveChip({
+  status,
+  lastSavedAt,
+}: {
+  status?: "idle" | "pending" | "saving" | "saved" | "error";
+  lastSavedAt?: number;
+}) {
+  const [, rerender] = useState(0);
+  useEffect(() => {
+    if (status !== "saved") return;
+    const id = window.setInterval(() => rerender((n) => n + 1), 15_000);
+    return () => window.clearInterval(id);
+  }, [status, lastSavedAt]);
+
+  if (!status || status === "idle") return null;
+
+  const busy = status === "pending" || status === "saving";
+  const errored = status === "error";
+  const label = errored
+    ? "save failed"
+    : busy
+      ? "saving…"
+      : `saved · ${relativeTime(lastSavedAt ?? 0)}`;
+
+  return (
+    <span
+      title={errored ? "last save failed — will retry on next edit" : "timeline auto-saved to iris"}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+        padding: "4px 11px 4px 10px",
+        borderRadius: 9999,
+        fontFamily: "var(--f-mono)",
+        fontSize: 10,
+        letterSpacing: "0.14em",
+        textTransform: "uppercase",
+        color: errored ? "var(--err)" : "var(--ink-fade)",
+        border: `1px solid ${errored ? "rgba(255,106,106,0.35)" : "var(--edge)"}`,
+        background: "rgba(12,12,12,0.6)",
+        transition: "color 140ms var(--ease), border-color 140ms var(--ease)",
+        userSelect: "none",
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: errored
+            ? "var(--err)"
+            : busy
+              ? "rgba(232,232,232,0.85)"
+              : "linear-gradient(135deg, #f4f4f4, #9a9a9a)",
+          boxShadow: errored
+            ? "0 0 6px rgba(255,106,106,0.55)"
+            : busy
+              ? "0 0 8px rgba(232,232,232,0.4)"
+              : "inset 0 -1px 0 rgba(0,0,0,0.4), 0 0 4px rgba(232,232,232,0.25)",
+          animation: busy ? "pulse 1.4s ease-in-out infinite" : undefined,
+        }}
+      />
+      {label}
+    </span>
   );
 }
 

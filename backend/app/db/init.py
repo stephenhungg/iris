@@ -29,6 +29,10 @@ _SCHEMA_UPGRADES_POSTGRES = [
     "ON entity_appearances (entity_id, start_ts)",
     "CREATE INDEX IF NOT EXISTS ix_jobs_status "
     "ON jobs (status)",
+    # persisted edit decision list — saves split/trim/delete/reorder/volume
+    # state across reel reopens. nullable on legacy projects so they still
+    # fall through to the old build_timeline() reconstruction path.
+    "ALTER TABLE projects ADD COLUMN IF NOT EXISTS timeline_edl JSONB",
 ]
 
 

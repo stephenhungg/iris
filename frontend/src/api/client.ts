@@ -145,10 +145,52 @@ export type TimelineSegment = {
   audio: boolean;
 };
 
+/** One clip in a saved EDL snapshot. Mirrors the frontend's Clip shape
+ * exactly — we round-trip them through the backend without re-shaping. */
+export type PersistedClip = {
+  id: string;
+  kind: "source" | "generated";
+  url: string;
+  source_start: number;
+  source_end: number;
+  media_duration: number;
+  volume: number;
+  label?: string | null;
+  project_id?: string | null;
+  source_asset_id?: string | null;
+  generated_from_clip_id?: string | null;
+};
+
+export type PersistedAsset = {
+  id: string;
+  kind: "source" | "generated";
+  url: string;
+  duration: number;
+  fps: number;
+  project_id: string;
+  label: string;
+};
+
+export type PersistedEDL = {
+  clips: PersistedClip[];
+  sources: PersistedAsset[];
+  /** epoch seconds, stamped by the server on save. */
+  updated_at?: number | null;
+};
+
 export type TimelineResp = {
   project_id: string;
   duration: number;
   segments: TimelineSegment[];
+  /** When present, client should use this instead of `segments` — it's the
+   * exact EDL the user had on screen at their last save. Null on reels
+   * that were never manually edited. */
+  edl: PersistedEDL | null;
+};
+
+export type TimelineSaveResp = {
+  project_id: string;
+  updated_at: number;
 };
 
 export type MaskResp = {
@@ -268,6 +310,19 @@ export function applyPropagationResult(
 
 export function getTimeline(project_id: string): Promise<TimelineResp> {
   return request(`/api/timeline/${project_id}`);
+}
+
+/** Persist a full EDL snapshot. Last-writer-wins; idempotent; safe to call
+ * on debounce from every edit. */
+export function saveTimeline(
+  project_id: string,
+  clips: PersistedClip[],
+  sources: PersistedAsset[],
+): Promise<TimelineSaveResp> {
+  return request<TimelineSaveResp>(`/api/timeline/${project_id}`, {
+    method: "PUT",
+    body: JSON.stringify({ clips, sources }),
+  });
 }
 
 export function getMask(
