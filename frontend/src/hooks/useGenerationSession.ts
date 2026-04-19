@@ -179,20 +179,17 @@ export function useGenerationSession({
         generatedFromClipId: target.id,
         volume: target.volume,
       });
-      const replacesWholeClip =
-        Math.abs(target.sourceStart - target.sourceClipStart) < 1e-3 &&
-        Math.abs(target.sourceEnd - target.sourceClipEnd) < 1e-3;
-      if (replacesWholeClip) {
-        dispatch({ type: "replace", id: target.id, with: replacement });
-      } else {
-        dispatch({
-          type: "replace_range",
-          id: target.id,
-          start: target.sourceStart,
-          end: target.sourceEnd,
-          with: replacement,
-        });
-      }
+      // always use replace_range so the rest of the clip is preserved.
+      // "replace" would swap the entire clip (including parts outside the
+      // edit window) with just the generated segment, losing the rest of
+      // the video.
+      dispatch({
+        type: "replace_range",
+        id: target.id,
+        start: target.sourceStart,
+        end: target.sourceEnd,
+        with: replacement,
+      });
       setPrompt("");
       clearSession({ keepPrompt: false });
       if (onAccepted) {
