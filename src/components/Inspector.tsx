@@ -61,6 +61,7 @@ function AiTab() {
   const { state, dispatch } = useEDL();
   const selected = state.clips.find((c) => c.id === state.selectedId) ?? null;
   const [prompt, setPrompt] = useState("");
+  const [bbox, setBbox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -93,7 +94,7 @@ function AiTab() {
         project_id: selected.projectId,
         start_ts: selected.sourceStart,
         end_ts: selected.sourceEnd,
-        bbox: { x: 0, y: 0, w: 1, h: 1 },
+        bbox: bbox ?? { x: 0, y: 0, w: 1, h: 1 },
         prompt: prompt.trim(),
         reference_frame_ts: (selected.sourceStart + selected.sourceEnd) / 2,
       });
@@ -230,6 +231,31 @@ function AiTab() {
         <Row k="target"    v={selected.label ?? "source"} />
         <Row k="range"     v={`${selected.sourceStart.toFixed(2)}s → ${selected.sourceEnd.toFixed(2)}s`} />
         <Row k="duration"  v={`${duration(selected).toFixed(2)}s`} />
+        {bbox && (
+          <div className="row">
+            <span className="label row__k">region</span>
+            <span className="mono row__v" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {describeBbox(bbox)}
+              <button
+                className="bbox-clear mono"
+                onClick={() => setBbox(null)}
+                title="clear region selection"
+                style={{
+                  background: "none",
+                  border: "1px solid var(--c-border, #444)",
+                  borderRadius: 3,
+                  color: "var(--c-muted, #888)",
+                  fontSize: 10,
+                  padding: "1px 5px",
+                  cursor: "pointer",
+                  lineHeight: 1.4,
+                }}
+              >
+                clear
+              </button>
+            </span>
+          </div>
+        )}
       </div>
 
       {err && (
@@ -310,6 +336,26 @@ function InfoTab() {
       )}
     </section>
   );
+}
+
+// ─── helpers ────────────────────────────────────────────────────────
+
+function describeBbox(b: { x: number; y: number; w: number; h: number }): string {
+  const cx = b.x + b.w / 2;
+  const cy = b.y + b.h / 2;
+  const vertical = cy < 0.33 ? "top" : cy > 0.66 ? "bottom" : "center";
+  const horizontal = cx < 0.33 ? "left" : cx > 0.66 ? "right" : "center";
+  const position =
+    vertical === "center" && horizontal === "center"
+      ? "center"
+      : vertical === "center"
+        ? horizontal
+        : horizontal === "center"
+          ? vertical
+          : `${vertical}-${horizontal}`;
+  const wPct = Math.round(b.w * 100);
+  const hPct = Math.round(b.h * 100);
+  return `${position} ${wPct}\u00D7${hPct}%`;
 }
 
 // ─── bits ────────────────────────────────────────────────────────────

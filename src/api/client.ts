@@ -114,6 +114,10 @@ export type TimelineResp = {
   segments: TimelineSegment[];
 };
 
+export type MaskResp = {
+  contour: [number, number][]; // normalized 0-1 points forming the mask outline
+};
+
 // ─── endpoints ────────────────────────────────────────────────────────
 
 export function me(): Promise<Me> {
@@ -147,6 +151,17 @@ export function accept(job_id: string, variant_index: number): Promise<AcceptRes
 
 export function getTimeline(project_id: string): Promise<TimelineResp> {
   return request(`/api/timeline/${project_id}`);
+}
+
+export function getMask(
+  projectId: string,
+  frameTs: number,
+  bbox: BBox,
+): Promise<MaskResp> {
+  return request<MaskResp>("/api/mask", {
+    method: "POST",
+    body: JSON.stringify({ project_id: projectId, frame_ts: frameTs, bbox }),
+  });
 }
 
 /** poll a job until it reaches done|error, emitting intermediate states. */
