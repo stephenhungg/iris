@@ -1,8 +1,10 @@
 /**
- * thin wrapper around backend fetch. every call carries an X-Session-Id
- * generated on first load and persisted in localStorage — the backend's
- * get_session dep will upsert a Session row on the first request.
+ * thin wrapper around backend fetch. calls carry:
+ *   - X-Session-Id: anonymous per-browser id for the backend Session row
+ *   - Authorization: Bearer <supabase access token> if the user is signed in
  */
+
+import { supabase } from "../lib/supabase";
 
 const SESSION_KEY = "iris.session_id";
 
@@ -24,6 +26,17 @@ async function request<T>(
   if (init.body && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
+
+  // attach the supabase JWT when we have one. backend can verify it with
+  // SUPABASE_JWT_SECRET (HS256) and trust user_id / email from the claims.
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  } catch {
+    // supabase client not ready — fall through as anonymous.
+  }
+
   const res = await fetch(path, { ...init, headers });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
