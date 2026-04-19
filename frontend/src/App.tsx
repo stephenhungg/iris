@@ -771,6 +771,42 @@ function Features() {
 
 // ── social proof ───────────────────────────────────────────────────
 
+const INSTALL_CMD = 'pip install iris-edit && mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md'
+
+function CopyInstallButton() {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(INSTALL_CMD).then(() => {
+          setCopied(true)
+          setTimeout(() => setCopied(false), 2000)
+        })
+      }}
+      style={{
+        marginTop: '6px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        width: '100%',
+        padding: '10px 0',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '8px',
+        background: copied ? 'rgba(126,231,135,0.08)' : 'rgba(255,255,255,0.03)',
+        color: copied ? 'rgba(126,231,135,0.9)' : 'rgba(255,255,255,0.5)',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '10px',
+        letterSpacing: '0.12em',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+      }}
+    >
+      {copied ? 'copied to clipboard' : 'copy one-liner install'}
+    </button>
+  )
+}
+
 const AGENT_TERMINAL_LINES = [
   '$ pip install iris-edit',
   '$ mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md',
@@ -866,6 +902,8 @@ function SocialProof() {
               <div style={{ marginTop: '8px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.32)', letterSpacing: '0.08em' }}>
                 one file. any agent can edit video.
               </div>
+
+              <CopyInstallButton />
             </div>
           </div>
         </ScrollReveal>
