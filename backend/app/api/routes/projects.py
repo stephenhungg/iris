@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,6 +13,62 @@ from app.models.session import Session as SessionModel
 from app.schemas.project import EntitySummary, ProjectOut, SegmentOut
 
 router = APIRouter(tags=["projects"])
+
+
+class MeResponse(BaseModel):
+    session_id: str
+    user_id: str | None
+    email: str | None
+    signed_in: bool
+
+
+class ProjectListItem(BaseModel):
+    project_id: str
+    video_url: str
+    duration: float
+    fps: float
+    width: int
+    height: int
+    created_at: str
+
+
+@router.get("/me", response_model=MeResponse)
+async def me(session: SessionModel = Depends(get_session)):
+    """Return the current session + whether it's tied to a google user."""
+    return MeResponse(
+        session_id=session.id,
+        user_id=session.user_id,
+        email=session.email,
+        signed_in=session.user_id is not None,
+    )
+
+
+@router.get("/projects", response_model=list[ProjectListItem])
+async def list_projects(
+    session: SessionModel = Depends(get_session),
+    db: AsyncSession = Depends(get_db),
+):
+    """Every project this session owns, newest first."""
+    rows = (
+        await db.execute(
+            select(Project)
+            .where(Project.session_id == session.id)
+            .order_by(Project.created_at.desc())
+            .limit(100)
+        )
+    ).scalars().all()
+    return [
+        ProjectListItem(
+            project_id=p.id,
+            video_url=p.video_url,
+            duration=p.duration,
+            fps=p.fps,
+            width=p.width,
+            height=p.height,
+            created_at=p.created_at.isoformat(),
+        )
+        for p in rows
+    ]
 
 
 async def _load_owned_project(

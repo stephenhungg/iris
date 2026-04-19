@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     runway_api_key: str = ""
     elevenlabs_api_key: str = ""
 
+    # legacy supabase jwt signing secret. when set, the backend verifies
+    # incoming Bearer tokens and scopes data by the google user id. when
+    # unset, the app falls back to anon session cookies (offline dev).
+    supabase_jwt_secret: str = ""
+
     max_video_seconds: int = 120
 
     allowed_origins: list[str] = [
