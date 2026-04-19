@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "iris-cli"
+version = "0.1.0"
+description = "CLI for the iris AI video editor"
+requires-python = ">=3.11"
+dependencies = [
+  "typer>=0.9",
+  "httpx>=0.28",
+  "rich>=13",
+  "google-genai>=1.73",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[project.scripts]
+iris = "iris_cli.main:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
