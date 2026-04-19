@@ -8,6 +8,8 @@ services:
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
         VITE_SUPABASE_REDIRECT: ${VITE_SUPABASE_REDIRECT:-}
         VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}
+    env_file:
+      - ../.env
     ports:
       - "3000:80"
     depends_on:
