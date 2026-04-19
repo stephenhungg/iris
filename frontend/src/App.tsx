@@ -773,11 +773,12 @@ function Features() {
 
 const AGENT_TERMINAL_LINES = [
   '$ pip install iris-cli',
-  '$ iris health',
-  '$ iris project list',
-  '$ iris project preview-frame proj_iris --ts 12.4',
-  '$ iris ai generate proj_iris --prompt "replace the phone with a chrome orb" --start 12.0 --end 13.2',
-  '$ iris variant accept var_01',
+  '$ mkdir -p ~/.claude/skills/iris-edit && curl -sL https://raw.githubusercontent.com/stephenhungg/iris/main/cli/SKILL.md -o ~/.claude/skills/iris-edit/SKILL.md',
+  '$ iris analyze proj_iris --fps 2.0',
+  '$ iris generate --project proj_iris --start 12.0 --end 14.0 --bbox "0.2,0.3,0.4,0.3" --prompt "replace the phone with a chrome orb"',
+  '$ iris score --compare var_01 var_02 var_03',
+  '$ iris accept --job job_abc --variant 0',
+  '$ iris export proj_iris',
 ]
 
 function SocialProof() {
