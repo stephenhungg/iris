@@ -124,9 +124,14 @@ async def identify(
         except Exception:
             pass
 
+    # gemini sometimes returns attributes as a flat string instead of a dict
+    raw_attrs = entity.get("attributes", {})
+    if isinstance(raw_attrs, str):
+        raw_attrs = {"description": raw_attrs}
+
     return IdentifyResponse(
         description=entity.get("description", ""),
         category=entity.get("category", ""),
-        attributes=entity.get("attributes", {}),
+        attributes=raw_attrs,
         mask=mask_out,
     )
