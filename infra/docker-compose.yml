@@ -3,6 +3,11 @@ services:
     build:
       context: ..
       dockerfile: infra/Dockerfile.frontend
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+        VITE_SUPABASE_REDIRECT: ${VITE_SUPABASE_REDIRECT:-}
+        VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}
     ports:
       - "3000:80"
     depends_on:
